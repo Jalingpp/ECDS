@@ -1,6 +1,8 @@
 module ECDS
 
-go 1.23
+go 1.21.4
+
+require github.com/AnthonyHewins/vandermonde v0.0.0-20200226201010-5f8ad1a834db
 
 require (
 	github.com/Nik-U/pbc v0.0.0-20181205041846-3e516ca0c5d6 // indirect
@@ -10,4 +12,5 @@ require (
 	github.com/templexxx/reedsolomon v1.1.3 // indirect
 	github.com/templexxx/xorsimd v0.1.1 // indirect
 	golang.org/x/sys v0.19.0 // indirect
+	gonum.org/v1/gonum v0.15.0 // indirect
 )
