@@ -1,6 +1,10 @@
 package encode
 
-import "errors"
+import (
+	"ECDS/util"
+	"errors"
+	"fmt"
+)
 
 type RSEC struct {
 	DataNum      int
@@ -9,10 +13,50 @@ type RSEC struct {
 }
 
 func TestRSEC() {
+	dn := 5
+	pn := 3
+	rsec := NewRSEC(dn, pn)
+	dataslice := make([][]int32, dn+pn)
+	for i := 0; i < dn+pn; i++ {
+		dataslice[i] = make([]int32, 6)
+	}
+	data1 := "abcdef"
+	dataslice[0] = util.ByteSliceToInt32Slice([]byte(data1))
+	fmt.Println("dataslice[0]:", dataslice[0])
+	data2 := "123456"
+	dataslice[1] = util.ByteSliceToInt32Slice([]byte(data2))
+	fmt.Println("dataslice[1]:", dataslice[1])
+	data3 := "123456"
+	dataslice[2] = util.ByteSliceToInt32Slice([]byte(data3))
+	fmt.Println("dataslice[2]:", dataslice[2])
+	data4 := "123456"
+	dataslice[3] = util.ByteSliceToInt32Slice([]byte(data4))
+	fmt.Println("dataslice[3]:", dataslice[3])
+	data5 := "123456"
+	dataslice[4] = util.ByteSliceToInt32Slice([]byte(data5))
+	fmt.Println("dataslice[4]:", dataslice[4])
+	fmt.Println()
+	fmt.Println("dataslice:")
+	util.PrintInt32Slices(dataslice)
+	fmt.Println()
+	//编码
+	rsec.Encode(dataslice)
+	fmt.Println("after encode:")
+	util.PrintInt32Slices(dataslice)
+	//解码
+	//剩余系数行切片
+	rows := []int{0, 1, 3, 4, 7}
+	//构造剩余数据矩阵
+	resdata := make([][]int32, rsec.DataNum)
+	for i := 0; i < rsec.DataNum; i++ {
+		resdata[i] = make([]int32, len(dataslice[0]))
+		copy(resdata[i], dataslice[rows[i]])
+	}
+	rsec.Decode(resdata, rows)
 
 }
 
-func New(d, p int) *RSEC {
+func NewRSEC(d, p int) *RSEC {
 	encodeMatrix := MakeEncodeMatrix(d, p)
 	return &RSEC{d, p, encodeMatrix}
 }
@@ -76,4 +120,42 @@ func (rsec *RSEC) checkEncode(vects [][]int32) (err error) {
 		}
 	}
 	return
+}
+
+// 根据剩余的数据块解码出完整数据：res剩余数据块或冗余块，rows是系数矩阵中res块对应的行号
+func (rsec *RSEC) Decode(res [][]int32, rows []int) [][]int32 {
+	//检查res和rows
+	if len(res) < rsec.DataNum || len(rows) < rsec.DataNum {
+		panic("Rest data shards is not enough")
+	}
+	//获取剩余系数矩阵
+	coffs := InitMatrix(rsec.DataNum, rsec.DataNum)
+	for i := 0; i < rsec.DataNum; i++ {
+		copy(coffs[i], rsec.EncodeMatrix[rows[i]])
+	}
+	fmt.Println()
+	fmt.Println("剩余系数矩阵：")
+	coffs.PrintMatrix()
+	//计算剩余系数矩阵的行列式
+	det := Determinant(coffs)
+	fmt.Println("剩余系数矩阵的行列式：", det)
+	//计算剩余系数矩阵的伴随矩阵
+	adjCoffs := Adjugate(coffs)
+	fmt.Println("剩余系数矩阵的伴随矩阵：")
+	adjCoffs.PrintMatrix()
+	fmt.Println()
+
+	fmt.Println("剩余数据矩阵：")
+	dataMatrix := InitMatrixByArray(res)
+	dataMatrix.PrintMatrix()
+
+	fmt.Println("伴随矩阵×剩余系数矩阵：")
+	mulCoffs := adjCoffs.MulMatrix(coffs)
+	mulCoffs.PrintMatrix()
+
+	//计算完整数据
+	fmt.Println("伴随矩阵×剩余数据矩阵：")
+	result := adjCoffs.MulMatrix(res)
+	result.PrintMatrix()
+	return result
 }

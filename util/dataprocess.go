@@ -1,6 +1,7 @@
 package util
 
 import (
+	"fmt"
 	"math"
 )
 
@@ -63,6 +64,12 @@ func ByteSliceToInt32Slice(bs []byte) []int32 {
 		is[i] = int32(bs[i])
 	}
 	return is
+}
+
+func PrintInt32Slices(is [][]int32) {
+	for i := 0; i < len(is); i++ {
+		fmt.Println(is[i])
+	}
 }
 
 func AddInt32Slice(a, b []int32) []int32 {
