@@ -1,8 +1,7 @@
 package main
 
-import "ECDS/encode"
-
-func main() {
-	encode.TestRSEC()
-	// encode.TestMatrix()
-}
+// func main() {
+// 	// encode.TestRSEC()
+// 	// encode.TestMatrix()
+// 	encode.TestFileCoder()
+// }

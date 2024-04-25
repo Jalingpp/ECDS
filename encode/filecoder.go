@@ -1,170 +1,178 @@
 package encode
 
 import (
+	"ECDS/pdp"
+	"ECDS/util"
 	"fmt"
-
-	"github.com/templexxx/reedsolomon"
-	xor "github.com/templexxx/xorsimd"
+	"time"
 )
 
 type FileCoder struct {
-	rsec       *reedsolomon.RS
-	Data_num   int
-	Parity_num int
+	Rsec        *RSEC
+	Sigger      *pdp.Signature
+	MetaFileMap map[string]*Meta4File // 用于记录每个文件的元数据,key是文件名
 }
 
-func (rsec *FileCoder) Setup(dn int, pn int) {
+type Meta4File struct {
+	//用于记录一个文件所有分片的信息
+	LatestVersionSlice   []int32
+	LatestTimestampSlice []string
+}
+
+// 【客户端执行】创建文件元数据记录器
+func NewMeta4File(n int) *Meta4File {
+	lvs := make([]int32, n)
+	lts := make([]string, n)
+	m4f := &Meta4File{lvs, lts}
+	return m4f
+}
+
+// 【客户端执行】更新一个文件的一个分片的元数据
+func (m4f *Meta4File) Update(n int, newT string, newV int32) {
+	m4f.LatestTimestampSlice[n] = newT
+	m4f.LatestVersionSlice[n] = newV
+}
+
+// 【客户端执行】创建文件编码器
+func NewFileCoder(dn int, pn int) *FileCoder {
+	fc := FileCoder{}
 	//创建编码器
-	ec, err := reedsolomon.New(dn, pn)
-	if err != nil {
-		panic(err)
-	}
-	rsec.rsec = ec
-	rsec.Data_num = dn
-	rsec.Parity_num = pn
+	fc.Rsec = NewRSEC(dn, pn)
+	//创建签名器
+	fc.Sigger = pdp.NewSig()
+	//初始化元数据记录器
+	fc.MetaFileMap = make(map[string]*Meta4File)
+	return &fc
 }
 
-func (rsec *FileCoder) Encode(dataslice [][]byte) [][]byte {
+// 【客户端执行】对文件分块，EC编码，签名
+func (fc *FileCoder) Setup(filename string, filedata string) []util.DataShard {
+	dsnum := fc.Rsec.DataNum + fc.Rsec.ParityNum
+	//创建一个包含数据块和校验块的[]int32切片
+	dataSlice := make([][]int32, dsnum)
+	//对文件进行分块后放入切片中
+	dsStrings := util.SplitString(filedata, fc.Rsec.DataNum)
+	for i := 0; i < fc.Rsec.DataNum; i++ {
+		dataSlice[i] = util.ByteSliceToInt32Slice([]byte(dsStrings[i]))
+	}
+	//初始化切片中的校验块
+	for i := fc.Rsec.DataNum; i < dsnum; i++ {
+		dataSlice[i] = make([]int32, len(dataSlice[0]))
+	}
 	//RS纠删码编码
-	err := rsec.rsec.Encode(dataslice)
+	err := fc.Rsec.Encode(dataSlice)
 	if err != nil {
 		panic(err)
 	}
-	// // Print the data
-	// for i := data_num; i < len(dataslice); i++ {
-	// 	fmt.Println("打印编码生成的冗余块：")
-	// 	fmt.Println(i, string(dataslice[i]))
-	// }
-	return dataslice
+	//为文件初始化一个元数据记录器
+	meta4file := NewMeta4File(dsnum)
+	//对切片中的每个块签名后构建DataShard
+	var dataShardSlice []util.DataShard
+	for i := 0; i < dsnum; i++ {
+		time := time.Now().Format("2006-01-02 15:04:05")
+		sig := fc.Sigger.GetSig(dataSlice[i], time, 0)
+		datashard := util.NewDataShard(dataSlice[i], sig, 0, time, fc.Sigger.Pairing, fc.Sigger.G, fc.Sigger.PubKey)
+		dataShardSlice = append(dataShardSlice, *datashard)
+		//将分片信息写入元数据记录器中
+		meta4file.Update(i, datashard.Timestamp, datashard.Version)
+	}
+	//将该文件的元数据记录器写入fc中
+	fc.MetaFileMap[filename] = meta4file
+	return dataShardSlice
 }
 
-// 计算数据的增量
-func GetIncData(oldData []byte, newData []byte) []byte {
-	buf := make([]byte, len(oldData))
-	xor.Encode(buf, [][]byte{oldData, newData})
-	return buf
-}
-
-// 根据数据块的增量更新冗余块
-func (rsec *FileCoder) UpdateParity(incData []byte, row int, parity [][]byte) (err error) {
-	vects := make([][]byte, 1+rsec.rsec.ParityNum)
-	vects[0] = incData
-	gm := make([]byte, rsec.rsec.ParityNum)
-	for i := 0; i < rsec.rsec.ParityNum; i++ {
-		col := row
-		off := i*rsec.rsec.DataNum + col
-		c := rsec.rsec.GenMatrix[off]
-		gm[i] = c
-		vects[i+1] = parity[i]
-	}
-	rs := &reedsolomon.RS{DataNum: 1, ParityNum: rsec.rsec.ParityNum, GenMatrix: gm, CpuFeat: rsec.rsec.CpuFeat}
-	rs.Encode_update(vects, true)
-	return nil
-}
-
-// 获取第row个数据块对应的每个校验块的生成系数
-func (rsec *FileCoder) GetMatrixElement(row int) []byte {
-	gm := make([]byte, rsec.rsec.ParityNum)
-	for i := 0; i < rsec.rsec.ParityNum; i++ {
-		col := row
-		off := i*rsec.rsec.DataNum + col
-		c := rsec.rsec.GenMatrix[off]
-		gm[i] = c
-	}
-	return gm
-}
-
-func TestEC() {
-	//创建编码器
-	encoder, err := reedsolomon.New(5, 3)
-	if err != nil {
-		panic(err)
-	}
-	//创建数据分片
-	data := make([][]byte, 8)
-	//初始化数据分片
-	for i := range data {
-		data[i] = make([]byte, 7)
-	}
-	data[0] = []byte("abcdefg")
-	data[1] = []byte("hijklmn")
-	data[2] = []byte("opqrstu")
-	data[3] = []byte("vwxyz01")
-	data[4] = []byte("2345678")
-	//RS纠删码编码
-	err = encoder.Encode(data)
-	if err != nil {
-		panic(err)
-	}
-	// Print the data
-	fmt.Println("第1次输出：")
-	for i := range data {
-		fmt.Println(i, data[i])
-	}
-	// //验证数据分片可恢复性
-	// ok, err1 := encoder.Verify(data)
-	// if err1 != nil {
-	// 	panic(err1)
-	// }
-	// fmt.Println("Verify:", ok)
-	// //删除数据分片
-	// data[1] = nil
-	// // Print the data
-	// for i := range data {
-	// 	fmt.Println(i, string(data[i]))
-	// }
-	// //重建数据分片
-	// err = encoder.Reconstruct(data)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// // Print the data
-	// for i := range data {
-	// 	fmt.Println(i, string(data[i]))
-	// }
-	//生成一个对比数据分片
-	compdata := make([][]byte, 8)
-	for i := range compdata {
-		compdata[i] = make([]byte, 7)
-		copy(compdata[i], data[i])
-	}
-	//Print the compdate
-	fmt.Println("第2次输出：")
-	for i := range compdata {
-		fmt.Println(i, compdata[i])
-	}
+// 【客户端执行】（原地）更新数据分片，返回增量校验块：filename是ds所属的文件名，drow是ds数据在稀疏矩阵中对应的行号
+func (fc *FileCoder) UpdateDataShard(filename string, drow int, ds *util.DataShard, dataStr string) []util.DataShard {
+	newData := util.ByteSliceToInt32Slice([]byte(dataStr))
+	oldData := make([]int32, len(newData))
+	copy(oldData, ds.Data)
 	//更新数据分片
-	newdata := []byte("1234567")
-	updaterow := 1
-	parityData := make([][]byte, 3)
-	parityData[0] = make([]byte, 7)
-	parityData[1] = data[6]
-	parityData[2] = make([]byte, 7)
-	err = encoder.Update(data[updaterow], newdata, updaterow, parityData)
-	if err != nil {
-		panic(err)
+	ds.Data = newData
+	ds.Timestamp = time.Now().Format("2006-01-02 15:04:05")
+	ds.Version = ds.Version + 1
+	ds.Sig = fc.Sigger.GetSig(newData, ds.Timestamp, ds.Version)
+	//将数据分片的更新写入到文件元数据记录器中
+	fc.MetaFileMap[filename].Update(drow, ds.Timestamp, ds.Version)
+	//计算数据增量
+	incData := fc.Rsec.GetIncData(oldData, newData)
+	//计算校验块增量，校验块签名增量，生成增量校验分片
+	var incParityShards []util.DataShard
+	for i := fc.Rsec.DataNum; i < fc.Rsec.DataNum+fc.Rsec.ParityNum; i++ {
+		//计算校验块增量和矩阵系数
+		incParity := fc.Rsec.GetIncParity(incData, i, drow)
+		//计算签名增量
+		oldV := fc.MetaFileMap[filename].LatestVersionSlice[i]
+		oldT := fc.MetaFileMap[filename].LatestTimestampSlice[i]
+		newV := oldV + 1
+		newT := time.Now().Format("2006-01-02 15:04:05")
+		incSig := fc.Sigger.GetIncSig(incParity, oldV, oldT, newV, newT)
+		iPS := util.NewDataShard(incParity, incSig, newV, newT, fc.Sigger.Pairing, fc.Sigger.G, fc.Sigger.PubKey)
+		fc.MetaFileMap[filename].Update(i, newT, newV)
+		incParityShards = append(incParityShards, *iPS)
 	}
-	// Print the data
-	fmt.Println("第3次输出：")
-	for i := range data {
-		fmt.Println(i, data[i])
+	return incParityShards
+}
+
+// 【存储节点执行】根据校验块增量分片更新校验块分片
+func UpdateParityShard(oldParityShard *util.DataShard, incParityShard *util.DataShard) *util.DataShard {
+	//更新分片数据
+	oldParityShard.Data = UpdateParity(oldParityShard.Data, incParityShard.Data)
+	//更新分片签名
+	oldParityShard.Sig = pdp.UpdateSigByIncSig(oldParityShard.Pairing, oldParityShard.Sig, incParityShard.Sig)
+	//更新分片版本
+	oldParityShard.Version = incParityShard.Version
+	//更新分片时间戳
+	oldParityShard.Timestamp = incParityShard.Timestamp
+	return oldParityShard
+}
+
+func TestFileCoder() {
+	dataNum := 5
+	parityNum := 3
+	//创建文件编码器
+	fileCoder := NewFileCoder(dataNum, parityNum)
+	//数据文件-字符串型
+	filename := "testFile"
+	fileStr := "abcdef123456123456123456123456"
+	//Setup
+	dataShards := fileCoder.Setup(filename, fileStr)
+	fmt.Println("【测试Setup】")
+	for i := 0; i < len(dataShards); i++ {
+		dataShards[i].Print()
+	}
+	//验签
+	fmt.Println("【测试验签】")
+	for i := 0; i < len(dataShards); i++ {
+		ds := dataShards[i]
+		fmt.Println("Verify datashard-", i)
+		pdp.VerifySig(ds.Pairing, ds.G, ds.PK, ds.Data, ds.Sig, ds.Version, ds.Timestamp)
+	}
+	//更新数据块
+	newDataStr := "abcdef"
+	udpDataRow := 2
+	incParityShards := fileCoder.UpdateDataShard(filename, udpDataRow, &dataShards[udpDataRow], newDataStr)
+	fmt.Println("【测试更新数据块】")
+	fmt.Println("校验块分片增量：")
+	for i := 0; i < len(incParityShards); i++ {
+		incParityShards[i].Print()
+	}
+	//更新校验块
+	fmt.Println("新的校验块分片：")
+	for i := dataNum; i < dataNum+parityNum; i++ {
+		newParityShard := UpdateParityShard(&dataShards[i], &incParityShards[i-dataNum])
+		newParityShard.Print()
+		dataShards[i] = *newParityShard
+	}
+	fmt.Println("【输出更新后的所有分片】")
+	for i := 0; i < dataNum+parityNum; i++ {
+		dataShards[i].Print()
 	}
 
-	fmt.Println("输出parityData：")
-	for i := 0; i < len(parityData); i++ {
-		fmt.Println(i, parityData[i])
-	}
-
-	//修改compdata，重编码
-	compdata[updaterow] = newdata
-	err = encoder.Encode(compdata)
-	if err != nil {
-		panic(err)
-	}
-	//Print the compdate
-	fmt.Println("第4次输出：")
-	for i := range compdata {
-		fmt.Println(i, compdata[i])
+	// //测试校验块的验签
+	for i := dataNum; i < dataNum+parityNum; i++ {
+		ds := dataShards[i]
+		fmt.Println("Verify parityshard-", i)
+		pdp.VerifySig(ds.Pairing, ds.G, ds.PK, ds.Data, ds.Sig, ds.Version, ds.Timestamp)
 	}
 
 }

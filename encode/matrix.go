@@ -1,6 +1,7 @@
 package encode
 
 import (
+	"ECDS/util"
 	"fmt"
 
 	"gonum.org/v1/gonum/mat"
@@ -176,6 +177,19 @@ func (m Matrix) MulInt32(n int32) Matrix {
 	return result
 }
 
+func (m Matrix) DivInt32(n int32) Matrix {
+	row := len(m)
+	col := len(m[0])
+	result := make([][]int32, row)
+	for i := range result {
+		result[i] = make([]int32, col)
+		for j := range result[i] {
+			result[i][j] = m[i][j] / n
+		}
+	}
+	return result
+}
+
 func (m Matrix) AddMatrix(mm Matrix) Matrix {
 	row := len(m)
 	col := len(m[0])
@@ -215,6 +229,7 @@ func (m Matrix) MulMatrix(n Matrix) Matrix {
 
 // cofactor 计算代数余子式
 func Cofactor(matrix [][]int32, row, col int) int32 {
+	// fmt.Println("--Debug---开始计算代数余子式--", row, "--", col, "---Debug--")
 	subMatrix := [][]int32{}
 	for i := 0; i < len(matrix); i++ {
 		if i == row {
@@ -229,17 +244,27 @@ func Cofactor(matrix [][]int32, row, col int) int32 {
 		}
 		subMatrix = append(subMatrix, subRow)
 	}
-	return int32((-1)^(row+col)) * Determinant(subMatrix)
+	// fmt.Println("subMatrix:")
+	// subM := InitMatrixByArray(subMatrix)
+	// subM.PrintMatrix()
+	det := Determinant(subMatrix)
+	coff := util.Power(-1, row+col)
+	// fmt.Println("Power(-1,row+col):", coff)
+	dsyzs := int32(coff) * det
+	// fmt.Println("代数余子式：", dsyzs)
+	return dsyzs
 }
 
 // adjugate 计算矩阵的伴随矩阵
 func Adjugate(matrix [][]int32) Matrix {
+	// fmt.Println("--Debug---开始计算伴随矩阵---Debug--")
 	n := len(matrix)
 	adj := make([][]int32, n)
 	for i := range adj {
 		adj[i] = make([]int32, n)
 		for j := range adj[i] {
 			adj[i][j] = Cofactor(matrix, j, i) // 注意此处 j, i 的顺序，以便进行转置
+			// fmt.Println("A[", i, ",", j, "]=", adj[i][j])
 		}
 	}
 	return adj

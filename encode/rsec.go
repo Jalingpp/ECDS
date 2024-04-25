@@ -45,15 +45,45 @@ func TestRSEC() {
 	util.PrintInt32Slices(dataslice)
 	//解码
 	//剩余系数行切片
-	rows := []int{0, 1, 3, 4, 7}
+	rows := []int{0, 2, 3, 4, 6}
 	//构造剩余数据矩阵
 	resdata := make([][]int32, rsec.DataNum)
 	for i := 0; i < rsec.DataNum; i++ {
 		resdata[i] = make([]int32, len(dataslice[0]))
 		copy(resdata[i], dataslice[rows[i]])
 	}
-	rsec.Decode(resdata, rows)
-
+	fmt.Println("解码得到完整数据：")
+	datashards := rsec.Decode(resdata, rows)
+	util.PrintInt32Slices(datashards)
+	//更新数据
+	newdata := "ghijkl"
+	udrow := 2 //待更新的数据块行号
+	olddata := make([]int32, len(dataslice[udrow]))
+	copy(olddata, dataslice[udrow])
+	dataslice[udrow] = util.ByteSliceToInt32Slice([]byte(newdata))
+	fmt.Println()
+	fmt.Println("更新的数据块：")
+	fmt.Println(dataslice[udrow])
+	incdata := rsec.GetIncData(olddata, dataslice[udrow])
+	for i := rsec.DataNum; i < rsec.DataNum+rsec.ParityNum; i++ {
+		incParity := rsec.GetIncParity(incdata, i, udrow)
+		newparity := UpdateParity(dataslice[i], incParity)
+		dataslice[i] = newparity
+	}
+	fmt.Println("更新后的数据块和校验块：")
+	util.PrintInt32Slices(dataslice)
+	//测试更新后的解码
+	//剩余系数行切片
+	rows = []int{0, 2, 3, 4, 6}
+	//构造剩余数据矩阵
+	resdata = make([][]int32, rsec.DataNum)
+	for i := 0; i < rsec.DataNum; i++ {
+		resdata[i] = make([]int32, len(dataslice[0]))
+		copy(resdata[i], dataslice[rows[i]])
+	}
+	fmt.Println("解码得到完整数据：")
+	datashards = rsec.Decode(resdata, rows)
+	util.PrintInt32Slices(datashards)
 }
 
 func NewRSEC(d, p int) *RSEC {
@@ -61,6 +91,8 @@ func NewRSEC(d, p int) *RSEC {
 	return &RSEC{d, p, encodeMatrix}
 }
 
+// 纠删码编码：dataslice包括数据块和校验块
+// 编码前校验块为空，编码后生成校验块
 func (rsec *RSEC) Encode(dataslice [][]int32) (err error) {
 	err = rsec.checkEncode(dataslice)
 	if err != nil {
@@ -78,23 +110,7 @@ func (rsec *RSEC) GetParity(row int, dataslice [][]int32) []int32 {
 	result := make([]int32, len(dataslice[0]))
 	coffs := rsec.EncodeMatrix[row]
 	for i := 0; i < len(coffs); i++ {
-		result = VectorAddVector(result, VectorMulInt32(dataslice[i], coffs[i]))
-	}
-	return result
-}
-
-func VectorMulInt32(v []int32, n int32) []int32 {
-	result := make([]int32, len(v))
-	for i := 0; i < len(v); i++ {
-		result[i] = n * v[i]
-	}
-	return result
-}
-
-func VectorAddVector(v1, v2 []int32) []int32 {
-	result := make([]int32, len(v1))
-	for i := 0; i < len(v1); i++ {
-		result[i] = v1[i] + v2[i]
+		result = util.VectorAddVector(result, util.VectorMulInt32(dataslice[i], coffs[i]))
 	}
 	return result
 }
@@ -133,29 +149,38 @@ func (rsec *RSEC) Decode(res [][]int32, rows []int) [][]int32 {
 	for i := 0; i < rsec.DataNum; i++ {
 		copy(coffs[i], rsec.EncodeMatrix[rows[i]])
 	}
-	fmt.Println()
-	fmt.Println("剩余系数矩阵：")
-	coffs.PrintMatrix()
 	//计算剩余系数矩阵的行列式
 	det := Determinant(coffs)
-	fmt.Println("剩余系数矩阵的行列式：", det)
 	//计算剩余系数矩阵的伴随矩阵
 	adjCoffs := Adjugate(coffs)
-	fmt.Println("剩余系数矩阵的伴随矩阵：")
-	adjCoffs.PrintMatrix()
-	fmt.Println()
-
-	fmt.Println("剩余数据矩阵：")
-	dataMatrix := InitMatrixByArray(res)
-	dataMatrix.PrintMatrix()
-
-	fmt.Println("伴随矩阵×剩余系数矩阵：")
-	mulCoffs := adjCoffs.MulMatrix(coffs)
-	mulCoffs.PrintMatrix()
-
 	//计算完整数据
-	fmt.Println("伴随矩阵×剩余数据矩阵：")
 	result := adjCoffs.MulMatrix(res)
-	result.PrintMatrix()
+	result = result.DivInt32(det)
+	return result
+}
+
+// 获得数据增量
+func (rsec *RSEC) GetIncData(oldData []int32, newData []int32) []int32 {
+	if len(oldData) != len(newData) {
+		panic("Data length is not same.")
+	}
+	result := make([]int32, len(oldData))
+	for i := 0; i < len(oldData); i++ {
+		result[i] = newData[i] - oldData[i]
+	}
+	return result
+}
+
+// 【客户端执行】根据数据增量计算校验块增量，返回增量校验块
+func (rsec *RSEC) GetIncParity(incData []int32, prow int, drow int) []int32 {
+	//获取校验块对应的系数
+	coff := rsec.EncodeMatrix[prow][drow]
+	incParity := util.VectorMulInt32(incData, coff)
+	return incParity
+}
+
+// 【存储节点执行】根据校验块增量更新校验块
+func UpdateParity(oldParity []int32, incParity []int32) []int32 {
+	result := util.VectorAddVector(oldParity, incParity)
 	return result
 }

@@ -88,3 +88,36 @@ func AddInt32Slice(a, b []int32) []int32 {
 
 	return result
 }
+
+// 求base的exponent次方
+func Power(base, exponent int) int {
+	result := 1
+	for i := 0; i < exponent; i++ {
+		result *= base
+	}
+	return result
+}
+
+func VectorMulInt32(v []int32, n int32) []int32 {
+	result := make([]int32, len(v))
+	for i := 0; i < len(v); i++ {
+		result[i] = n * v[i]
+	}
+	return result
+}
+
+func VectorAddVector(v1, v2 []int32) []int32 {
+	result := make([]int32, len(v1))
+	for i := 0; i < len(v1); i++ {
+		result[i] = v1[i] + v2[i]
+	}
+	return result
+}
+
+func Int32SliceToStr(is []int32) string {
+	bs := make([]byte, len(is))
+	for i := 0; i < len(bs); i++ {
+		bs[i] = byte(is[i])
+	}
+	return string(bs)
+}
