@@ -100,6 +100,48 @@ func (sigger *Signature) TestIncSig(oldV int32, newV int32, oldT string, newT st
 	}
 }
 
+// 【存储节点执行】根据数据块签名和系数生成校验块的增量签名
+func GetParityIncSig(pairing *pbc.Pairing, oldSig []byte, oldVT []byte, newVT []byte, coeff int32) []byte {
+	//将oldSig去时间戳和版本号
+	oldsig := pairing.NewG1().SetBytes(oldSig)
+	olgvt := pairing.NewG1().SetBytes(oldVT)
+	oldGM := pairing.NewG1().Div(oldsig, olgvt)
+	//将oldGM幂乘系数
+	coeff_p := pairing.NewZr().SetInt32(coeff)
+	newGM := pairing.NewG1().PowZn(oldGM, coeff_p)
+	//给newGM添加新时间戳和版本号
+	newvt := pairing.NewG1().SetBytes(newVT)
+	newsig := pairing.NewG1().Mul(newvt, newGM)
+	return newsig.Bytes()
+}
+
+func (sigger *Signature) TestParityIncSig(v1 int32, t1 string, m []int32, v2 int32, t2 string, coef int32) bool {
+	//生成sig1
+	sig1 := sigger.GetSig(m, t1, v1)
+	//方法一计算sig2
+	m2 := util.VectorMulInt32(m, coef)
+	sig2 := sigger.Pairing.NewG1().SetBytes(sigger.GetSig(m2, t2, v2))
+	//方法二计算sig3
+	oht := sigger.Pairing.NewG1().SetFromStringHash(t1, sha256.New())
+	ov := sigger.Pairing.NewZr().SetInt32(v1)
+	ovt := sigger.Pairing.NewG1().PowZn(oht, ov)
+	sk := sigger.Pairing.NewZr().SetBytes(sigger.PrivKey)
+	ovtsk := sigger.Pairing.NewG1().PowZn(ovt, sk)
+	nht := sigger.Pairing.NewG1().SetFromStringHash(t2, sha256.New())
+	nv := sigger.Pairing.NewZr().SetInt32(v2)
+	nvt := sigger.Pairing.NewG1().PowZn(nht, nv)
+	nvtsk := sigger.Pairing.NewG1().PowZn(nvt, sk)
+	sig3 := sigger.Pairing.NewG1().SetBytes(GetParityIncSig(sigger.Pairing, sig1, ovtsk.Bytes(), nvtsk.Bytes(), coef))
+	//比较sig2和sig3是否一致
+	if !sig2.Equals(sig3) {
+		fmt.Println("*BUG* Signature check failed *BUG*")
+		return false
+	} else {
+		fmt.Println("【TestParityIncSig】Signature verified correctly")
+		return true
+	}
+}
+
 func VerifySig(pairing *pbc.Pairing, gb []byte, pubkey []byte, message []int32, signature []byte, v int32, t string) bool {
 	ht := pairing.NewG1().SetFromStringHash(t, sha256.New())
 	vp := pairing.NewZr().SetInt32(v)
@@ -125,8 +167,13 @@ func TestSignature() {
 	sigger := NewSig()
 	message := "TestSignature"
 	messageInt32 := util.ByteSliceToInt32Slice([]byte(message))
-	t := time.Now().Format("2006-01-02 15:04:05")
-	v := int32(1)
-	sig := sigger.GetSig(messageInt32, t, v)
-	VerifySig(sigger.Pairing, sigger.G, sigger.PubKey, messageInt32, sig, v, t)
+	t1 := time.Now().Format("2006-01-02 15:04:05")
+	v1 := int32(1)
+	// sig := sigger.GetSig(messageInt32, t, v)
+	time.Sleep(time.Second)
+	t2 := time.Now().Format("2006-01-02 15:04:05")
+	v2 := int32(2)
+	coef := int32(8)
+	sigger.TestParityIncSig(v1, t1, messageInt32, v2, t2, coef)
+	// VerifySig(sigger.Pairing, sigger.G, sigger.PubKey, messageInt32, sig, v, t)
 }

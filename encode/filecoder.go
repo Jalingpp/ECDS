@@ -46,7 +46,7 @@ func NewFileCoder(dn int, pn int) *FileCoder {
 }
 
 // 【客户端执行】对文件分块，EC编码，签名
-func (fc *FileCoder) Setup(filename string, filedata string) []util.DataShard {
+func (fc *FileCoder) Setup(filename string, filedata string) ([]util.DataShard, *util.PublicInfo) {
 	dsnum := fc.Rsec.DataNum + fc.Rsec.ParityNum
 	//创建一个包含数据块和校验块的[]int32切片
 	dataSlice := make([][]int32, dsnum)
@@ -64,6 +64,8 @@ func (fc *FileCoder) Setup(filename string, filedata string) []util.DataShard {
 	if err != nil {
 		panic(err)
 	}
+	//创建公共信息对象（发送给存储节点，用于验签、更新等操作）
+	publicInfo := util.NewPublicInfo(fc.Sigger.Pairing, fc.Sigger.G, fc.Sigger.PubKey)
 	//为文件初始化一个元数据记录器
 	meta4file := NewMeta4File(dsnum)
 	//对切片中的每个块签名后构建DataShard
@@ -71,14 +73,14 @@ func (fc *FileCoder) Setup(filename string, filedata string) []util.DataShard {
 	for i := 0; i < dsnum; i++ {
 		time := time.Now().Format("2006-01-02 15:04:05")
 		sig := fc.Sigger.GetSig(dataSlice[i], time, 0)
-		datashard := util.NewDataShard(dataSlice[i], sig, 0, time, fc.Sigger.Pairing, fc.Sigger.G, fc.Sigger.PubKey)
+		datashard := util.NewDataShard(dataSlice[i], sig, 0, time)
 		dataShardSlice = append(dataShardSlice, *datashard)
 		//将分片信息写入元数据记录器中
 		meta4file.Update(i, datashard.Timestamp, datashard.Version)
 	}
 	//将该文件的元数据记录器写入fc中
 	fc.MetaFileMap[filename] = meta4file
-	return dataShardSlice
+	return dataShardSlice, publicInfo
 }
 
 // 【客户端执行】（原地）更新数据分片，返回增量校验块：filename是ds所属的文件名，drow是ds数据在稀疏矩阵中对应的行号
@@ -106,7 +108,7 @@ func (fc *FileCoder) UpdateDataShard(filename string, drow int, ds *util.DataSha
 		newV := oldV + 1
 		newT := time.Now().Format("2006-01-02 15:04:05")
 		incSig := fc.Sigger.GetIncSig(incParity, oldV, oldT, newV, newT)
-		iPS := util.NewDataShard(incParity, incSig, newV, newT, fc.Sigger.Pairing, fc.Sigger.G, fc.Sigger.PubKey)
+		iPS := util.NewDataShard(incParity, incSig, newV, newT)
 		fc.MetaFileMap[filename].Update(i, newT, newV)
 		incParityShards = append(incParityShards, *iPS)
 	}
@@ -114,11 +116,11 @@ func (fc *FileCoder) UpdateDataShard(filename string, drow int, ds *util.DataSha
 }
 
 // 【存储节点执行】根据校验块增量分片更新校验块分片
-func UpdateParityShard(oldParityShard *util.DataShard, incParityShard *util.DataShard) *util.DataShard {
+func UpdateParityShard(oldParityShard *util.DataShard, incParityShard *util.DataShard, publicInfo *util.PublicInfo) *util.DataShard {
 	//更新分片数据
 	oldParityShard.Data = UpdateParity(oldParityShard.Data, incParityShard.Data)
 	//更新分片签名
-	oldParityShard.Sig = pdp.UpdateSigByIncSig(oldParityShard.Pairing, oldParityShard.Sig, incParityShard.Sig)
+	oldParityShard.Sig = pdp.UpdateSigByIncSig(publicInfo.Pairing, oldParityShard.Sig, incParityShard.Sig)
 	//更新分片版本
 	oldParityShard.Version = incParityShard.Version
 	//更新分片时间戳
@@ -135,7 +137,7 @@ func TestFileCoder() {
 	filename := "testFile"
 	fileStr := "abcdef123456123456123456123456"
 	//Setup
-	dataShards := fileCoder.Setup(filename, fileStr)
+	dataShards, publicInfo := fileCoder.Setup(filename, fileStr)
 	fmt.Println("【测试Setup】")
 	for i := 0; i < len(dataShards); i++ {
 		dataShards[i].Print()
@@ -145,7 +147,7 @@ func TestFileCoder() {
 	for i := 0; i < len(dataShards); i++ {
 		ds := dataShards[i]
 		fmt.Println("Verify datashard-", i)
-		pdp.VerifySig(ds.Pairing, ds.G, ds.PK, ds.Data, ds.Sig, ds.Version, ds.Timestamp)
+		pdp.VerifySig(publicInfo.Pairing, publicInfo.G, publicInfo.PK, ds.Data, ds.Sig, ds.Version, ds.Timestamp)
 	}
 	//更新数据块
 	newDataStr := "abcdef"
@@ -159,7 +161,7 @@ func TestFileCoder() {
 	//更新校验块
 	fmt.Println("新的校验块分片：")
 	for i := dataNum; i < dataNum+parityNum; i++ {
-		newParityShard := UpdateParityShard(&dataShards[i], &incParityShards[i-dataNum])
+		newParityShard := UpdateParityShard(&dataShards[i], &incParityShards[i-dataNum], publicInfo)
 		newParityShard.Print()
 		dataShards[i] = *newParityShard
 	}
@@ -172,7 +174,7 @@ func TestFileCoder() {
 	for i := dataNum; i < dataNum+parityNum; i++ {
 		ds := dataShards[i]
 		fmt.Println("Verify parityshard-", i)
-		pdp.VerifySig(ds.Pairing, ds.G, ds.PK, ds.Data, ds.Sig, ds.Version, ds.Timestamp)
+		pdp.VerifySig(publicInfo.Pairing, publicInfo.G, publicInfo.PK, ds.Data, ds.Sig, ds.Version, ds.Timestamp)
 	}
 
 }

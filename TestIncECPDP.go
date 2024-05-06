@@ -37,7 +37,7 @@ func TestIncECPDP() {
 	parityNum := 4
 	fileCoder := encode.NewFileCoder(dataNum, parityNum)
 	//客户端Setup
-	dataShards := fileCoder.Setup(fileName, fileStr)
+	dataShards, publicInfo := fileCoder.Setup(fileName, fileStr)
 	fmt.Println("【客户端Setup】")
 	for i := 0; i < len(dataShards); i++ {
 		dataShards[i].Print()
@@ -47,7 +47,7 @@ func TestIncECPDP() {
 	for i := 0; i < len(dataShards); i++ {
 		ds := dataShards[i]
 		fmt.Println("Verify datashard-", i)
-		pdp.VerifySig(ds.Pairing, ds.G, ds.PK, ds.Data, ds.Sig, ds.Version, ds.Timestamp)
+		pdp.VerifySig(publicInfo.Pairing, publicInfo.G, publicInfo.PK, ds.Data, ds.Sig, ds.Version, ds.Timestamp)
 	}
 
 	//客户端发起挑战
@@ -59,7 +59,7 @@ func TestIncECPDP() {
 		randS := r.Int31()
 		//存储节点生成存储证明
 		fmt.Println("【存储节点生成存储证明】")
-		pos := pdp.ProvePos(&dataShards[i], randS)
+		pos := pdp.ProvePos(publicInfo, &dataShards[i], randS)
 		pos.Print()
 		//客户端验证存储证明
 		fmt.Println("【存储节点验证存储证明】")
@@ -78,14 +78,14 @@ func TestIncECPDP() {
 	fmt.Println("【存储节点对增量分块验签】")
 	for i := 0; i < len(incParityShards); i++ {
 		ips := incParityShards[i]
-		pdp.VerifySig(ips.Pairing, ips.G, ips.PK, ips.Data, ips.Sig, ips.Version, ips.Timestamp)
+		pdp.VerifySig(publicInfo.Pairing, publicInfo.G, publicInfo.PK, ips.Data, ips.Sig, ips.Version, ips.Timestamp)
 	}
 
 	//存储节点更新校验块分片
 	fmt.Println("【存储节点更新校验块分片】")
 	for i := 0; i < len(incParityShards); i++ {
 		ips := incParityShards[i]
-		encode.UpdateParityShard(&dataShards[dataNum+i], &ips)
+		encode.UpdateParityShard(&dataShards[dataNum+i], &ips, publicInfo)
 		dataShards[dataNum+i].Print()
 	}
 
@@ -94,7 +94,7 @@ func TestIncECPDP() {
 		randS := r.Int31()
 		//存储节点生成存储证明
 		fmt.Println("【存储节点生成存储证明2】")
-		pos := pdp.ProvePos(&dataShards[i], randS)
+		pos := pdp.ProvePos(publicInfo, &dataShards[i], randS)
 		pos.Print()
 		//客户端验证存储证明
 		fmt.Println("【存储节点验证存储证明2】")
@@ -123,4 +123,8 @@ func TestIncECPDP() {
 	}
 	fmt.Println("解码后的数据为：", fileDecodedStr)
 	// util.PrintInt32Slices(fileInt32Slices)
+
+	//输出sig的大小
+	fmt.Println("Sig Size:", len(dataShards[0].Sig), "bytes.")
+
 }
