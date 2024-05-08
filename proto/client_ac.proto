@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = "./";
+
+service ACService {
+    rpc SelectSNs(StorageRequest) returns (StorageResponse);
+}
+
+//客户端发起的存储请求
+message StorageRequest {
+    string clientId = 1;   //客户端ID
+    string filename = 2;   //待存储的文件名
+}
+
+//存储节点对存储请求的回复
+message StorageResponse {
+    string filename = 1;  //待存储的文件名
+    repeated string sns_for_ds = 2;  //用于存储数据分片的存储节点id，下标对应分片的序号
+    repeated string sns_for_ps = 3;  //用于存储校验分片的存储节点id，下标对应分片的序号
+}
