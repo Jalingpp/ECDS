@@ -5,6 +5,8 @@ import (
 	"ECDS/util"
 	"fmt"
 	"time"
+
+	"github.com/Nik-U/pbc"
 )
 
 type FileCoder struct {
@@ -65,7 +67,7 @@ func (fc *FileCoder) Setup(filename string, filedata string) ([]util.DataShard, 
 		panic(err)
 	}
 	//创建公共信息对象（发送给存储节点，用于验签、更新等操作）
-	publicInfo := util.NewPublicInfo(fc.Sigger.Pairing, fc.Sigger.G, fc.Sigger.PubKey)
+	publicInfo := util.NewPublicInfo(fc.Sigger.G, fc.Sigger.PubKey)
 	//为文件初始化一个元数据记录器
 	meta4file := NewMeta4File(dsnum)
 	//对切片中的每个块签名后构建DataShard
@@ -116,11 +118,11 @@ func (fc *FileCoder) UpdateDataShard(filename string, drow int, ds *util.DataSha
 }
 
 // 【存储节点执行】根据校验块增量分片更新校验块分片
-func UpdateParityShard(oldParityShard *util.DataShard, incParityShard *util.DataShard, publicInfo *util.PublicInfo) *util.DataShard {
+func UpdateParityShard(oldParityShard *util.DataShard, incParityShard *util.DataShard, pairing *pbc.Pairing, publicInfo *util.PublicInfo) *util.DataShard {
 	//更新分片数据
 	oldParityShard.Data = UpdateParity(oldParityShard.Data, incParityShard.Data)
 	//更新分片签名
-	oldParityShard.Sig = pdp.UpdateSigByIncSig(publicInfo.Pairing, oldParityShard.Sig, incParityShard.Sig)
+	oldParityShard.Sig = pdp.UpdateSigByIncSig(pairing, oldParityShard.Sig, incParityShard.Sig)
 	//更新分片版本
 	oldParityShard.Version = incParityShard.Version
 	//更新分片时间戳
@@ -147,7 +149,7 @@ func TestFileCoder() {
 	for i := 0; i < len(dataShards); i++ {
 		ds := dataShards[i]
 		fmt.Println("Verify datashard-", i)
-		pdp.VerifySig(publicInfo.Pairing, publicInfo.G, publicInfo.PK, ds.Data, ds.Sig, ds.Version, ds.Timestamp)
+		pdp.VerifySig(fileCoder.Sigger.Pairing, publicInfo.G, publicInfo.PK, ds.Data, ds.Sig, ds.Version, ds.Timestamp)
 	}
 	//更新数据块
 	newDataStr := "abcdef"
@@ -161,7 +163,7 @@ func TestFileCoder() {
 	//更新校验块
 	fmt.Println("新的校验块分片：")
 	for i := dataNum; i < dataNum+parityNum; i++ {
-		newParityShard := UpdateParityShard(&dataShards[i], &incParityShards[i-dataNum], publicInfo)
+		newParityShard := UpdateParityShard(&dataShards[i], &incParityShards[i-dataNum], fileCoder.Sigger.Pairing, publicInfo)
 		newParityShard.Print()
 		dataShards[i] = *newParityShard
 	}
@@ -174,7 +176,7 @@ func TestFileCoder() {
 	for i := dataNum; i < dataNum+parityNum; i++ {
 		ds := dataShards[i]
 		fmt.Println("Verify parityshard-", i)
-		pdp.VerifySig(publicInfo.Pairing, publicInfo.G, publicInfo.PK, ds.Data, ds.Sig, ds.Version, ds.Timestamp)
+		pdp.VerifySig(fileCoder.Sigger.Pairing, publicInfo.G, publicInfo.PK, ds.Data, ds.Sig, ds.Version, ds.Timestamp)
 	}
 
 }

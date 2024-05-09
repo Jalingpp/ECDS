@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = "./";
+
+service SNService {
+    rpc PutDataShard(PutDSRequest) returns (PutDSResponse);
+}
+
+//客户端发起的向存储节点放置数据分片的请求
+message PutDSRequest {
+    string clientId = 1;   //客户端ID
+    string filename = 2;   //待存储的文件名
+    string dsno = 3;    //文件分片的序号，数据分片为d1,d2,...，校验分片为p1,p2,...
+    bytes datashard_serialized = 4; //序列化后的数据分片
+}
+
+//存储节点对请求的回复
+message PutDSResponse {
+    string filename = 1;  //待存储的文件名
+    string dsno = 2;      //待存储的分片序号
+    string message = 3;  //是否已通过验证并存储等信息
+}

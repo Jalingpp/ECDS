@@ -1,9 +1,8 @@
 package util
 
 import (
+	"encoding/json"
 	"fmt"
-
-	"github.com/Nik-U/pbc"
 )
 
 type DataShard struct {
@@ -26,12 +25,31 @@ func (ds *DataShard) Print() {
 }
 
 type PublicInfo struct {
-	Pairing *pbc.Pairing
-	G       []byte
-	PK      []byte
+	G  []byte
+	PK []byte
 }
 
-func NewPublicInfo(pairing *pbc.Pairing, gb []byte, pubkey []byte) *PublicInfo {
-	pi := PublicInfo{pairing, gb, pubkey}
+func NewPublicInfo(gb []byte, pubkey []byte) *PublicInfo {
+	pi := PublicInfo{gb, pubkey}
 	return &pi
+}
+
+// 序列化数据分片
+func (ds *DataShard) SerializeDS() []byte {
+	jsonDS, err := json.Marshal(ds)
+	if err != nil {
+		fmt.Printf("SerializeDS error: %v\n", err)
+		return nil
+	}
+	return jsonDS
+}
+
+// 反序列化数据分片
+func DeserializeDS(data []byte) (*DataShard, error) {
+	var ds DataShard
+	if err := json.Unmarshal(data, &ds); err != nil {
+		fmt.Printf("DeserializeDS error: %v\n", err)
+		return nil, err
+	}
+	return &ds, nil
 }

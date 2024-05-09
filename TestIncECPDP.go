@@ -9,9 +9,9 @@ import (
 	"time"
 )
 
-func main() {
-	TestIncECPDP()
-}
+// func main() {
+// 	TestIncECPDP()
+// }
 
 type StorageShard struct {
 	data    []byte

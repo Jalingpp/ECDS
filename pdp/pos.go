@@ -14,18 +14,18 @@ type POS struct {
 }
 
 // 【存储节点执行】生成存储证明
-func ProvePos(pi *util.PublicInfo, ds *util.DataShard, randoms int32) *POS {
+func ProvePos(pairing *pbc.Pairing, pi *util.PublicInfo, ds *util.DataShard, randoms int32) *POS {
 	//生成data proof
-	g := pi.Pairing.NewG1().SetBytes(pi.G)
-	pk := pi.Pairing.NewG2().SetBytes(pi.PK)
-	egpk := pi.Pairing.NewGT().Pair(g, pk)
-	m := pi.Pairing.NewZr().SetInt32(MessageToInt32(ds.Data))
-	ms := pi.Pairing.NewZr().MulInt32(m, randoms)
-	dp := pi.Pairing.NewGT().PowZn(egpk, ms)
+	g := pairing.NewG1().SetBytes(pi.G)
+	pk := pairing.NewG2().SetBytes(pi.PK)
+	egpk := pairing.NewGT().Pair(g, pk)
+	m := pairing.NewZr().SetInt32(MessageToInt32(ds.Data))
+	ms := pairing.NewZr().MulInt32(m, randoms)
+	dp := pairing.NewGT().PowZn(egpk, ms)
 	//生成sig proof
-	sig := pi.Pairing.NewG1().SetBytes(ds.Sig)
-	randomsz := pi.Pairing.NewZr().SetInt32(randoms)
-	sp := pi.Pairing.NewG1().PowZn(sig, randomsz)
+	sig := pairing.NewG1().SetBytes(ds.Sig)
+	randomsz := pairing.NewZr().SetInt32(randoms)
+	sp := pairing.NewG1().PowZn(sig, randomsz)
 	pos := POS{dp.Bytes(), sp.Bytes()}
 	return &pos
 }

@@ -31,7 +31,7 @@ func BufIOReader(filepath string) *bufio.Reader {
 		fmt.Println("Error opening file:", err)
 		return nil
 	}
-	defer file.Close()
+	// defer file.Close()
 
 	// 创建一个 bufio.Reader 对象
 	reader := bufio.NewReader(file)
