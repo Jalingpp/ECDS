@@ -9,6 +9,7 @@ import (
 )
 
 type POS struct {
+	DSno      string
 	DataProof []byte
 	SigProof  []byte
 }
@@ -26,7 +27,7 @@ func ProvePos(pairing *pbc.Pairing, pi *util.PublicInfo, ds *util.DataShard, ran
 	sig := pairing.NewG1().SetBytes(ds.Sig)
 	randomsz := pairing.NewZr().SetInt32(randoms)
 	sp := pairing.NewG1().PowZn(sig, randomsz)
-	pos := POS{dp.Bytes(), sp.Bytes()}
+	pos := POS{ds.DSno, dp.Bytes(), sp.Bytes()}
 	return &pos
 }
 

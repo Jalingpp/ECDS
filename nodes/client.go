@@ -6,7 +6,6 @@ import (
 	"ECDS/util"
 	"context"
 	"log"
-	"strconv"
 
 	pb "ECDS/proto" // 根据实际路径修改
 
@@ -77,7 +76,7 @@ func (client *Client) PutFile(filepath string, filename string) {
 			pds_req := &pb.PutDSRequest{
 				ClientId:            client.ClientID,
 				Filename:            filename,
-				Dsno:                "d" + strconv.Itoa(i),
+				Dsno:                datashards[i].DSno,
 				DatashardSerialized: datashards[i].SerializeDS(),
 			}
 
@@ -88,7 +87,7 @@ func (client *Client) PutFile(filepath string, filename string) {
 			}
 
 			// 3.3.3 - 确认存储节点已存储
-			log.Println("StorageNode", sn, "recieves datashard", pds_res.Dsno, "of file", pds_res.Filename, ". Message:", pds_res.Message)
+			log.Println("Received response from StorageNode", sn, "for datashard", pds_res.Dsno, ". Message:", pds_res.Message)
 
 			// 通知主线程任务完成
 			done <- struct{}{}
@@ -101,7 +100,7 @@ func (client *Client) PutFile(filepath string, filename string) {
 			pds_req := &pb.PutDSRequest{
 				ClientId:            client.ClientID,
 				Filename:            filename,
-				Dsno:                "p" + strconv.Itoa(i),
+				Dsno:                datashards[i+len(sn4ds)].DSno,
 				DatashardSerialized: datashards[i+len(sn4ds)].SerializeDS(),
 			}
 
@@ -112,7 +111,7 @@ func (client *Client) PutFile(filepath string, filename string) {
 			}
 
 			// 3.3.3 - 确认存储节点已存储
-			log.Println("StorageNode", sn, "recieves datashard", pds_res.Dsno, "of file", pds_res.Filename, ". Message:", pds_res.Message)
+			log.Println("Received response from StorageNode", sn, "for datashard", pds_res.Dsno, ". Message:", pds_res.Message)
 
 			// 通知主线程任务完成
 			done <- struct{}{}
@@ -122,6 +121,21 @@ func (client *Client) PutFile(filepath string, filename string) {
 	for i := 0; i < len(sn4ds)+len(sn4ps); i++ {
 		<-done
 	}
+	//4-确认文件存放完成且元信息一致
+	//4.1-构造确认请求
+	pfc_req := &pb.PFCRequest{
+		ClientId:   client.ClientID,
+		Filename:   filename,
+		Versions:   client.Filecoder.MetaFileMap[filename].LatestVersionSlice,
+		Timestamps: client.Filecoder.MetaFileMap[filename].LatestTimestampSlice,
+	}
+	// 4.2-发送确认请求给审计方
+	pfc_res, err := client.ACRPC.PutFileCommit(context.Background(), pfc_req)
+	if err != nil {
+		log.Fatalf("auditor could not process request: %v", err)
+	}
+	//4.3-输出确认回复
+	log.Println("received auditor put file ", pfc_res.Filename, " commit respond:", pfc_res.Message)
 }
 
 // 存储回复消息转为字符串

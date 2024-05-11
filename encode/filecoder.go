@@ -4,6 +4,7 @@ import (
 	"ECDS/pdp"
 	"ECDS/util"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/Nik-U/pbc"
@@ -17,22 +18,22 @@ type FileCoder struct {
 
 type Meta4File struct {
 	//用于记录一个文件所有分片的信息
-	LatestVersionSlice   []int32
-	LatestTimestampSlice []string
+	LatestVersionSlice   map[string]int32  //key:dsno
+	LatestTimestampSlice map[string]string //key:dsno
 }
 
 // 【客户端执行】创建文件元数据记录器
-func NewMeta4File(n int) *Meta4File {
-	lvs := make([]int32, n)
-	lts := make([]string, n)
+func NewMeta4File() *Meta4File {
+	lvs := make(map[string]int32)
+	lts := make(map[string]string)
 	m4f := &Meta4File{lvs, lts}
 	return m4f
 }
 
 // 【客户端执行】更新一个文件的一个分片的元数据
-func (m4f *Meta4File) Update(n int, newT string, newV int32) {
-	m4f.LatestTimestampSlice[n] = newT
-	m4f.LatestVersionSlice[n] = newV
+func (m4f *Meta4File) Update(dsno string, newT string, newV int32) {
+	m4f.LatestTimestampSlice[dsno] = newT
+	m4f.LatestVersionSlice[dsno] = newV
 }
 
 // 【客户端执行】创建文件编码器
@@ -69,16 +70,22 @@ func (fc *FileCoder) Setup(filename string, filedata string) ([]util.DataShard, 
 	//创建公共信息对象（发送给存储节点，用于验签、更新等操作）
 	publicInfo := util.NewPublicInfo(fc.Sigger.G, fc.Sigger.PubKey)
 	//为文件初始化一个元数据记录器
-	meta4file := NewMeta4File(dsnum)
+	meta4file := NewMeta4File()
 	//对切片中的每个块签名后构建DataShard
 	var dataShardSlice []util.DataShard
 	for i := 0; i < dsnum; i++ {
 		time := time.Now().Format("2006-01-02 15:04:05")
 		sig := fc.Sigger.GetSig(dataSlice[i], time, 0)
-		datashard := util.NewDataShard(dataSlice[i], sig, 0, time)
+		var dsno string
+		if i < fc.Rsec.DataNum {
+			dsno = "d" + strconv.Itoa(i)
+		} else {
+			dsno = "p" + strconv.Itoa(i-fc.Rsec.DataNum)
+		}
+		datashard := util.NewDataShard(dsno, dataSlice[i], sig, 0, time)
 		dataShardSlice = append(dataShardSlice, *datashard)
 		//将分片信息写入元数据记录器中
-		meta4file.Update(i, datashard.Timestamp, datashard.Version)
+		meta4file.Update(dsno, datashard.Timestamp, datashard.Version)
 	}
 	//将该文件的元数据记录器写入fc中
 	fc.MetaFileMap[filename] = meta4file
@@ -96,22 +103,22 @@ func (fc *FileCoder) UpdateDataShard(filename string, drow int, ds *util.DataSha
 	ds.Version = ds.Version + 1
 	ds.Sig = fc.Sigger.GetSig(newData, ds.Timestamp, ds.Version)
 	//将数据分片的更新写入到文件元数据记录器中
-	fc.MetaFileMap[filename].Update(drow, ds.Timestamp, ds.Version)
+	fc.MetaFileMap[filename].Update(ds.DSno, ds.Timestamp, ds.Version)
 	//计算数据增量
 	incData := fc.Rsec.GetIncData(oldData, newData)
 	//计算校验块增量，校验块签名增量，生成增量校验分片
 	var incParityShards []util.DataShard
-	for i := fc.Rsec.DataNum; i < fc.Rsec.DataNum+fc.Rsec.ParityNum; i++ {
+	for i := 0; i < fc.Rsec.ParityNum; i++ {
 		//计算校验块增量和矩阵系数
-		incParity := fc.Rsec.GetIncParity(incData, i, drow)
+		incParity := fc.Rsec.GetIncParity(incData, i+fc.Rsec.DataNum, drow)
 		//计算签名增量
-		oldV := fc.MetaFileMap[filename].LatestVersionSlice[i]
-		oldT := fc.MetaFileMap[filename].LatestTimestampSlice[i]
+		oldV := fc.MetaFileMap[filename].LatestVersionSlice["p"+strconv.Itoa(i)]
+		oldT := fc.MetaFileMap[filename].LatestTimestampSlice["p"+strconv.Itoa(i)]
 		newV := oldV + 1
 		newT := time.Now().Format("2006-01-02 15:04:05")
 		incSig := fc.Sigger.GetIncSig(incParity, oldV, oldT, newV, newT)
-		iPS := util.NewDataShard(incParity, incSig, newV, newT)
-		fc.MetaFileMap[filename].Update(i, newT, newV)
+		iPS := util.NewDataShard("p"+strconv.Itoa(i), incParity, incSig, newV, newT)
+		fc.MetaFileMap[filename].Update("p"+strconv.Itoa(i), newT, newV)
 		incParityShards = append(incParityShards, *iPS)
 	}
 	return incParityShards

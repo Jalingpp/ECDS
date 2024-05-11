@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 )
 
 func ReadStringFromFile(filepath string) string {
@@ -36,4 +37,25 @@ func BufIOReader(filepath string) *bufio.Reader {
 	// 创建一个 bufio.Reader 对象
 	reader := bufio.NewReader(file)
 	return reader
+}
+
+// 读存储节点地址文件
+func ReadSNAddrFile(filepath string) *map[string]string {
+	snaddrmap := make(map[string]string)
+	//读取存储节点地址
+	reader := BufIOReader(filepath)
+	// 逐行读取文件内容
+	for {
+		// 读取一行数据
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			break // 文件读取结束或者发生错误时退出循环
+		}
+		// 处理一行数据
+		fmt.Print("ReadSNAddr:", line)
+		//写入map
+		lineslice := strings.Split(strings.TrimRight(line, "\n"), ",") //去除换行符
+		snaddrmap[lineslice[0]] = lineslice[1]
+	}
+	return &snaddrmap
 }

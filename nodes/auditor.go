@@ -5,56 +5,47 @@ import (
 	pb "ECDS/proto" // 根据实际路径修改
 	"ECDS/util"
 	"context"
-	"fmt"
+	"errors"
 	"log"
 	"math/rand"
 	"net"
 	"strconv"
-	"strings"
+	"sync"
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type Auditor struct {
-	IpAddr                           string                       //审计方的IP地址
-	SNAddrMap                        map[string]string            //存储节点的地址表，key:存储节点id，value:存储节点地址
-	ClientFileDataShardsMap          map[string][]string          //客户端文件的数据分片所在的存储节点表，key:客户端id-文件名，value:存储节点address列表
-	ClientFileParityShardsMap        map[string][]string          //客户端文件的校验分片所在的存储节点表，key:客户端id-文件名，value:存储节点address列表
-	MetaFileMap                      map[string]*encode.Meta4File // 用于记录每个文件的元数据,key:客户端id-文件名
-	DataNum                          int                          //系统中用于文件编码的数据块数量
-	ParityNum                        int                          //系统中用于文件编码的校验块数量
-	PendingClientFileDataShardsMap   map[string][]string          //已进入Setup阶段的客户端文件数据分片所在的存储节点表
-	PendingClientFileParityShardsMap map[string][]string          //已进入Setup阶段的客户端文件校验分片所在的存储节点表
-	pb.UnimplementedACServiceServer                               // 嵌入匿名字段
+	IpAddr                          string                          //审计方的IP地址
+	SNAddrMap                       map[string]string               //存储节点的地址表，key:存储节点id，value:存储节点地址
+	ClientFileShardsMap             map[string]map[string]string    //客户端文件的分片所在的存储节点表，key:客户端id-文件名，value:数据分片序号对应的存储节点id列表
+	CFSMMutex                       sync.RWMutex                    //ClientFileShardsMap的读写锁
+	MetaFileMap                     map[string]*encode.Meta4File    // 用于记录每个文件的元数据,key:客户端id-文件名
+	MFMutex                         sync.RWMutex                    //MetaFileMap的读写锁
+	DataNum                         int                             //系统中用于文件编码的数据块数量
+	ParityNum                       int                             //系统中用于文件编码的校验块数量
+	pb.UnimplementedACServiceServer                                 // 嵌入匿名字段
+	SNRPCs                          map[string]pb.SNACServiceClient //存储节点RPC对象列表，key:存储节点id
 }
 
 // 新建一个审计方，持续监听消息
 func NewAuditor(ipaddr string, snaddrfilename string, dn int, pn int) *Auditor {
-	snaddrmap := make(map[string]string)
-	//读取存储节点地址
-	reader := util.BufIOReader(snaddrfilename)
-	// 逐行读取文件内容
-	for {
-		// 读取一行数据
-		line, err := reader.ReadString('\n')
-		if err != nil {
-			break // 文件读取结束或者发生错误时退出循环
-		}
-		// 处理一行数据
-		fmt.Print("ReadSNAddr:", line)
-		//写入map
-		lineslice := strings.Split(strings.TrimRight(line, "\n"), ",") //去除换行符
-		snaddrmap[lineslice[0]] = lineslice[1]
-	}
-	cfdsmap := make(map[string][]string)
-	cfpsmap := make(map[string][]string)
+	snaddrmap := util.ReadSNAddrFile(snaddrfilename)
+	cfsmap := make(map[string]map[string]string)
 	metaFileMap := make(map[string]*encode.Meta4File)
-	pcfdsmap := make(map[string][]string)
-	pcfpsmap := make(map[string][]string)
-
-	auditor := &Auditor{ipaddr, snaddrmap, cfdsmap, cfpsmap, metaFileMap, dn, pn, pcfdsmap, pcfpsmap, pb.UnimplementedACServiceServer{}}
-
+	//设置连接存储节点服务器的地址
+	snrpcs := make(map[string]pb.SNACServiceClient)
+	for key, value := range *snaddrmap {
+		snconn, err := grpc.Dial(value, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+		if err != nil {
+			log.Fatalf("did not connect to storage node: %v", err)
+		}
+		sc := pb.NewSNACServiceClient(snconn)
+		snrpcs[key] = sc
+	}
+	auditor := &Auditor{ipaddr, *snaddrmap, cfsmap, sync.RWMutex{}, metaFileMap, sync.RWMutex{}, dn, pn, pb.UnimplementedACServiceServer{}, snrpcs}
 	//设置监听地址
 	lis, err := net.Listen("tcp", ipaddr)
 	if err != nil {
@@ -71,22 +62,20 @@ func NewAuditor(ipaddr string, snaddrfilename string, dn int, pn int) *Auditor {
 	return auditor
 }
 
-// 选择存储节点，给客户端回复消息
+// 【供Client使用的RPC】选择存储节点，给客户端回复消息
 func (ac *Auditor) SelectSNs(ctx context.Context, sreq *pb.StorageRequest) (*pb.StorageResponse, error) {
-	log.Printf("Received message from client: %s\n", sreq.ClientId)
+	log.Printf("Received storage message from client: %s\n", sreq.ClientId)
 	// 为该客户端文件随机选择存储节点
-	dssnaddrs, pssnaddrs := ac.SelectStorNodes(sreq.Filename)
-	//将选出来的节点加入等待列表
-	cid_fn := sreq.ClientId + "-" + sreq.Filename
-	ac.PendingClientFileDataShardsMap[cid_fn] = dssnaddrs
-	ac.PendingClientFileParityShardsMap[cid_fn] = pssnaddrs
-	return &pb.StorageResponse{Filename: sreq.Filename, SnsForDs: dssnaddrs, SnsForPs: pssnaddrs}, nil
+	dssnids, pssnids := ac.SelectStorNodes(sreq.Filename)
+	//启动线程通知各存储节点待存储的文件分片序号,等待存储完成
+	go ac.PutFileNoticeToSN(sreq.ClientId, sreq.Filename, dssnids, pssnids)
+	return &pb.StorageResponse{Filename: sreq.Filename, SnsForDs: dssnids, SnsForPs: pssnids}, nil
 }
 
 // AC选择存储节点
 func (ac *Auditor) SelectStorNodes(filename string) ([]string, []string) {
-	dssnaddrs := make([]string, 0)
-	pssnaddrs := make([]string, 0)
+	dssnids := make([]string, 0)
+	pssnids := make([]string, 0)
 	seed := time.Now().UnixNano()
 	randor := rand.New(rand.NewSource(seed))
 	selectednum := make(map[string]bool)
@@ -99,52 +88,133 @@ func (ac *Auditor) SelectStorNodes(filename string) ([]string, []string) {
 	}
 	for i := 1; i < ac.DataNum+ac.ParityNum+1; i++ {
 		if selectednum[strconv.Itoa(i)] {
-			dssnaddrs = append(dssnaddrs, "sn"+strconv.Itoa(i))
+			dssnids = append(dssnids, "sn"+strconv.Itoa(i))
 		} else {
-			pssnaddrs = append(pssnaddrs, "sn"+strconv.Itoa(i))
+			pssnids = append(pssnids, "sn"+strconv.Itoa(i))
 		}
 	}
-	return dssnaddrs, pssnaddrs
+	return dssnids, pssnids
+}
+
+// 【SelectSNs-RPC被调用时自动触发】通知存储节点客户端待存放的文件分片序号，等待SN存储结果
+func (ac *Auditor) PutFileNoticeToSN(cid string, fn string, dssnids []string, pssnids []string) {
+	for i := 0; i < len(dssnids); i++ {
+		go func(snid string, i int) {
+			//构造请求消息
+			pds_req := &pb.ClientStorageRequest{
+				ClientId: cid,
+				Filename: fn,
+				Dsno:     "d" + strconv.Itoa(i),
+			}
+			//发送请求消息给存储节点
+			pds_res, err := ac.SNRPCs[snid].PutDataShardNotice(context.Background(), pds_req)
+			if err != nil {
+				log.Fatalf("storagenode could not process request: %v", err)
+			}
+			//处理存储节点回复消息：
+			log.Println("recieved putds respones:", pds_res.Message)
+			//1-将存储节点放入正式列表中
+			cid_fn := pds_res.ClientId + "-" + pds_res.Filename
+			dsno := pds_res.Dsno
+			ac.CFSMMutex.Lock()
+			if ac.ClientFileShardsMap[cid_fn] == nil {
+				ac.ClientFileShardsMap[cid_fn] = make(map[string]string)
+			}
+			ac.ClientFileShardsMap[cid_fn][dsno] = snid
+			ac.CFSMMutex.Unlock()
+		}(dssnids[i], i)
+	}
+
+	for i := 0; i < len(pssnids); i++ {
+		go func(snid string, i int) {
+			//构造请求消息
+			pds_req := &pb.ClientStorageRequest{
+				ClientId: cid,
+				Filename: fn,
+				Dsno:     "p" + strconv.Itoa(i),
+			}
+			//发送请求消息给存储节点
+			pds_res, err := ac.SNRPCs[snid].PutDataShardNotice(context.Background(), pds_req)
+			if err != nil {
+				log.Fatalf("storagenode could not process request: %v", err)
+			}
+			//处理存储节点回复消息：
+			log.Println("recieved putds respones:", pds_res.Message)
+			//1-将存储节点id记录到列表中
+			cid_fn := pds_res.ClientId + "-" + pds_res.Filename
+			dsno := pds_res.Dsno
+			ac.CFSMMutex.Lock()
+			if ac.ClientFileShardsMap[cid_fn] == nil {
+				ac.ClientFileShardsMap[cid_fn] = make(map[string]string)
+			}
+			ac.ClientFileShardsMap[cid_fn][dsno] = snid
+			ac.CFSMMutex.Unlock()
+			//2-将分片元信息记录到列表中
+			ac.MFMutex.Lock()
+			if ac.MetaFileMap[cid_fn] == nil {
+				metaInfo := encode.NewMeta4File()
+				ac.MetaFileMap[cid_fn] = metaInfo
+			}
+			ac.MetaFileMap[cid_fn].LatestVersionSlice[dsno] = pds_res.Version
+			ac.MetaFileMap[cid_fn].LatestTimestampSlice[dsno] = pds_res.Timestamp
+			ac.MFMutex.Unlock()
+		}(pssnids[i], i)
+	}
+}
+
+// 【供client使用的RPC】文件存放确认:确认文件已在存储节点上完成存放,确认元信息一致
+func (ac *Auditor) PutFileCommit(ctx context.Context, req *pb.PFCRequest) (*pb.PFCResponse, error) {
+	log.Printf("Received putfilecommit message from client: %s\n", req.ClientId)
+	cid_fn := req.ClientId + "-" + req.Filename
+	versions := req.Versions
+	timmestamps := req.Timestamps
+	message := ""
+	// 确认存储节点是否已经跟审计方确认存储
+	for {
+		ac.CFSMMutex.RLock()
+		cfss := ac.ClientFileShardsMap[cid_fn]
+		ac.CFSMMutex.RUnlock()
+		if len(cfss) == ac.DataNum+ac.ParityNum {
+			break
+		}
+	}
+	// 确认存储节点接收的元信息与客户端一致
+	ac.MFMutex.RLock()
+	defer ac.MFMutex.RUnlock() // 在函数返回时释放读锁
+	metainfo := ac.MetaFileMap[cid_fn]
+	for k, v := range metainfo.LatestVersionSlice {
+		if versions[k] != v {
+			message = "the version of " + k + " is not consistent."
+			e := errors.New("version not consistent")
+			return &pb.PFCResponse{Filename: req.Filename, Message: message}, e
+		}
+	}
+	for k, v := range metainfo.LatestTimestampSlice {
+		if timmestamps[k] != v {
+			ac.MFMutex.Unlock()
+			message = "the timestamp of " + k + "is not consistent."
+			e := errors.New("timestamp not consistent")
+			return &pb.PFCResponse{Filename: req.Filename, Message: message}, e
+		}
+	}
+	message = "put file finished and metainfo is consistent."
+	return &pb.PFCResponse{Filename: req.Filename, Message: message}, nil
 }
 
 // 打印auditor
-func (auditor *Auditor) PrintAuditor() {
-	str := "Auditor:{IpAddr:" + auditor.IpAddr + ",SNAddrMap:{"
-	for key, value := range auditor.SNAddrMap {
+func (ac *Auditor) PrintAuditor() {
+	str := "Auditor:{IpAddr:" + ac.IpAddr + ",SNAddrMap:{"
+	for key, value := range ac.SNAddrMap {
 		str = str + key + ":" + value + ","
 	}
-	str = str + "},ClientFileDataShardMap:{"
-	for key, value := range auditor.ClientFileDataShardsMap {
+	str = str + "},ClientFileShardMap:{"
+	for key, value := range ac.ClientFileShardsMap {
 		str = str + key + ":{"
-		for i := 0; i < len(value); i++ {
-			str = str + value[i] + ","
+		for k, v := range value {
+			str = str + k + ":" + v + ","
 		}
 		str = str + "},"
 	}
-	str = str + "},ClientFileParityShardsMap:{"
-	for key, value := range auditor.ClientFileParityShardsMap {
-		str = str + key + ":{"
-		for i := 0; i < len(value); i++ {
-			str = str + value[i] + ","
-		}
-		str = str + "},"
-	}
-	str = str + "},DataNum:" + strconv.Itoa(auditor.DataNum) + ",ParityNum:" + strconv.Itoa(auditor.ParityNum) + ",PendingClientFileDataShardsMap:{"
-	for key, value := range auditor.PendingClientFileDataShardsMap {
-		str = str + key + ":{"
-		for i := 0; i < len(value); i++ {
-			str = str + value[i] + ","
-		}
-		str = str + "},"
-	}
-	str = str + "},PendingClientFileParityShardsMap:{"
-	for key, value := range auditor.PendingClientFileParityShardsMap {
-		str = str + key + ":{"
-		for i := 0; i < len(value); i++ {
-			str = str + value[i] + ","
-		}
-		str = str + "},"
-	}
-	str = str + "}}"
+	str = str + "},DataNum:" + strconv.Itoa(ac.DataNum) + ",ParityNum:" + strconv.Itoa(ac.ParityNum) + "}"
 	log.Println(str)
 }

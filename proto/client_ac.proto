@@ -6,6 +6,7 @@ option go_package = "./";
 
 service ACService {
     rpc SelectSNs(StorageRequest) returns (StorageResponse);
+    rpc PutFileCommit(PFCRequest) returns (PFCResponse);
 }
 
 //客户端发起的存储请求
@@ -14,9 +15,23 @@ message StorageRequest {
     string filename = 2;   //待存储的文件名
 }
 
-//存储节点对存储请求的回复
+//审计方对存储请求的回复
 message StorageResponse {
     string filename = 1;  //待存储的文件名
     repeated string sns_for_ds = 2;  //用于存储数据分片的存储节点id，下标对应分片的序号
     repeated string sns_for_ps = 3;  //用于存储校验分片的存储节点id，下标对应分片的序号
+}
+
+//客户端发起的写元信息请求
+message PFCRequest {
+    string clientId = 1;   //客户端ID
+    string filename = 2;   //文件名
+    map<string, int32> versions = 3;  //各分片对应的版本号
+    map<string, string> timestamps = 4; //各分片对应的时间戳
+}
+
+//审计方对写元信息请求的回复
+message PFCResponse {
+    string filename = 1;  //待存储的文件名
+    string message = 2;  //附带信息
 }

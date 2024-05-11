@@ -9,9 +9,9 @@ import (
 	"time"
 )
 
-// func main() {
-// 	TestIncECPDP()
-// }
+func main() {
+	TestIncECPDP()
+}
 
 type StorageShard struct {
 	data    []byte
@@ -29,9 +29,9 @@ func (ss *StorageShard) Print() {
 
 func TestIncECPDP() {
 	//读文件
-	filepath := "data/testData"
+	filepath := "data/testData2"
 	fileStr := util.ReadStringFromFile(filepath)
-	fileName := "testData"
+	fileName := "testData2"
 	//客户端创建文件编码器
 	dataNum := 10
 	parityNum := 4
@@ -47,7 +47,7 @@ func TestIncECPDP() {
 	for i := 0; i < len(dataShards); i++ {
 		ds := dataShards[i]
 		fmt.Println("Verify datashard-", i)
-		pdp.VerifySig(publicInfo.Pairing, publicInfo.G, publicInfo.PK, ds.Data, ds.Sig, ds.Version, ds.Timestamp)
+		pdp.VerifySig(fileCoder.Sigger.Pairing, publicInfo.G, publicInfo.PK, ds.Data, ds.Sig, ds.Version, ds.Timestamp)
 	}
 
 	//客户端发起挑战
@@ -59,15 +59,15 @@ func TestIncECPDP() {
 		randS := r.Int31()
 		//存储节点生成存储证明
 		fmt.Println("【存储节点生成存储证明】")
-		pos := pdp.ProvePos(publicInfo, &dataShards[i], randS)
+		pos := pdp.ProvePos(fileCoder.Sigger.Pairing, publicInfo, &dataShards[i], randS)
 		pos.Print()
 		//客户端验证存储证明
 		fmt.Println("【存储节点验证存储证明】")
-		pdp.VerifyPos(pos, fileCoder.Sigger.Pairing, fileCoder.Sigger.G, fileCoder.Sigger.PubKey, fileCoder.MetaFileMap[fileName].LatestVersionSlice[i], fileCoder.MetaFileMap[fileName].LatestTimestampSlice[i], randS)
+		pdp.VerifyPos(pos, fileCoder.Sigger.Pairing, fileCoder.Sigger.G, fileCoder.Sigger.PubKey, fileCoder.MetaFileMap[fileName].LatestVersionSlice[pos.DSno], fileCoder.MetaFileMap[fileName].LatestTimestampSlice[pos.DSno], randS)
 	}
 
 	//客户端修改数据块并生成校验块增量分片
-	filepath2 := "data/testChangeData"
+	filepath2 := "data/testChangeData2"
 	newDataStr := util.ReadStringFromFile(filepath2)
 	udpDataRow := 2
 	fmt.Println("【客户端修改数据块】")
@@ -78,14 +78,14 @@ func TestIncECPDP() {
 	fmt.Println("【存储节点对增量分块验签】")
 	for i := 0; i < len(incParityShards); i++ {
 		ips := incParityShards[i]
-		pdp.VerifySig(publicInfo.Pairing, publicInfo.G, publicInfo.PK, ips.Data, ips.Sig, ips.Version, ips.Timestamp)
+		pdp.VerifySig(fileCoder.Sigger.Pairing, publicInfo.G, publicInfo.PK, ips.Data, ips.Sig, ips.Version, ips.Timestamp)
 	}
 
 	//存储节点更新校验块分片
 	fmt.Println("【存储节点更新校验块分片】")
 	for i := 0; i < len(incParityShards); i++ {
 		ips := incParityShards[i]
-		encode.UpdateParityShard(&dataShards[dataNum+i], &ips, publicInfo)
+		encode.UpdateParityShard(&dataShards[dataNum+i], &ips, fileCoder.Sigger.Pairing, publicInfo)
 		dataShards[dataNum+i].Print()
 	}
 
@@ -94,11 +94,11 @@ func TestIncECPDP() {
 		randS := r.Int31()
 		//存储节点生成存储证明
 		fmt.Println("【存储节点生成存储证明2】")
-		pos := pdp.ProvePos(publicInfo, &dataShards[i], randS)
+		pos := pdp.ProvePos(fileCoder.Sigger.Pairing, publicInfo, &dataShards[i], randS)
 		pos.Print()
 		//客户端验证存储证明
 		fmt.Println("【存储节点验证存储证明2】")
-		pdp.VerifyPos(pos, fileCoder.Sigger.Pairing, fileCoder.Sigger.G, fileCoder.Sigger.PubKey, fileCoder.MetaFileMap[fileName].LatestVersionSlice[i], fileCoder.MetaFileMap[fileName].LatestTimestampSlice[i], randS)
+		pdp.VerifyPos(pos, fileCoder.Sigger.Pairing, fileCoder.Sigger.G, fileCoder.Sigger.PubKey, fileCoder.MetaFileMap[fileName].LatestVersionSlice[pos.DSno], fileCoder.MetaFileMap[fileName].LatestTimestampSlice[pos.DSno], randS)
 	}
 
 	//客户端请求数据
