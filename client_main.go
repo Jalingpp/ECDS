@@ -14,8 +14,12 @@ func main() {
 	snaddrmap := util.ReadSNAddrFile(snAddrFilepath)
 	//创建一个客户端
 	client1 := nodes.NewClient("client1", dn, pn, acAddr, *snaddrmap)
+	//客户端向存储系统注册
+	client1.Register()
 	//客户端PutFile
 	filepath := "data/testData2"
 	filename := "testData2"
 	client1.PutFile(filepath, filename)
+	//客户端GetFile
+	client1.GetFile(filename)
 }

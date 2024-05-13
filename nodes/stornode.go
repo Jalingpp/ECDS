@@ -1,6 +1,7 @@
 package nodes
 
 import (
+	"ECDS/pdp"
 	pb "ECDS/proto"
 	"ECDS/util"
 	"context"
@@ -14,10 +15,11 @@ import (
 )
 
 type StorageNode struct {
-	SNId    string       //存储节点id
-	SNAddr  string       //存储节点ip地址
-	Pairing *pbc.Pairing //双线性映射
-	// ClientPublicInfor               map[string]*util.PublicInfo           //客户端的公钥信息，key:clientID,value:公钥信息指针
+	SNId                              string                                //存储节点id
+	SNAddr                            string                                //存储节点ip地址
+	Pairing                           *pbc.Pairing                          //双线性映射
+	ClientPublicInfor                 map[string]*util.PublicInfo           //客户端的公钥信息，key:clientID,value:公钥信息指针
+	CPIMutex                          sync.RWMutex                          //ClientPublicInfor的读写锁
 	ClientFileMap                     map[string][]string                   //为客户端存储的文件列表，key:clientID,value:filename
 	CFMMutex                          sync.RWMutex                          //ClientFileMap的读写锁
 	FileShardsMap                     map[string]map[string]*util.DataShard //文件的数据分片列表，key:clientID-filename,value:(key:分片序号)
@@ -35,7 +37,8 @@ func NewStorageNode(snid string, snaddr string) *StorageNode {
 	clientFileMap := make(map[string][]string)
 	fileShardsMap := make(map[string]map[string]*util.DataShard)
 	pacpdsn := make(map[string]map[string]int)
-	sn := &StorageNode{snid, snaddr, pairing, clientFileMap, sync.RWMutex{}, fileShardsMap, sync.RWMutex{}, pb.UnimplementedSNServiceServer{}, pb.UnimplementedSNACServiceServer{}, pacpdsn, sync.RWMutex{}}
+	cpi := make(map[string]*util.PublicInfo)
+	sn := &StorageNode{snid, snaddr, pairing, cpi, sync.RWMutex{}, clientFileMap, sync.RWMutex{}, fileShardsMap, sync.RWMutex{}, pb.UnimplementedSNServiceServer{}, pb.UnimplementedSNACServiceServer{}, pacpdsn, sync.RWMutex{}}
 
 	//设置监听地址
 	lis, err := net.Listen("tcp", snaddr)
@@ -52,6 +55,25 @@ func NewStorageNode(snid string, snaddr string) *StorageNode {
 		}
 	}()
 	return sn
+}
+
+// 【供client使用的RPC】客户端注册，存储方记录客户端公开信息
+func (sn *StorageNode) RegisterSN(ctx context.Context, req *pb.RegistSNRequest) (*pb.RegistSNResponse, error) {
+	log.Printf("Received regist message from client: %s\n", req.ClientId)
+	message := ""
+	var e error
+	sn.CPIMutex.Lock()
+	if sn.ClientPublicInfor[req.ClientId] != nil {
+		message = "client information has already exist!"
+		e = errors.New("client already exist")
+	} else {
+		cpi := util.NewPublicInfo(req.G, req.PK)
+		sn.ClientPublicInfor[req.ClientId] = cpi
+		message = "client registration successful!"
+		e = nil
+	}
+	sn.CPIMutex.Unlock()
+	return &pb.RegistSNResponse{ClientId: req.ClientId, Message: message}, e
 }
 
 // 【供客户端使用的RPC】存储节点验证分片序号是否与审计方通知的一致，验签，存放数据分片，告知审计方已存储或存储失败，给客户端回复消息
@@ -81,16 +103,35 @@ func (sn *StorageNode) PutDataShard(ctx context.Context, preq *pb.PutDSRequest) 
 		e := errors.New("dsno is inconsistent with auditor's notif")
 		return &pb.PutDSResponse{Filename: preq.Filename, Dsno: dsno, Message: message}, e
 	}
-	//2-验签
-	//3-存放数据分片
-	//3-1-提取数据分片对象
+	//2-存放数据分片
+	//2-1-提取数据分片对象
 	ds, err := util.DeserializeDS(preq.DatashardSerialized)
 	if err != nil {
 		log.Println("Deserialize DataShard Error!")
 		message = "Deserialize DataShard Error!"
-		return &pb.PutDSResponse{Filename: preq.Filename, Dsno: dsno, Message: message}, err
+		e := errors.New("deserialize dataShard error")
+		return &pb.PutDSResponse{Filename: preq.Filename, Dsno: dsno, Message: message}, e
 	}
-	//3-2-放置文件分片列表
+	//2-2-验签
+	var g []byte
+	var pk []byte
+	sn.CPIMutex.RLock()
+	if sn.ClientPublicInfor[clientId] == nil {
+		sn.CPIMutex.RUnlock()
+		message = "client not regist!"
+		e := errors.New("client not regist")
+		return &pb.PutDSResponse{Filename: preq.Filename, Dsno: dsno, Message: message}, e
+	} else {
+		g = sn.ClientPublicInfor[clientId].G
+		pk = sn.ClientPublicInfor[clientId].PK
+		sn.CPIMutex.RUnlock()
+	}
+	if !pdp.VerifySig(sn.Pairing, g, pk, ds.Data, ds.Sig, ds.Version, ds.Timestamp) {
+		message = "signature verify error!"
+		e := errors.New("signature verify error")
+		return &pb.PutDSResponse{Filename: preq.Filename, Dsno: dsno, Message: message}, e
+	}
+	//2-3-放置文件分片列表
 	sn.FSMMMutex.Lock()
 	if sn.FileShardsMap[cid_fn] != nil {
 		message = "Filename Already Exist!"
@@ -100,7 +141,7 @@ func (sn *StorageNode) PutDataShard(ctx context.Context, preq *pb.PutDSRequest) 
 	sn.FileShardsMap[cid_fn] = make(map[string]*util.DataShard)
 	sn.FileShardsMap[cid_fn][dsno] = ds
 	sn.FSMMMutex.Unlock()
-	//3-3-放置客户端文件名列表
+	//2-4-放置客户端文件名列表
 	sn.CFMMutex.Lock()
 	if sn.ClientFileMap[clientId] == nil {
 		sn.ClientFileMap[clientId] = make([]string, 0)
@@ -108,17 +149,18 @@ func (sn *StorageNode) PutDataShard(ctx context.Context, preq *pb.PutDSRequest) 
 	sn.ClientFileMap[clientId] = append(sn.ClientFileMap[clientId], filename)
 	sn.CFMMutex.Unlock()
 	message = "Put File Success!"
-	//4-修改PendingACPutDSNotice
+	//3-修改PendingACPutDSNotice
 	sn.PACNMutex.Lock()
 	sn.PendingACPutDSNotice[cid_fn][dsno] = 2
 	sn.PACNMutex.Unlock()
-	//5-告知审计方分片放置结果
+	//4-告知审计方分片放置结果
+	log.Println("Completed record datashard ", dsno, " of file ", filename, ".")
 	return &pb.PutDSResponse{Filename: preq.Filename, Dsno: dsno, Message: message}, nil
 }
 
 // 【供审计方使用的RPC】存储节点接收审计方分片存放通知，阻塞等待客户端分片存放，完成后回复审计方
 func (sn *StorageNode) PutDataShardNotice(ctx context.Context, preq *pb.ClientStorageRequest) (*pb.ClientStorageResponse, error) {
-	log.Printf("Received message from auditor.\n")
+	log.Printf("Received put datashard notice message from auditor.\n")
 	clientId := preq.ClientId
 	filename := preq.Filename
 	dsno := preq.Dsno
@@ -150,6 +192,26 @@ func (sn *StorageNode) PutDataShardNotice(ctx context.Context, preq *pb.ClientSt
 	timestamp := sn.FileShardsMap[cid_fn][dsno].Timestamp
 	sn.FSMMMutex.RUnlock()
 	return &pb.ClientStorageResponse{ClientId: clientId, Filename: filename, Dsno: dsno, Version: version, Timestamp: timestamp, Message: sn.SNId + " completes the storage of datashard" + dsno + "."}, nil
+}
+
+// 【供客户端使用的RPC】
+func (sn *StorageNode) GetDataShard(ctx context.Context, req *pb.GetDSRequest) (*pb.GetDSResponse, error) {
+	log.Printf("Received get datashard message from client: %s\n", req.ClientId)
+	cid_fn := req.ClientId + "-" + req.Filename
+	sn.FSMMMutex.RLock()
+	if sn.FileShardsMap[cid_fn] == nil {
+		sn.FSMMMutex.RUnlock()
+		e := errors.New("client file not exist")
+		return &pb.GetDSResponse{Filename: req.Filename, DatashardSerialized: nil}, e
+	} else if sn.FileShardsMap[cid_fn][req.Dsno] == nil {
+		sn.FSMMMutex.RUnlock()
+		e := errors.New("datashard not exist")
+		return &pb.GetDSResponse{Filename: req.Filename, DatashardSerialized: nil}, e
+	} else {
+		seds := sn.FileShardsMap[cid_fn][req.Dsno].SerializeDS()
+		sn.FSMMMutex.RUnlock()
+		return &pb.GetDSResponse{Filename: req.Filename, DatashardSerialized: seds}, nil
+	}
 }
 
 // 打印storage node

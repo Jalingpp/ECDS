@@ -19,16 +19,20 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
+	ACService_RegisterAC_FullMethodName    = "/proto.ACService/RegisterAC"
 	ACService_SelectSNs_FullMethodName     = "/proto.ACService/SelectSNs"
 	ACService_PutFileCommit_FullMethodName = "/proto.ACService/PutFileCommit"
+	ACService_GetFileSNs_FullMethodName    = "/proto.ACService/GetFileSNs"
 )
 
 // ACServiceClient is the client API for ACService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ACServiceClient interface {
+	RegisterAC(ctx context.Context, in *RegistACRequest, opts ...grpc.CallOption) (*RegistACResponse, error)
 	SelectSNs(ctx context.Context, in *StorageRequest, opts ...grpc.CallOption) (*StorageResponse, error)
 	PutFileCommit(ctx context.Context, in *PFCRequest, opts ...grpc.CallOption) (*PFCResponse, error)
+	GetFileSNs(ctx context.Context, in *GFACRequest, opts ...grpc.CallOption) (*GFACResponse, error)
 }
 
 type aCServiceClient struct {
@@ -37,6 +41,15 @@ type aCServiceClient struct {
 
 func NewACServiceClient(cc grpc.ClientConnInterface) ACServiceClient {
 	return &aCServiceClient{cc}
+}
+
+func (c *aCServiceClient) RegisterAC(ctx context.Context, in *RegistACRequest, opts ...grpc.CallOption) (*RegistACResponse, error) {
+	out := new(RegistACResponse)
+	err := c.cc.Invoke(ctx, ACService_RegisterAC_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *aCServiceClient) SelectSNs(ctx context.Context, in *StorageRequest, opts ...grpc.CallOption) (*StorageResponse, error) {
@@ -57,12 +70,23 @@ func (c *aCServiceClient) PutFileCommit(ctx context.Context, in *PFCRequest, opt
 	return out, nil
 }
 
+func (c *aCServiceClient) GetFileSNs(ctx context.Context, in *GFACRequest, opts ...grpc.CallOption) (*GFACResponse, error) {
+	out := new(GFACResponse)
+	err := c.cc.Invoke(ctx, ACService_GetFileSNs_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ACServiceServer is the server API for ACService service.
 // All implementations must embed UnimplementedACServiceServer
 // for forward compatibility
 type ACServiceServer interface {
+	RegisterAC(context.Context, *RegistACRequest) (*RegistACResponse, error)
 	SelectSNs(context.Context, *StorageRequest) (*StorageResponse, error)
 	PutFileCommit(context.Context, *PFCRequest) (*PFCResponse, error)
+	GetFileSNs(context.Context, *GFACRequest) (*GFACResponse, error)
 	mustEmbedUnimplementedACServiceServer()
 }
 
@@ -70,11 +94,17 @@ type ACServiceServer interface {
 type UnimplementedACServiceServer struct {
 }
 
+func (UnimplementedACServiceServer) RegisterAC(context.Context, *RegistACRequest) (*RegistACResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RegisterAC not implemented")
+}
 func (UnimplementedACServiceServer) SelectSNs(context.Context, *StorageRequest) (*StorageResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SelectSNs not implemented")
 }
 func (UnimplementedACServiceServer) PutFileCommit(context.Context, *PFCRequest) (*PFCResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PutFileCommit not implemented")
+}
+func (UnimplementedACServiceServer) GetFileSNs(context.Context, *GFACRequest) (*GFACResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetFileSNs not implemented")
 }
 func (UnimplementedACServiceServer) mustEmbedUnimplementedACServiceServer() {}
 
@@ -87,6 +117,24 @@ type UnsafeACServiceServer interface {
 
 func RegisterACServiceServer(s grpc.ServiceRegistrar, srv ACServiceServer) {
 	s.RegisterService(&ACService_ServiceDesc, srv)
+}
+
+func _ACService_RegisterAC_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RegistACRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ACServiceServer).RegisterAC(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ACService_RegisterAC_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ACServiceServer).RegisterAC(ctx, req.(*RegistACRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _ACService_SelectSNs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -125,6 +173,24 @@ func _ACService_PutFileCommit_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ACService_GetFileSNs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GFACRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ACServiceServer).GetFileSNs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ACService_GetFileSNs_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ACServiceServer).GetFileSNs(ctx, req.(*GFACRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ACService_ServiceDesc is the grpc.ServiceDesc for ACService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -133,12 +199,20 @@ var ACService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*ACServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
+			MethodName: "RegisterAC",
+			Handler:    _ACService_RegisterAC_Handler,
+		},
+		{
 			MethodName: "SelectSNs",
 			Handler:    _ACService_SelectSNs_Handler,
 		},
 		{
 			MethodName: "PutFileCommit",
 			Handler:    _ACService_PutFileCommit_Handler,
+		},
+		{
+			MethodName: "GetFileSNs",
+			Handler:    _ACService_GetFileSNs_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

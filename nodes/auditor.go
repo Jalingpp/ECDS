@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,6 +20,8 @@ import (
 
 type Auditor struct {
 	IpAddr                          string                          //审计方的IP地址
+	ClientPublicInfor               map[string]*util.PublicInfo     //客户端的公钥信息，key:clientID,value:公钥信息指针
+	CPIMutex                        sync.RWMutex                    //ClientPublicInfor的读写锁
 	SNAddrMap                       map[string]string               //存储节点的地址表，key:存储节点id，value:存储节点地址
 	ClientFileShardsMap             map[string]map[string]string    //客户端文件的分片所在的存储节点表，key:客户端id-文件名，value:数据分片序号对应的存储节点id列表
 	CFSMMutex                       sync.RWMutex                    //ClientFileShardsMap的读写锁
@@ -32,6 +35,7 @@ type Auditor struct {
 
 // 新建一个审计方，持续监听消息
 func NewAuditor(ipaddr string, snaddrfilename string, dn int, pn int) *Auditor {
+	cpis := make(map[string]*util.PublicInfo)
 	snaddrmap := util.ReadSNAddrFile(snaddrfilename)
 	cfsmap := make(map[string]map[string]string)
 	metaFileMap := make(map[string]*encode.Meta4File)
@@ -45,7 +49,7 @@ func NewAuditor(ipaddr string, snaddrfilename string, dn int, pn int) *Auditor {
 		sc := pb.NewSNACServiceClient(snconn)
 		snrpcs[key] = sc
 	}
-	auditor := &Auditor{ipaddr, *snaddrmap, cfsmap, sync.RWMutex{}, metaFileMap, sync.RWMutex{}, dn, pn, pb.UnimplementedACServiceServer{}, snrpcs}
+	auditor := &Auditor{ipaddr, cpis, sync.RWMutex{}, *snaddrmap, cfsmap, sync.RWMutex{}, metaFileMap, sync.RWMutex{}, dn, pn, pb.UnimplementedACServiceServer{}, snrpcs}
 	//设置监听地址
 	lis, err := net.Listen("tcp", ipaddr)
 	if err != nil {
@@ -60,6 +64,25 @@ func NewAuditor(ipaddr string, snaddrfilename string, dn int, pn int) *Auditor {
 		}
 	}()
 	return auditor
+}
+
+// 【供client使用的RPC】客户端注册，存储方记录客户端公开信息
+func (ac *Auditor) RegisterAC(ctx context.Context, req *pb.RegistACRequest) (*pb.RegistACResponse, error) {
+	log.Printf("Received regist message from client: %s\n", req.ClientId)
+	message := ""
+	var e error
+	ac.CPIMutex.Lock()
+	if ac.ClientPublicInfor[req.ClientId] != nil {
+		message = "client information has already exist!"
+		e = errors.New("client already exist")
+	} else {
+		cpi := util.NewPublicInfo(req.G, req.PK)
+		ac.ClientPublicInfor[req.ClientId] = cpi
+		message = "client registration successful!"
+		e = nil
+	}
+	ac.CPIMutex.Unlock()
+	return &pb.RegistACResponse{ClientId: req.ClientId, Message: message}, e
 }
 
 // 【供Client使用的RPC】选择存储节点，给客户端回复消息
@@ -199,6 +222,28 @@ func (ac *Auditor) PutFileCommit(ctx context.Context, req *pb.PFCRequest) (*pb.P
 	}
 	message = "put file finished and metainfo is consistent."
 	return &pb.PFCResponse{Filename: req.Filename, Message: message}, nil
+}
+
+// 【供client使用的RPC】获取文件数据分片所在的存储节点id
+func (ac *Auditor) GetFileSNs(ctx context.Context, req *pb.GFACRequest) (*pb.GFACResponse, error) {
+	log.Printf("Received get file sns message from client: %s\n", req.ClientId)
+	cid_fn := req.ClientId + "-" + req.Filename
+	snsds := make(map[string]string)
+	//为客户端找到文件的所有数据分片对应的存储节点
+	ac.CFSMMutex.RLock()
+	if ac.ClientFileShardsMap[cid_fn] == nil {
+		ac.CFSMMutex.RUnlock()
+		e := errors.New("client filename not exist")
+		return &pb.GFACResponse{Filename: req.Filename, Snsds: snsds}, e
+	} else {
+		for key, value := range ac.ClientFileShardsMap[cid_fn] {
+			if strings.HasPrefix(key, "d") {
+				snsds[key] = value
+			}
+		}
+		ac.CFSMMutex.RUnlock()
+	}
+	return &pb.GFACResponse{Filename: req.Filename, Snsds: snsds}, nil
 }
 
 // 打印auditor
