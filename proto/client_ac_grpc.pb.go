@@ -19,10 +19,11 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	ACService_RegisterAC_FullMethodName    = "/proto.ACService/RegisterAC"
-	ACService_SelectSNs_FullMethodName     = "/proto.ACService/SelectSNs"
-	ACService_PutFileCommit_FullMethodName = "/proto.ACService/PutFileCommit"
-	ACService_GetFileSNs_FullMethodName    = "/proto.ACService/GetFileSNs"
+	ACService_RegisterAC_FullMethodName     = "/proto.ACService/RegisterAC"
+	ACService_SelectSNs_FullMethodName      = "/proto.ACService/SelectSNs"
+	ACService_PutFileCommit_FullMethodName  = "/proto.ACService/PutFileCommit"
+	ACService_GetFileSNs_FullMethodName     = "/proto.ACService/GetFileSNs"
+	ACService_GetDSErrReport_FullMethodName = "/proto.ACService/GetDSErrReport"
 )
 
 // ACServiceClient is the client API for ACService service.
@@ -33,6 +34,7 @@ type ACServiceClient interface {
 	SelectSNs(ctx context.Context, in *StorageRequest, opts ...grpc.CallOption) (*StorageResponse, error)
 	PutFileCommit(ctx context.Context, in *PFCRequest, opts ...grpc.CallOption) (*PFCResponse, error)
 	GetFileSNs(ctx context.Context, in *GFACRequest, opts ...grpc.CallOption) (*GFACResponse, error)
+	GetDSErrReport(ctx context.Context, in *GDSERequest, opts ...grpc.CallOption) (*GDSEResponse, error)
 }
 
 type aCServiceClient struct {
@@ -79,6 +81,15 @@ func (c *aCServiceClient) GetFileSNs(ctx context.Context, in *GFACRequest, opts 
 	return out, nil
 }
 
+func (c *aCServiceClient) GetDSErrReport(ctx context.Context, in *GDSERequest, opts ...grpc.CallOption) (*GDSEResponse, error) {
+	out := new(GDSEResponse)
+	err := c.cc.Invoke(ctx, ACService_GetDSErrReport_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ACServiceServer is the server API for ACService service.
 // All implementations must embed UnimplementedACServiceServer
 // for forward compatibility
@@ -87,6 +98,7 @@ type ACServiceServer interface {
 	SelectSNs(context.Context, *StorageRequest) (*StorageResponse, error)
 	PutFileCommit(context.Context, *PFCRequest) (*PFCResponse, error)
 	GetFileSNs(context.Context, *GFACRequest) (*GFACResponse, error)
+	GetDSErrReport(context.Context, *GDSERequest) (*GDSEResponse, error)
 	mustEmbedUnimplementedACServiceServer()
 }
 
@@ -105,6 +117,9 @@ func (UnimplementedACServiceServer) PutFileCommit(context.Context, *PFCRequest) 
 }
 func (UnimplementedACServiceServer) GetFileSNs(context.Context, *GFACRequest) (*GFACResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetFileSNs not implemented")
+}
+func (UnimplementedACServiceServer) GetDSErrReport(context.Context, *GDSERequest) (*GDSEResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetDSErrReport not implemented")
 }
 func (UnimplementedACServiceServer) mustEmbedUnimplementedACServiceServer() {}
 
@@ -191,6 +206,24 @@ func _ACService_GetFileSNs_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ACService_GetDSErrReport_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GDSERequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ACServiceServer).GetDSErrReport(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ACService_GetDSErrReport_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ACServiceServer).GetDSErrReport(ctx, req.(*GDSERequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ACService_ServiceDesc is the grpc.ServiceDesc for ACService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -213,6 +246,10 @@ var ACService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetFileSNs",
 			Handler:    _ACService_GetFileSNs_Handler,
+		},
+		{
+			MethodName: "GetDSErrReport",
+			Handler:    _ACService_GetDSErrReport_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

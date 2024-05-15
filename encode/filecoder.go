@@ -78,9 +78,9 @@ func (fc *FileCoder) Setup(filename string, filedata string) ([]util.DataShard, 
 		sig := fc.Sigger.GetSig(dataSlice[i], time, 0)
 		var dsno string
 		if i < fc.Rsec.DataNum {
-			dsno = "d" + strconv.Itoa(i)
+			dsno = "d-" + strconv.Itoa(i)
 		} else {
-			dsno = "p" + strconv.Itoa(i-fc.Rsec.DataNum)
+			dsno = "p-" + strconv.Itoa(i-fc.Rsec.DataNum)
 		}
 		datashard := util.NewDataShard(dsno, dataSlice[i], sig, 0, time)
 		dataShardSlice = append(dataShardSlice, *datashard)
@@ -112,13 +112,13 @@ func (fc *FileCoder) UpdateDataShard(filename string, drow int, ds *util.DataSha
 		//计算校验块增量和矩阵系数
 		incParity := fc.Rsec.GetIncParity(incData, i+fc.Rsec.DataNum, drow)
 		//计算签名增量
-		oldV := fc.MetaFileMap[filename].LatestVersionSlice["p"+strconv.Itoa(i)]
-		oldT := fc.MetaFileMap[filename].LatestTimestampSlice["p"+strconv.Itoa(i)]
+		oldV := fc.MetaFileMap[filename].LatestVersionSlice["p-"+strconv.Itoa(i)]
+		oldT := fc.MetaFileMap[filename].LatestTimestampSlice["p-"+strconv.Itoa(i)]
 		newV := oldV + 1
 		newT := time.Now().Format("2006-01-02 15:04:05")
 		incSig := fc.Sigger.GetIncSig(incParity, oldV, oldT, newV, newT)
-		iPS := util.NewDataShard("p"+strconv.Itoa(i), incParity, incSig, newV, newT)
-		fc.MetaFileMap[filename].Update("p"+strconv.Itoa(i), newT, newV)
+		iPS := util.NewDataShard("p-"+strconv.Itoa(i), incParity, incSig, newV, newT)
+		fc.MetaFileMap[filename].Update("p-"+strconv.Itoa(i), newT, newV)
 		incParityShards = append(incParityShards, *iPS)
 	}
 	return incParityShards

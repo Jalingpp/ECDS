@@ -6,7 +6,7 @@ import (
 	"ECDS/util"
 	"context"
 	"log"
-	"sort"
+	"strconv"
 	"sync"
 
 	pb "ECDS/proto" // 根据实际路径修改
@@ -184,7 +184,8 @@ func (client *Client) PutFile(filepath string, filename string) {
 
 // 客户端获取文件
 func (client *Client) GetFile(filename string) {
-	fileDSs := make(map[string][]int32)
+	fileDSs := make(map[string][]int32)  //记录存储节点返回的文件分片，用于最后拼接完整文件,key:dsno
+	errdsnosn := make(map[string]string) //记录未正常返回分片的snid，key:dsno,value:snid
 	fdssMutex := sync.Mutex{}
 	//1-构建获取文件所在的SNs请求消息
 	gfsns_req := &pb.GFACRequest{
@@ -208,20 +209,26 @@ func (client *Client) GetFile(filename string) {
 			// 3.2-向存储节点发送请求
 			gds_res, err := client.SNRPCs[snid].GetDataShard(context.Background(), gds_req)
 			if err != nil {
-				log.Fatalf("storagenode could not process request: %v", err)
+				log.Println("storagenode could not process request:", err)
+				errdsnosn[dsno] = snid
+			} else if gds_res.DatashardSerialized == nil {
+				log.Println("sn", snid, "return nil datashard", dsno)
+				errdsnosn[dsno] = snid
+			} else {
+				// 3.3-反序列化数据分片并验签
+				datashard, _ := util.DeserializeDS(gds_res.DatashardSerialized)
+				lv := client.Filecoder.MetaFileMap[filename].LatestVersionSlice[dsno]
+				lt := client.Filecoder.MetaFileMap[filename].LatestTimestampSlice[dsno]
+				sigger := client.Filecoder.Sigger
+				if !pdp.VerifySig(sigger.Pairing, sigger.G, sigger.PubKey, datashard.Data, datashard.Sig, lv, lt) {
+					log.Println("datashard ", dsno, " signature verification not pass.")
+					errdsnosn[dsno] = snid
+				}
+				// 3.3-将获取到的分片加入到列表中
+				fdssMutex.Lock()
+				fileDSs[dsno] = datashard.Data
+				fdssMutex.Unlock()
 			}
-			// 3.3-反序列化数据分片并验签
-			datashard, _ := util.DeserializeDS(gds_res.DatashardSerialized)
-			lv := client.Filecoder.MetaFileMap[filename].LatestVersionSlice[dsno]
-			lt := client.Filecoder.MetaFileMap[filename].LatestTimestampSlice[dsno]
-			sigger := client.Filecoder.Sigger
-			if !pdp.VerifySig(sigger.Pairing, sigger.G, sigger.PubKey, datashard.Data, datashard.Sig, lv, lt) {
-				log.Println("datashard ", dsno, " signature verification not pass.")
-			}
-			// 3.3-将获取到的分片加入到列表中
-			fdssMutex.Lock()
-			fileDSs[dsno] = datashard.Data
-			fdssMutex.Unlock()
 			// 通知主线程任务完成
 			done <- struct{}{}
 		}(key, value)
@@ -230,19 +237,108 @@ func (client *Client) GetFile(filename string) {
 	for i := 0; i < len(dssnmap); i++ {
 		<-done
 	}
-	// 4-恢复完整文件
-	// 4.1-将fileDSs的键按字典序排序
-	var keys []string
-	for key := range fileDSs {
-		keys = append(keys, key)
+	// 4-故障仲裁与校验块申请,如果故障一直存在则一直申请，直到系统中备用校验块不足而报错
+	// 4.0-设置sn黑名单
+	blacksns := make(map[string]string) //key:snid,vlaue:h-黑,b-白
+	for {
+		if len(errdsnosn) == 0 {
+			break
+		} else {
+			log.Println("get datashards from sn errors:", errdsnosn)
+			// 4.0-将未返回分片的存储节点id加入黑名单
+			for _, value := range errdsnosn {
+				blacksns[value] = "h"
+			}
+			// 4.1-构造请求消息
+			er_req := &pb.GDSERequest{ClientId: client.ClientID, Filename: filename, Errdssn: errdsnosn, Blacksns: blacksns}
+			// 4.2-向AC发出请求
+			er_res, err := client.ACRPC.GetDSErrReport(context.Background(), er_req)
+			if err != nil {
+				log.Fatalf("auditor could not process request: %v", err)
+			}
+			// 4.3-判断AC是否返回足够数量的存储节点，不够时报错
+			if len(er_res.Snsds) < len(errdsnosn) {
+				log.Fatalf("honest sns for parity shard not enough")
+			} else {
+				errdsnosn = make(map[string]string) //置空错误名单，重利用
+			}
+			// 4.4-向存储节点请求校验块
+			log.Println("request sns of parity shards:", er_res.Snsds)
+			for key, value := range er_res.Snsds {
+				go func(dsno string, snid string) {
+					// 4.4.1-构造获取分片请求消息
+					gds_req := &pb.GetDSRequest{ClientId: client.ClientID, Filename: filename, Dsno: dsno}
+					// 4.4.2-向存储节点发送请求
+					gds_res, err := client.SNRPCs[snid].GetDataShard(context.Background(), gds_req)
+					if err != nil {
+						log.Println("storagenode could not process request:", err)
+						errdsnosn[dsno] = snid
+					} else if gds_res.DatashardSerialized == nil {
+						log.Println("sn", snid, "return nil parityshard", dsno)
+						errdsnosn[dsno] = snid
+					} else {
+						// 4.4.3-反序列化数据分片并验签
+						datashard, _ := util.DeserializeDS(gds_res.DatashardSerialized)
+						lv := client.Filecoder.MetaFileMap[filename].LatestVersionSlice[dsno]
+						lt := client.Filecoder.MetaFileMap[filename].LatestTimestampSlice[dsno]
+						sigger := client.Filecoder.Sigger
+						if !pdp.VerifySig(sigger.Pairing, sigger.G, sigger.PubKey, datashard.Data, datashard.Sig, lv, lt) {
+							log.Println("parityshard ", dsno, " signature verification not pass.")
+							errdsnosn[dsno] = snid
+						}
+						// 4.4.4-将获取到的分片加入到列表中
+						fdssMutex.Lock()
+						fileDSs[dsno] = datashard.Data
+						fdssMutex.Unlock()
+						// 4.4.5-将snid加入白名单
+						blacksns[snid] = "b"
+					}
+					// 通知主线程任务完成
+					done <- struct{}{}
+				}(key, value)
+			}
+			// 等待所有协程完成
+			for i := 0; i < len(er_res.Snsds); i++ {
+				<-done
+			}
+		}
 	}
-	sort.Strings(keys)
-	// 4.2-按照排序后的键重组file
+
+	// 5-恢复完整文件
+	// 5.1-遍历收到的文件分片，按需排放，判断是否需要纠删码解码
+	isneedencode := false
+	var orderedFileDSs [][]int32
+	var rows []int
+	for i := 0; i < client.Filecoder.Rsec.DataNum; i++ {
+		key := "d-" + strconv.Itoa(i)
+		if fileDSs[key] != nil {
+			orderedFileDSs = append(orderedFileDSs, fileDSs[key])
+			rows = append(rows, i)
+		} else {
+			isneedencode = true
+		}
+	}
+	for i := 0; i < client.Filecoder.Rsec.ParityNum; i++ {
+		key := "p-" + strconv.Itoa(i)
+		if fileDSs[key] != nil {
+			orderedFileDSs = append(orderedFileDSs, fileDSs[key])
+			rows = append(rows, client.Filecoder.Rsec.DataNum+i)
+		}
+	}
+	log.Println("Recieved", len(orderedFileDSs), "file shards.")
+	// log.Println("rows:", rows)
+	// 5.2-如果不需要解码，按序转换为字符串输出；如果需要解码，则纠删码解码后转换为字符串输出
 	filestr := ""
-	for _, key := range keys {
-		filestr = filestr + util.Int32SliceToStr(fileDSs[key])
+	var orderedFile [][]int32
+	if isneedencode {
+		orderedFile = client.Filecoder.Rsec.Decode(orderedFileDSs, rows)
+	} else {
+		orderedFile = orderedFileDSs
 	}
-	log.Println("Get file", filename, ": ", filestr)
+	for i := 0; i < len(orderedFile); i++ {
+		filestr = filestr + util.Int32SliceToStr(orderedFile[i])
+	}
+	log.Println("Get file", filename, ":", filestr)
 }
 
 // 存储回复消息转为字符串

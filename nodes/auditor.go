@@ -127,7 +127,7 @@ func (ac *Auditor) PutFileNoticeToSN(cid string, fn string, dssnids []string, ps
 			pds_req := &pb.ClientStorageRequest{
 				ClientId: cid,
 				Filename: fn,
-				Dsno:     "d" + strconv.Itoa(i),
+				Dsno:     "d-" + strconv.Itoa(i),
 			}
 			//发送请求消息给存储节点
 			pds_res, err := ac.SNRPCs[snid].PutDataShardNotice(context.Background(), pds_req)
@@ -154,7 +154,7 @@ func (ac *Auditor) PutFileNoticeToSN(cid string, fn string, dssnids []string, ps
 			pds_req := &pb.ClientStorageRequest{
 				ClientId: cid,
 				Filename: fn,
-				Dsno:     "p" + strconv.Itoa(i),
+				Dsno:     "p-" + strconv.Itoa(i),
 			}
 			//发送请求消息给存储节点
 			pds_res, err := ac.SNRPCs[snid].PutDataShardNotice(context.Background(), pds_req)
@@ -244,6 +244,27 @@ func (ac *Auditor) GetFileSNs(ctx context.Context, req *pb.GFACRequest) (*pb.GFA
 		ac.CFSMMutex.RUnlock()
 	}
 	return &pb.GFACResponse{Filename: req.Filename, Snsds: snsds}, nil
+}
+
+// 【供client使用的RPC】报告获取DS错误，并请求获取校验块所在的存储节点id
+func (ac *Auditor) GetDSErrReport(ctx context.Context, req *pb.GDSERequest) (*pb.GDSEResponse, error) {
+	log.Printf("Received get DS error message from client: %s\n", req.ClientId)
+	cid_fn := req.ClientId + "-" + req.Filename
+	blacksns := req.Blacksns
+	dsnosnmap := make(map[string]string)
+	count := 0
+	ac.CFSMMutex.RLock()
+	for key, value := range ac.ClientFileShardsMap[cid_fn] {
+		if strings.HasPrefix(key, "p") && blacksns[value] != "h" && blacksns[value] != "b" {
+			dsnosnmap[key] = value
+			count++
+			if count == len(req.Errdssn) {
+				break
+			}
+		}
+	}
+	ac.CFSMMutex.RUnlock()
+	return &pb.GDSEResponse{Filename: req.Filename, Snsds: dsnosnmap}, nil
 }
 
 // 打印auditor

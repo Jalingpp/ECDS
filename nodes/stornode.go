@@ -208,6 +208,16 @@ func (sn *StorageNode) GetDataShard(ctx context.Context, req *pb.GetDSRequest) (
 		e := errors.New("datashard not exist")
 		return &pb.GetDSResponse{Filename: req.Filename, DatashardSerialized: nil}, e
 	} else {
+		// //制造一个故障：dsno为d2时沉默
+		// if req.Dsno == "d-2" || req.Dsno == "d-5" {
+		// 	sn.FSMMMutex.RUnlock()
+		// 	return &pb.GetDSResponse{Filename: req.Filename, DatashardSerialized: nil}, nil
+		// }
+		// //制造一个故障：dsno为校验块序号且既不是p9也不是p10时沉默
+		// if strings.HasPrefix(req.Dsno, "p") && (req.Dsno != "p-9" && req.Dsno != "p-10") {
+		// 	sn.FSMMMutex.RUnlock()
+		// 	return &pb.GetDSResponse{Filename: req.Filename, DatashardSerialized: nil}, nil
+		// }
 		seds := sn.FileShardsMap[cid_fn][req.Dsno].SerializeDS()
 		sn.FSMMMutex.RUnlock()
 		return &pb.GetDSResponse{Filename: req.Filename, DatashardSerialized: seds}, nil
