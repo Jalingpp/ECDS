@@ -3,7 +3,9 @@ package pdp
 import (
 	"ECDS/util"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
+	"log"
 
 	"github.com/Nik-U/pbc"
 )
@@ -15,7 +17,8 @@ type POS struct {
 }
 
 // 【存储节点执行】生成存储证明
-func ProvePos(pairing *pbc.Pairing, pi *util.PublicInfo, ds *util.DataShard, randoms int32) *POS {
+func ProvePos(pi *util.PublicInfo, ds *util.DataShard, randoms int32) *POS {
+	pairing, _ := pbc.NewPairingFromString(pi.Params)
 	//生成data proof
 	g := pairing.NewG1().SetBytes(pi.G)
 	pk := pairing.NewG2().SetBytes(pi.PK)
@@ -45,10 +48,10 @@ func VerifyPos(pos *POS, pairing *pbc.Pairing, gb []byte, pubkey []byte, v int32
 	dp := pairing.NewGT().SetBytes(pos.DataProof)
 	temp := pairing.NewGT().Mul(dp, evtspk)
 	if !temp.Equals(espg) {
-		fmt.Println("*BUG* Signature check failed *BUG*")
+		log.Println(pos.DSno, ":*BUG* pos check failed *BUG*")
 		return false
 	} else {
-		fmt.Println("Signature verified correctly")
+		log.Println(pos.DSno, ":pos verified correctly")
 		return true
 	}
 }
@@ -56,4 +59,24 @@ func VerifyPos(pos *POS, pairing *pbc.Pairing, gb []byte, pubkey []byte, v int32
 func (pos *POS) Print() {
 	fmt.Println("data proof:", pos.DataProof)
 	fmt.Println("sig proof:", pos.SigProof)
+}
+
+// 序列化POS
+func SerializePOS(pos *POS) []byte {
+	jsonPOS, err := json.Marshal(pos)
+	if err != nil {
+		fmt.Printf("SerializePOS error: %v\n", err)
+		return nil
+	}
+	return jsonPOS
+}
+
+// 反序列化POS
+func DeserializePOS(sepos []byte) (*POS, error) {
+	var pos POS
+	if err := json.Unmarshal(sepos, &pos); err != nil {
+		fmt.Printf("DeserializePOS error: %v\n", err)
+		return nil, err
+	}
+	return &pos, nil
 }

@@ -5,6 +5,8 @@ import (
 	"ECDS/util"
 	"fmt"
 	"strconv"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/Nik-U/pbc"
@@ -14,6 +16,7 @@ type FileCoder struct {
 	Rsec        *RSEC
 	Sigger      *pdp.Signature
 	MetaFileMap map[string]*Meta4File // 用于记录每个文件的元数据,key是文件名
+	MFMMutex    sync.RWMutex          //MetaFileMap的读写锁
 }
 
 type Meta4File struct {
@@ -36,6 +39,38 @@ func (m4f *Meta4File) Update(dsno string, newT string, newV int32) {
 	m4f.LatestVersionSlice[dsno] = newV
 }
 
+// 获取文件所有分片版本号
+func (fc *FileCoder) GetVersions(filename string) map[string]int32 {
+	fc.MFMMutex.RLock()
+	v := fc.MetaFileMap[filename].LatestVersionSlice
+	fc.MFMMutex.RUnlock()
+	return v
+}
+
+// 获取文件所有分片时间戳
+func (fc *FileCoder) GetTimestamps(filename string) map[string]string {
+	fc.MFMMutex.RLock()
+	t := fc.MetaFileMap[filename].LatestTimestampSlice
+	fc.MFMMutex.RUnlock()
+	return t
+}
+
+// 获取分片版本号
+func (fc *FileCoder) GetVersion(filename string, dsno string) int32 {
+	fc.MFMMutex.RLock()
+	v := fc.MetaFileMap[filename].LatestVersionSlice[dsno]
+	fc.MFMMutex.RUnlock()
+	return v
+}
+
+// 获取分片时间戳
+func (fc *FileCoder) GetTimestamp(filename string, dsno string) string {
+	fc.MFMMutex.RLock()
+	t := fc.MetaFileMap[filename].LatestTimestampSlice[dsno]
+	fc.MFMMutex.RUnlock()
+	return t
+}
+
 // 【客户端执行】创建文件编码器
 func NewFileCoder(dn int, pn int) *FileCoder {
 	fc := FileCoder{}
@@ -49,7 +84,7 @@ func NewFileCoder(dn int, pn int) *FileCoder {
 }
 
 // 【客户端执行】对文件分块，EC编码，签名
-func (fc *FileCoder) Setup(filename string, filedata string) ([]util.DataShard, *util.PublicInfo) {
+func (fc *FileCoder) Setup(filename string, filedata string) []util.DataShard {
 	dsnum := fc.Rsec.DataNum + fc.Rsec.ParityNum
 	//创建一个包含数据块和校验块的[]int32切片
 	dataSlice := make([][]int32, dsnum)
@@ -67,8 +102,6 @@ func (fc *FileCoder) Setup(filename string, filedata string) ([]util.DataShard, 
 	if err != nil {
 		panic(err)
 	}
-	//创建公共信息对象（发送给存储节点，用于验签、更新等操作）
-	publicInfo := util.NewPublicInfo(fc.Sigger.G, fc.Sigger.PubKey)
 	//为文件初始化一个元数据记录器
 	meta4file := NewMeta4File()
 	//对切片中的每个块签名后构建DataShard
@@ -85,11 +118,13 @@ func (fc *FileCoder) Setup(filename string, filedata string) ([]util.DataShard, 
 		datashard := util.NewDataShard(dsno, dataSlice[i], sig, 0, time)
 		dataShardSlice = append(dataShardSlice, *datashard)
 		//将分片信息写入元数据记录器中
+		fc.MFMMutex.Lock()
 		meta4file.Update(dsno, datashard.Timestamp, datashard.Version)
+		fc.MFMMutex.Unlock()
 	}
 	//将该文件的元数据记录器写入fc中
 	fc.MetaFileMap[filename] = meta4file
-	return dataShardSlice, publicInfo
+	return dataShardSlice
 }
 
 // 【客户端执行】（原地）更新数据分片，返回增量校验块：filename是ds所属的文件名，drow是ds数据在稀疏矩阵中对应的行号
@@ -103,22 +138,36 @@ func (fc *FileCoder) UpdateDataShard(filename string, drow int, ds *util.DataSha
 	ds.Version = ds.Version + 1
 	ds.Sig = fc.Sigger.GetSig(newData, ds.Timestamp, ds.Version)
 	//将数据分片的更新写入到文件元数据记录器中
+	fc.MFMMutex.Lock()
 	fc.MetaFileMap[filename].Update(ds.DSno, ds.Timestamp, ds.Version)
+	fc.MFMMutex.Unlock()
 	//计算数据增量
 	incData := fc.Rsec.GetIncData(oldData, newData)
+	//计算校验块前缀
+	dsnosplit := strings.Split(ds.DSno, "-")
+	pprefix := ""
+	if len(dsnosplit) == 2 {
+		pprefix = "p-"
+	} else {
+		pprefix = "p-" + dsnosplit[1] + "-"
+	}
 	//计算校验块增量，校验块签名增量，生成增量校验分片
 	var incParityShards []util.DataShard
 	for i := 0; i < fc.Rsec.ParityNum; i++ {
 		//计算校验块增量和矩阵系数
 		incParity := fc.Rsec.GetIncParity(incData, i+fc.Rsec.DataNum, drow)
 		//计算签名增量
-		oldV := fc.MetaFileMap[filename].LatestVersionSlice["p-"+strconv.Itoa(i)]
-		oldT := fc.MetaFileMap[filename].LatestTimestampSlice["p-"+strconv.Itoa(i)]
+		fc.MFMMutex.RLock()
+		oldV := fc.MetaFileMap[filename].LatestVersionSlice[pprefix+strconv.Itoa(i)]
+		oldT := fc.MetaFileMap[filename].LatestTimestampSlice[pprefix+strconv.Itoa(i)]
+		fc.MFMMutex.RUnlock()
 		newV := oldV + 1
 		newT := time.Now().Format("2006-01-02 15:04:05")
 		incSig := fc.Sigger.GetIncSig(incParity, oldV, oldT, newV, newT)
-		iPS := util.NewDataShard("p-"+strconv.Itoa(i), incParity, incSig, newV, newT)
-		fc.MetaFileMap[filename].Update("p-"+strconv.Itoa(i), newT, newV)
+		iPS := util.NewDataShard(pprefix+strconv.Itoa(i), incParity, incSig, newV, newT)
+		fc.MFMMutex.Lock()
+		fc.MetaFileMap[filename].Update(pprefix+strconv.Itoa(i), newT, newV)
+		fc.MFMMutex.Unlock()
 		incParityShards = append(incParityShards, *iPS)
 	}
 	return incParityShards
@@ -126,6 +175,8 @@ func (fc *FileCoder) UpdateDataShard(filename string, drow int, ds *util.DataSha
 
 // 【存储节点执行】根据校验块增量分片更新校验块分片
 func UpdateParityShard(oldParityShard *util.DataShard, incParityShard *util.DataShard, pairing *pbc.Pairing, publicInfo *util.PublicInfo) *util.DataShard {
+	// log.Println("【before update】")
+	// oldParityShard.Print()
 	//更新分片数据
 	oldParityShard.Data = UpdateParity(oldParityShard.Data, incParityShard.Data)
 	//更新分片签名
@@ -134,6 +185,8 @@ func UpdateParityShard(oldParityShard *util.DataShard, incParityShard *util.Data
 	oldParityShard.Version = incParityShard.Version
 	//更新分片时间戳
 	oldParityShard.Timestamp = incParityShard.Timestamp
+	// log.Println("【after update】")
+	// oldParityShard.Print()
 	return oldParityShard
 }
 
@@ -146,7 +199,7 @@ func TestFileCoder() {
 	filename := "testFile"
 	fileStr := "abcdef123456123456123456123456"
 	//Setup
-	dataShards, publicInfo := fileCoder.Setup(filename, fileStr)
+	dataShards := fileCoder.Setup(filename, fileStr)
 	fmt.Println("【测试Setup】")
 	for i := 0; i < len(dataShards); i++ {
 		dataShards[i].Print()
@@ -156,7 +209,7 @@ func TestFileCoder() {
 	for i := 0; i < len(dataShards); i++ {
 		ds := dataShards[i]
 		fmt.Println("Verify datashard-", i)
-		pdp.VerifySig(fileCoder.Sigger.Pairing, publicInfo.G, publicInfo.PK, ds.Data, ds.Sig, ds.Version, ds.Timestamp)
+		pdp.VerifySig(fileCoder.Sigger.Pairing, fileCoder.Sigger.G, fileCoder.Sigger.PubKey, ds.Data, ds.Sig, ds.Version, ds.Timestamp)
 	}
 	//更新数据块
 	newDataStr := "abcdef"
@@ -169,6 +222,7 @@ func TestFileCoder() {
 	}
 	//更新校验块
 	fmt.Println("新的校验块分片：")
+	publicInfo := util.NewPublicInfo(fileCoder.Sigger.Params, fileCoder.Sigger.G, fileCoder.Sigger.PubKey)
 	for i := dataNum; i < dataNum+parityNum; i++ {
 		newParityShard := UpdateParityShard(&dataShards[i], &incParityShards[i-dataNum], fileCoder.Sigger.Pairing, publicInfo)
 		newParityShard.Print()

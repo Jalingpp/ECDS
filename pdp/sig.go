@@ -11,6 +11,7 @@ import (
 
 type Signature struct {
 	Pairing *pbc.Pairing
+	Params  string
 	G       []byte
 	PrivKey []byte
 	PubKey  []byte
@@ -21,6 +22,7 @@ func NewSig() *Signature {
 	sigger := Signature{}
 	params := pbc.GenerateA(160, 512).String()
 	pairing, _ := pbc.NewPairingFromString(params)
+	sigger.Params = params
 	sigger.Pairing = pairing
 	g := sigger.Pairing.NewG2().Rand()
 	pk := sigger.Pairing.NewZr().Rand()
@@ -82,7 +84,6 @@ func UpdateSigByIncSig(pairing *pbc.Pairing, oldSig []byte, incSig []byte) []byt
 
 // 测试校增量签名
 func (sigger *Signature) TestIncSig(oldV int32, newV int32, oldT string, newT string) bool {
-	// sk := sigger.Pairing.NewZr().SetBytes(sigger.PrivKey)
 	nht := sigger.Pairing.NewG1().SetFromStringHash(newT, sha256.New())
 	nv := sigger.Pairing.NewZr().SetInt32(newV)
 	nvt := sigger.Pairing.NewG1().PowZn(nht, nv)

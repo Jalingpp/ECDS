@@ -4,9 +4,12 @@ import (
 	"ECDS/encode"
 	"ECDS/pdp"
 	"ECDS/util"
+	"crypto/sha256"
 	"fmt"
 	"math/rand"
 	"time"
+
+	"github.com/Nik-U/pbc"
 )
 
 func main() {
@@ -33,8 +36,8 @@ func TestIncECPDP() {
 	fileStr := util.ReadStringFromFile(filepath)
 	fileName := "testData2"
 	//客户端创建文件编码器
-	dataNum := 10
-	parityNum := 4
+	dataNum := 11
+	parityNum := 20
 	fileCoder := encode.NewFileCoder(dataNum, parityNum)
 	//客户端Setup
 	dataShards, publicInfo := fileCoder.Setup(fileName, fileStr)
@@ -98,12 +101,18 @@ func TestIncECPDP() {
 		pos.Print()
 		//客户端验证存储证明
 		fmt.Println("【存储节点验证存储证明2】")
+		t := fileCoder.MetaFileMap[fileName].LatestTimestampSlice[pos.DSno]
+		params := pbc.GenerateA(160, 512).String()
+		pairing, _ := pbc.NewPairingFromString(params)
+		fmt.Println("h1:", pairing.NewG1().SetFromStringHash(t, sha256.New()))
+		pairing2, _ := pbc.NewPairingFromString(params)
+		fmt.Println("h2:", pairing2.NewG1().SetFromStringHash(t, sha256.New()))
 		pdp.VerifyPos(pos, fileCoder.Sigger.Pairing, fileCoder.Sigger.G, fileCoder.Sigger.PubKey, fileCoder.MetaFileMap[fileName].LatestVersionSlice[pos.DSno], fileCoder.MetaFileMap[fileName].LatestTimestampSlice[pos.DSno], randS)
 	}
 
 	//客户端请求数据
 	fmt.Println("【客户端请求数据】")
-	shardRows := []int{0, 1, 3, 4, 5, 6, 7, 8, 9, 10}
+	shardRows := []int{0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11}
 
 	//服务器返回数据分片,客户端组成新的数据
 	fmt.Println("【客户端收到数据分片】")

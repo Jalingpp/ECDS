@@ -31,6 +31,8 @@ type Auditor struct {
 	ParityNum                       int                             //系统中用于文件编码的校验块数量
 	pb.UnimplementedACServiceServer                                 // 嵌入匿名字段
 	SNRPCs                          map[string]pb.SNACServiceClient //存储节点RPC对象列表，key:存储节点id
+	PendingUpdDSMap                 map[string]map[string]int       //等待存储节点更新的列表，key:clientID-filename, subkey:dsno,value:1-等待更新,2-更新完成
+	PUDSMMutex                      sync.RWMutex                    //PendingUpdDSMap的读写锁
 }
 
 // 新建一个审计方，持续监听消息
@@ -49,7 +51,8 @@ func NewAuditor(ipaddr string, snaddrfilename string, dn int, pn int) *Auditor {
 		sc := pb.NewSNACServiceClient(snconn)
 		snrpcs[key] = sc
 	}
-	auditor := &Auditor{ipaddr, cpis, sync.RWMutex{}, *snaddrmap, cfsmap, sync.RWMutex{}, metaFileMap, sync.RWMutex{}, dn, pn, pb.UnimplementedACServiceServer{}, snrpcs}
+	pudsm := make(map[string]map[string]int)
+	auditor := &Auditor{ipaddr, cpis, sync.RWMutex{}, *snaddrmap, cfsmap, sync.RWMutex{}, metaFileMap, sync.RWMutex{}, dn, pn, pb.UnimplementedACServiceServer{}, snrpcs, pudsm, sync.RWMutex{}}
 	//设置监听地址
 	lis, err := net.Listen("tcp", ipaddr)
 	if err != nil {
@@ -76,7 +79,7 @@ func (ac *Auditor) RegisterAC(ctx context.Context, req *pb.RegistACRequest) (*pb
 		message = "client information has already exist!"
 		e = errors.New("client already exist")
 	} else {
-		cpi := util.NewPublicInfo(req.G, req.PK)
+		cpi := util.NewPublicInfo(req.Params, req.G, req.PK)
 		ac.ClientPublicInfor[req.ClientId] = cpi
 		message = "client registration successful!"
 		e = nil
@@ -252,19 +255,202 @@ func (ac *Auditor) GetDSErrReport(ctx context.Context, req *pb.GDSERequest) (*pb
 	cid_fn := req.ClientId + "-" + req.Filename
 	blacksns := req.Blacksns
 	dsnosnmap := make(map[string]string)
-	count := 0
-	ac.CFSMMutex.RLock()
-	for key, value := range ac.ClientFileShardsMap[cid_fn] {
-		if strings.HasPrefix(key, "p") && blacksns[value] != "h" && blacksns[value] != "b" {
-			dsnosnmap[key] = value
-			count++
-			if count == len(req.Errdssn) {
+	for key, _ := range req.Errdssn {
+		//获取待请求校验块的前缀
+		targetPrefix := ""
+		if len(key) < 5 {
+			targetPrefix = "p-"
+		} else {
+			for i := 0; i < len(req.Errdssn); i++ {
+				if strings.HasPrefix(key, "d-"+strconv.Itoa(i+ac.DataNum)+"-") || strings.HasPrefix(key, "p-"+strconv.Itoa(i+ac.DataNum)+"-") {
+					targetPrefix = "p-" + strconv.Itoa(i+ac.DataNum) + "-"
+					break
+				}
+			}
+		}
+		//挑选带有相应前缀的校验块存储节点
+		for i := 0; i < ac.ParityNum; i++ {
+			psno := targetPrefix + strconv.Itoa(i)
+			_, exists := dsnosnmap[psno]
+			ac.CFSMMutex.RLock()
+			snid := ac.ClientFileShardsMap[cid_fn][psno]
+			ac.CFSMMutex.RUnlock()
+			if !exists && blacksns[snid] != "h" && blacksns[snid] != psno {
+				dsnosnmap[psno] = snid
 				break
 			}
 		}
 	}
-	ac.CFSMMutex.RUnlock()
 	return &pb.GDSEResponse{Filename: req.Filename, Snsds: dsnosnmap}, nil
+}
+
+// 【供client使用的RPC】获取某个分片所在的存储节点id
+func (ac *Auditor) GetDSSn(ctx context.Context, req *pb.GDSSNRequest) (*pb.GDSSNResponse, error) {
+	log.Printf("Received get DSSN message from client: %s\n", req.ClientId)
+	cid_fn := req.ClientId + "-" + req.Filename
+	dssnmap := make(map[string]string)
+	pssnmap := make(map[string]string)
+	var e error
+	ac.CFSMMutex.RLock()
+	_, exist := ac.ClientFileShardsMap[cid_fn][req.Dsno]
+	if exist {
+		//说明分片是独立的存在于一个存储节点上
+		//返回数据块所在存储节点id
+		dssnmap[req.Dsno] = ac.ClientFileShardsMap[cid_fn][req.Dsno]
+		//返回校验块所在存储节点id
+		for i := 0; i < ac.ParityNum; i++ {
+			key := "p-" + strconv.Itoa(i)
+			pssnmap[key] = ac.ClientFileShardsMap[cid_fn][key]
+		}
+	} else {
+		//说明分片是后加入的分散存储在多个存储节点上
+		//返回数据块所在存储节点id
+		for i := 0; i < ac.DataNum; i++ {
+			key := req.Dsno + "-" + strconv.Itoa(i)
+			_, exist2 := ac.ClientFileShardsMap[cid_fn][key]
+			if exist2 {
+				dssnmap[key] = ac.ClientFileShardsMap[cid_fn][key]
+			} else {
+				e = errors.New("datashard" + req.Dsno + "not exist")
+			}
+		}
+		//解析分片序号
+		dsnosplit := strings.Split(req.Dsno, "-")
+		//返回校验块所在存储节点id
+		for i := 0; i < ac.ParityNum; i++ {
+			key := "p-" + dsnosplit[1] + "-" + strconv.Itoa(i)
+			pssnmap[key] = ac.ClientFileShardsMap[cid_fn][key]
+		}
+	}
+	ac.CFSMMutex.RUnlock()
+	//如果需要更新则启动线程通知各SN分片更新的文件分片序号，等待更新完成
+	if req.Isupdate {
+		go ac.UpdateDSNoticeToSN(req.ClientId, req.Filename, dssnmap, pssnmap)
+	}
+	return &pb.GDSSNResponse{Filename: req.Filename, Snsds: dssnmap, Snsps: pssnmap}, e
+}
+
+// 【GetDSSn-RPC被调用时自动触发】告知审计方待更新的存储节点id，从中出发审计方通知相应存储节点（自动包括校验块）
+func (ac *Auditor) UpdateDSNoticeToSN(cid string, fn string, dssnmap map[string]string, pssnmap map[string]string) {
+	for key, value := range dssnmap {
+		go func(dsno string, snid string) {
+			//标记pending更新分片列表中的value为1
+			cid_fn := cid + "-" + fn
+			log.Println("cid-fn:", cid_fn, ", dsno:", dsno, ",snid:", snid)
+			ac.PUDSMMutex.Lock()
+			if ac.PendingUpdDSMap[cid_fn] == nil {
+				ac.PendingUpdDSMap[cid_fn] = make(map[string]int)
+			}
+			ac.PendingUpdDSMap[cid_fn][dsno] = 1
+			ac.PUDSMMutex.Unlock()
+			//构造请求消息
+			udsn_req := &pb.ClientUpdDSRequest{
+				ClientId: cid,
+				Filename: fn,
+				Dsno:     key,
+			}
+			//发送请求消息给存储节点
+			udsn_res, err := ac.SNRPCs[snid].UpdateDataShardNotice(context.Background(), udsn_req)
+			if err != nil {
+				log.Fatalf("storagenode could not process request: %v", err)
+			}
+			//处理存储节点回复消息：
+			log.Println("recieved upddsn respones:", udsn_res.Message)
+			//标记分片更新表中value为2
+			cid_fn = udsn_res.ClientId + "-" + udsn_res.Filename
+			udsno := udsn_res.Dsno
+			ac.PUDSMMutex.Lock()
+			ac.PendingUpdDSMap[cid_fn][udsno] = 2
+			ac.PUDSMMutex.Unlock()
+			//修改分片元信息
+			ac.MFMutex.Lock()
+			ac.MetaFileMap[cid_fn].LatestVersionSlice[udsno] = udsn_res.Version
+			ac.MetaFileMap[cid_fn].LatestTimestampSlice[udsno] = udsn_res.Timestamp
+			ac.MFMutex.Unlock()
+		}(key, value)
+	}
+
+	for key, value := range pssnmap {
+		go func(psno string, snid string) {
+			//标记pending更新分片列表中value为1
+			cid_fn := cid + "-" + fn
+			ac.PUDSMMutex.Lock()
+			if ac.PendingUpdDSMap[cid_fn] == nil {
+				ac.PendingUpdDSMap[cid_fn] = make(map[string]int)
+			}
+			ac.PendingUpdDSMap[cid_fn][psno] = 1
+			ac.PUDSMMutex.Unlock()
+			//构造请求消息
+			upsn_req := &pb.ClientUpdDSRequest{
+				ClientId: cid,
+				Filename: fn,
+				Dsno:     psno,
+			}
+			//发送请求消息给存储节点
+			upsn_res, err := ac.SNRPCs[snid].UpdateDataShardNotice(context.Background(), upsn_req)
+			if err != nil {
+				log.Fatalf("storagenode could not process request: %v", err)
+			}
+			//处理存储节点回复消息：
+			log.Println("recieved updatepsn respones:", upsn_res.Message)
+			//标记分片更新表中value为2
+			cid_fn = upsn_res.ClientId + "-" + upsn_res.Filename
+			upsno := upsn_res.Dsno
+			ac.PUDSMMutex.Lock()
+			ac.PendingUpdDSMap[cid_fn][upsno] = 2
+			ac.PUDSMMutex.Unlock()
+			//修改分片元信息
+			ac.MFMutex.Lock()
+			ac.MetaFileMap[cid_fn].LatestVersionSlice[upsno] = upsn_res.Version
+			ac.MetaFileMap[cid_fn].LatestTimestampSlice[upsno] = upsn_res.Timestamp
+			ac.MFMutex.Unlock()
+		}(key, value)
+	}
+}
+
+// 【供client使用的RPC】文件存放确认:确认文件已在存储节点上完成存放,确认元信息一致
+func (ac *Auditor) UpdateDSCommit(ctx context.Context, req *pb.UDSCRequest) (*pb.UDSCResponse, error) {
+	log.Printf("Received updateDScommit message from client: %s\n", req.ClientId)
+	cid_fn := req.ClientId + "-" + req.Filename
+	message := ""
+	updatedMap := make(map[string]string)
+	// 确认所有存储节点是否已经跟审计方确认更新
+	for {
+		updatedNum := 0
+		for i := 0; i < len(req.Dsnos); i++ {
+			ac.PUDSMMutex.RLock()
+			pv := ac.PendingUpdDSMap[cid_fn][req.Dsnos[i]]
+			ac.PUDSMMutex.RUnlock()
+			if pv == 2 {
+				_, exist := updatedMap[req.Dsnos[i]]
+				if exist {
+					updatedNum++
+				} else {
+					//确认存储节点返回的元信息与客户端发来的一致
+					ac.MFMutex.RLock()
+					nv := ac.MetaFileMap[cid_fn].LatestVersionSlice[req.Dsnos[i]]
+					nt := ac.MetaFileMap[cid_fn].LatestTimestampSlice[req.Dsnos[i]]
+					ac.MFMutex.RUnlock()
+					if req.Versions[req.Dsnos[i]] == nv && req.Timestamps[req.Dsnos[i]] == nt {
+						updatedNum++
+						//加入已更新列表
+						ac.CFSMMutex.RLock()
+						updatedMap[req.Dsnos[i]] = ac.ClientFileShardsMap[cid_fn][req.Dsnos[i]]
+						ac.CFSMMutex.RUnlock()
+					} else {
+						message = "the metainfor of " + req.Dsnos[i] + " not consistent."
+						e := errors.New("metainfor not consistent")
+						return &pb.UDSCResponse{Filename: req.Filename, Dssnmap: updatedMap, Message: message}, e
+					}
+				}
+			}
+		}
+		if updatedNum == len(req.Dsnos) {
+			break
+		}
+	}
+	message = "update datashard and parityshard finished and metainfo is consistent."
+	return &pb.UDSCResponse{Filename: req.Filename, Dssnmap: updatedMap, Message: message}, nil
 }
 
 // 打印auditor

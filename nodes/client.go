@@ -5,9 +5,14 @@ import (
 	"ECDS/pdp"
 	"ECDS/util"
 	"context"
+	"errors"
+	"fmt"
 	"log"
+	"math/rand"
 	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	pb "ECDS/proto" // 根据实际路径修改
 
@@ -51,6 +56,7 @@ func (client *Client) Register() {
 	//1.1-构建注册请求消息
 	rac_req := &pb.RegistACRequest{
 		ClientId: client.ClientID,
+		Params:   client.Filecoder.Sigger.Params,
 		G:        client.Filecoder.Sigger.G,
 		PK:       client.Filecoder.Sigger.PubKey,
 	}
@@ -69,6 +75,7 @@ func (client *Client) Register() {
 			// 2.1-构造注册请求消息
 			rsn_req := &pb.RegistSNRequest{
 				ClientId: client.ClientID,
+				Params:   client.Filecoder.Sigger.Params,
 				G:        client.Filecoder.Sigger.G,
 				PK:       client.Filecoder.Sigger.PubKey,
 			}
@@ -108,7 +115,7 @@ func (client *Client) PutFile(filepath string, filename string) {
 	//3.1-读取文件为字符串
 	filestr := util.ReadStringFromFile(filepath)
 	//3.2-纠删码编码出所有分片
-	datashards, _ := client.Filecoder.Setup(filename, filestr)
+	datashards := client.Filecoder.Setup(filename, filestr)
 	//3.3-将分片存入相应存储节点
 	sn4ds := stor_res.SnsForDs
 	sn4ps := stor_res.SnsForPs
@@ -170,8 +177,8 @@ func (client *Client) PutFile(filepath string, filename string) {
 	pfc_req := &pb.PFCRequest{
 		ClientId:   client.ClientID,
 		Filename:   filename,
-		Versions:   client.Filecoder.MetaFileMap[filename].LatestVersionSlice,
-		Timestamps: client.Filecoder.MetaFileMap[filename].LatestTimestampSlice,
+		Versions:   client.Filecoder.GetVersions(filename),
+		Timestamps: client.Filecoder.GetTimestamps(filename),
 	}
 	// 4.2-发送确认请求给审计方
 	pfc_res, err := client.ACRPC.PutFileCommit(context.Background(), pfc_req)
@@ -182,8 +189,8 @@ func (client *Client) PutFile(filepath string, filename string) {
 	log.Println("received auditor put file ", pfc_res.Filename, " commit respond:", pfc_res.Message)
 }
 
-// 客户端获取文件
-func (client *Client) GetFile(filename string) {
+// 客户端获取文件:isorigin=true,则只返回原始dsnum个分片的文件，否则返回所有
+func (client *Client) GetFile(filename string, isorigin bool) string {
 	fileDSs := make(map[string][]int32)  //记录存储节点返回的文件分片，用于最后拼接完整文件,key:dsno
 	errdsnosn := make(map[string]string) //记录未正常返回分片的snid，key:dsno,value:snid
 	fdssMutex := sync.Mutex{}
@@ -217,8 +224,8 @@ func (client *Client) GetFile(filename string) {
 			} else {
 				// 3.3-反序列化数据分片并验签
 				datashard, _ := util.DeserializeDS(gds_res.DatashardSerialized)
-				lv := client.Filecoder.MetaFileMap[filename].LatestVersionSlice[dsno]
-				lt := client.Filecoder.MetaFileMap[filename].LatestTimestampSlice[dsno]
+				lv := client.Filecoder.GetVersion(filename, dsno)
+				lt := client.Filecoder.GetTimestamp(filename, dsno)
 				sigger := client.Filecoder.Sigger
 				if !pdp.VerifySig(sigger.Pairing, sigger.G, sigger.PubKey, datashard.Data, datashard.Sig, lv, lt) {
 					log.Println("datashard ", dsno, " signature verification not pass.")
@@ -239,7 +246,7 @@ func (client *Client) GetFile(filename string) {
 	}
 	// 4-故障仲裁与校验块申请,如果故障一直存在则一直申请，直到系统中备用校验块不足而报错
 	// 4.0-设置sn黑名单
-	blacksns := make(map[string]string) //key:snid,vlaue:h-黑,b-白
+	blacksns := make(map[string]string) //key:snid,vlaue:h-黑,白是分片序号
 	for {
 		if len(errdsnosn) == 0 {
 			break
@@ -279,8 +286,8 @@ func (client *Client) GetFile(filename string) {
 					} else {
 						// 4.4.3-反序列化数据分片并验签
 						datashard, _ := util.DeserializeDS(gds_res.DatashardSerialized)
-						lv := client.Filecoder.MetaFileMap[filename].LatestVersionSlice[dsno]
-						lt := client.Filecoder.MetaFileMap[filename].LatestTimestampSlice[dsno]
+						lv := client.Filecoder.GetVersion(filename, dsno)
+						lt := client.Filecoder.GetTimestamp(filename, dsno)
 						sigger := client.Filecoder.Sigger
 						if !pdp.VerifySig(sigger.Pairing, sigger.G, sigger.PubKey, datashard.Data, datashard.Sig, lv, lt) {
 							log.Println("parityshard ", dsno, " signature verification not pass.")
@@ -291,7 +298,7 @@ func (client *Client) GetFile(filename string) {
 						fileDSs[dsno] = datashard.Data
 						fdssMutex.Unlock()
 						// 4.4.5-将snid加入白名单
-						blacksns[snid] = "b"
+						blacksns[snid] = dsno
 					}
 					// 通知主线程任务完成
 					done <- struct{}{}
@@ -303,14 +310,32 @@ func (client *Client) GetFile(filename string) {
 			}
 		}
 	}
-
 	// 5-恢复完整文件
-	// 5.1-遍历收到的文件分片，按需排放，判断是否需要纠删码解码
+	// 5.1-恢复以"d-"和"p-"为前缀的文件分片
+	filestr := client.RecoverFileDS(fileDSs, "d-", "p-")
+	if isorigin {
+		log.Println("Get file", filename, ":", filestr)
+		return filestr
+	}
+	// 5.2-若添加过额外的数据分片，则也恢复这部分分片
+	turnnum := len(fileDSs)/client.Filecoder.Rsec.DataNum - 1
+	for i := 0; i < turnnum; i++ {
+		dPrefix := "d-" + strconv.Itoa(client.Filecoder.Rsec.DataNum+turnnum) + "-"
+		pPrefix := "p-" + strconv.Itoa(client.Filecoder.Rsec.DataNum+turnnum) + "-"
+		filestr = filestr + client.RecoverFileDS(fileDSs, dPrefix, pPrefix)
+	}
+	log.Println("Get file", filename, ":", filestr)
+	return filestr
+}
+
+// 恢复文件或数据块，在GetFile中被调用
+func (client *Client) RecoverFileDS(fileDSs map[string][]int32, dprefix string, pprefix string) string {
+	//遍历收到的文件分片，按需排放，判断是否需要纠删码解码
 	isneedencode := false
 	var orderedFileDSs [][]int32
 	var rows []int
 	for i := 0; i < client.Filecoder.Rsec.DataNum; i++ {
-		key := "d-" + strconv.Itoa(i)
+		key := dprefix + strconv.Itoa(i)
 		if fileDSs[key] != nil {
 			orderedFileDSs = append(orderedFileDSs, fileDSs[key])
 			rows = append(rows, i)
@@ -319,15 +344,13 @@ func (client *Client) GetFile(filename string) {
 		}
 	}
 	for i := 0; i < client.Filecoder.Rsec.ParityNum; i++ {
-		key := "p-" + strconv.Itoa(i)
+		key := pprefix + strconv.Itoa(i)
 		if fileDSs[key] != nil {
 			orderedFileDSs = append(orderedFileDSs, fileDSs[key])
 			rows = append(rows, client.Filecoder.Rsec.DataNum+i)
 		}
 	}
-	log.Println("Recieved", len(orderedFileDSs), "file shards.")
-	// log.Println("rows:", rows)
-	// 5.2-如果不需要解码，按序转换为字符串输出；如果需要解码，则纠删码解码后转换为字符串输出
+	// 如果不需要解码，按序转换为字符串输出；如果需要解码，则纠删码解码后转换为字符串输出
 	filestr := ""
 	var orderedFile [][]int32
 	if isneedencode {
@@ -338,7 +361,418 @@ func (client *Client) GetFile(filename string) {
 	for i := 0; i < len(orderedFile); i++ {
 		filestr = filestr + util.Int32SliceToStr(orderedFile[i])
 	}
-	log.Println("Get file", filename, ":", filestr)
+	return filestr
+}
+
+// 客户端更新某个数据分片
+func (client *Client) UpdateDS(filename string, dsno string, newDSStr string) {
+	splitdsno := strings.Split(dsno, "-")
+	udpDataRow, _ := strconv.Atoi(splitdsno[1]) //由待更新的dsno导出的待更新分片序号
+	randSource := rand.NewSource(time.Now().UnixNano())
+	r := rand.New(randSource) //设置随机种子
+	// 1-获取旧的数据分片(和校验块所在的存储节点id)
+	oldDSs, dsSNs, psSNs, err := client.GetDataShard(filename, dsno, true)
+	if err != nil {
+		log.Fatalf("get old datashard error: %v", err)
+	}
+	// 2-存储节点更新数据分片和所有校验块：分别考虑数据分片是单个和多个的情况
+	if len(oldDSs) == 1 {
+		// 2.1-旧数据分片为单个：获取旧分片
+		var oldDS *util.DataShard
+		for _, value := range oldDSs {
+			oldDS = value
+		}
+		log.Println("get old datashard", oldDS.DSno, ":", oldDS.Data)
+		// 2.2-旧数据分片为单个：更新分片，得到校验块增量
+		incParityShards := client.Filecoder.UpdateDataShard(filename, udpDataRow, oldDS, newDSStr)
+		// 2.3-将更新后的数据分片发送给存储节点覆盖旧分片
+		var newDSnos []string
+		var newDSs []*util.DataShard
+		newDSnos = append(newDSnos, oldDS.DSno)
+		newDSs = append(newDSs, oldDS)
+		done := make(chan struct{})
+		go client.UpdDSsOnSN(filename, newDSnos, newDSs, dsSNs[oldDS.DSno])
+		// 2.4-将校验块增量发送给相应存储节点进行更新
+		for i := 0; i < len(incParityShards); i++ {
+			go func(ipsno int) {
+				psno := "p-" + strconv.Itoa(ipsno)
+				// 2.4.1-构造请求
+				randomNum := r.Int31()
+				ipslist := make([][]byte, 0)
+				// log.Println("incPS-No:", incParityShards[ipsno].DSno, ",psno:", psno, "incPS-V:", incParityShards[ipsno].Version, "incPS-T:", incParityShards[ipsno].Timestamp)
+				ipslist = append(ipslist, incParityShards[ipsno].SerializeDS())
+				pips_req := &pb.PutIPSRequest{ClientId: client.ClientID, Filename: filename, Psno: psno, DatashardsSerialized: ipslist, Randomnum: randomNum}
+				// 2.4.2-向存储节点发送请求
+				pips_res, err := client.SNRPCs[psSNs[psno]].PutIncParityShards(context.Background(), pips_req)
+				if err != nil {
+					log.Fatalf("storage could not process request: %v", err)
+				}
+				// 2.4.3-验证存储证明
+				pos, errpos := pdp.DeserializePOS(pips_res.PosSerialized)
+				if errpos != nil {
+					log.Fatalf("updated parityshard pos deserialize error: %v", errpos)
+				}
+				sigger := client.Filecoder.Sigger
+				v := client.Filecoder.GetVersion(filename, psno)
+				t := client.Filecoder.GetTimestamp(filename, psno)
+				isCorrect := pdp.VerifyPos(pos, sigger.Pairing, sigger.G, sigger.PubKey, v, t, randomNum)
+				if isCorrect {
+					log.Println("storage", psSNs[psno], "update parityshard", psno, "successfully")
+				} else {
+					log.Println("storage", psSNs[psno], "update parityshard", psno, "pos verify not pass")
+				}
+				// 通知主线程任务完成
+				done <- struct{}{}
+			}(i)
+		}
+		//等待所有线程执行完成
+		for i := 0; i < len(incParityShards); i++ {
+			<-done
+		}
+		// 2.5-向审计方确认更新完成
+		newversions := make(map[string]int32)
+		newtimestamps := make(map[string]string)
+		newversions[oldDS.DSno] = oldDS.Version
+		newtimestamps[oldDS.DSno] = oldDS.Timestamp
+		for i := 0; i < len(incParityShards); i++ {
+			newDSnos = append(newDSnos, incParityShards[i].DSno)
+			newversions[incParityShards[i].DSno] = incParityShards[i].Version
+			newtimestamps[incParityShards[i].DSno] = incParityShards[i].Timestamp
+		}
+		if client.UpdateDSACCommit(filename, newDSnos, newversions, newtimestamps) {
+			log.Println("datashard update completed.")
+		}
+	} else if len(oldDSs) > 1 {
+		// 旧数据分片为多个
+		// 2.1-切分新数据字符串
+		newDSstrs := util.SplitString(newDSStr, len(oldDSs))
+		// 2.2-遍历旧分片，分别生成校验块增量
+		odsIPS := make(map[string][]util.DataShard) //每个旧数据分片更新引发的校验块增量
+		var odsIPSMutex sync.Mutex                  //odsIPS的访问锁
+		var oldDSData []int32                       //合并后的分片数据
+		for key, value := range oldDSs {
+			oldDSData = append(oldDSData, value.Data...)
+			keysplit := strings.Split(key, "-")
+			udpDR, _ := strconv.Atoi(keysplit[2])
+			go func(odsno string, fn string, udr int, oDSD *util.DataShard, ndstr string) {
+				ips := client.Filecoder.UpdateDataShard(fn, udr, oDSD, ndstr)
+				odsIPSMutex.Lock()
+				odsIPS[odsno] = ips
+				odsIPSMutex.Unlock()
+			}(key, filename, udpDR, value, newDSstrs[udpDR])
+		}
+		log.Println("get oldDS:", util.Int32SliceToStr(oldDSData))
+		// 2.3-将属于同一个存储节点的分片合并
+		sndsnomap := make(map[string][]string) //key:snid,value:dsnos
+		for key, value := range dsSNs {
+			if sndsnomap[value] == nil {
+				sndsnomap[value] = make([]string, 0)
+			}
+			sndsnomap[value] = append(sndsnomap[value], key)
+		}
+		// 2.4-将属于同一个存储节点的分片发送至存储节点
+		uds_done := make(chan struct{})
+		for key, value := range sndsnomap {
+			dss := make([]*util.DataShard, 0)
+			for i := 0; i < len(value); i++ {
+				dss = append(dss, oldDSs[value[i]])
+			}
+			go func(filename string, value []string, dss []*util.DataShard, key string) {
+				client.UpdDSsOnSN(filename, value, dss, key)
+				uds_done <- struct{}{}
+			}(filename, value, dss, key)
+		}
+		//等待所有线程执行完成
+		for i := 0; i < len(sndsnomap); i++ {
+			<-uds_done
+		}
+		// 2.5-将属于同一个存储节点的校验分片合并
+		psipsmap := make(map[string][]util.DataShard) //key:psno,value:序列化后的增量校验块列表
+		for _, value := range odsIPS {
+			for i := 0; i < len(value); i++ {
+				if psipsmap[value[i].DSno] == nil {
+					psipsmap[value[i].DSno] = make([]util.DataShard, 0)
+				}
+				psipsmap[value[i].DSno] = append(psipsmap[value[i].DSno], value[i])
+			}
+		}
+		// 2.6-将属于同一个存储节点的校验分片发送至存储节点进行增量更新
+		uips_done := make(chan struct{})
+		for key, value := range psipsmap {
+			snid := psSNs[key]
+			seipslist := make([][]byte, 0)
+			for i := 0; i < len(value); i++ {
+				seipslist = append(seipslist, value[i].SerializeDS())
+			}
+			go func(snid string, psno string, ipss [][]byte) {
+				//构造发送请求消息
+				randomNum := r.Int31()
+				uips_req := &pb.PutIPSRequest{ClientId: client.ClientID, Filename: filename, Psno: psno, DatashardsSerialized: ipss, Randomnum: randomNum}
+				//发送请求给存储节点
+				uips_res, err := client.SNRPCs[snid].PutIncParityShards(context.Background(), uips_req)
+				if err != nil {
+					log.Fatalf("storage could not process request: %v", err)
+				}
+				// 验证存储证明
+				pos, errpos := pdp.DeserializePOS(uips_res.PosSerialized)
+				if errpos != nil {
+					log.Fatalf("updated parityshard pos deserialize error: %v", errpos)
+				}
+				sigger := client.Filecoder.Sigger
+				v := client.Filecoder.GetVersion(filename, psno)
+				t := client.Filecoder.GetTimestamp(filename, psno)
+				log.Println("v:", v, "t:", t)
+				isCorrect := pdp.VerifyPos(pos, sigger.Pairing, sigger.G, sigger.PubKey, v, t, randomNum)
+				if isCorrect {
+					log.Println("storage", psSNs[psno], "update parityshard", psno, "successfully")
+				} else {
+					log.Println("storage", psSNs[psno], "update parityshard", psno, "pos verify not pass")
+				}
+				// 通知主线程任务完成
+				uips_done <- struct{}{}
+			}(snid, key, seipslist)
+		}
+		//等待所有线程执行完成
+		for i := 0; i < len(psipsmap); i++ {
+			<-uips_done
+		}
+		// 2.7-向审计方确认更新完成
+		newDSnos := make([]string, 0)
+		newVersions := make(map[string]int32)
+		newTimestamps := make(map[string]string)
+		for key, value := range oldDSs {
+			newDSnos = append(newDSnos, key)
+			newVersions[key] = value.Version
+			newTimestamps[key] = value.Timestamp
+		}
+		for key, value := range psipsmap {
+			newDSnos = append(newDSnos, key)
+			newVersions[key] = value[len(value)-1].Version
+			newTimestamps[key] = value[len(value)-1].Timestamp
+		}
+		if client.UpdateDSACCommit(filename, newDSnos, newVersions, newTimestamps) {
+			log.Println("datashard update completed.")
+		}
+	} else {
+		log.Println("old datashard not exist")
+	}
+}
+
+// 客户端向审计方确认完成数据分片更新
+func (client *Client) UpdateDSACCommit(filename string, dsnos []string, versions map[string]int32, times map[string]string) bool {
+	//构造确认请求消息
+	uds_req := &pb.UDSCRequest{ClientId: client.ClientID, Filename: filename, Dsnos: dsnos, Versions: versions, Timestamps: times}
+	//向审计方发送请求
+	uds_res, err := client.ACRPC.UpdateDSCommit(context.Background(), uds_req)
+	if err != nil {
+		log.Fatalf("auditor could not process request: %v", err)
+	}
+	//处理审计方回复
+	log.Println("received update DS commit message from auditor:", uds_res.Message)
+	return len(uds_res.Dssnmap) == len(dsnos)
+}
+
+// 客户端更新SN上的一个或多个数据分片
+func (client *Client) UpdDSsOnSN(filename string, dsnos []string, dss []*util.DataShard, snid string) bool {
+	//对所有数据分片序列化
+	var seDss [][]byte
+	for i := 0; i < len(dss); i++ {
+		seDss = append(seDss, dss[i].SerializeDS())
+	}
+	//构造更新请求消息
+	udss_req := &pb.UpdDSsRequest{ClientId: client.ClientID, Filename: filename, Dsnos: dsnos, DatashardsSerialized: seDss}
+	//向存储节点发送更新请求
+	udss_res, err := client.SNRPCs[snid].UpdateDataShards(context.Background(), udss_req)
+	if err != nil {
+		log.Fatalf("storage could not process request: %v", err)
+	}
+	log.Println("received update datashards message from storagenode:", udss_res.Message)
+	return len(dsnos) == len(udss_res.Dsnos)
+}
+
+// 客户端获取某个数据分片：返回分片或所有子分片，同时返回所有数据块和校验块所在的存储节点id列表，key是dsno/psno，value是snid
+func (client *Client) GetDataShard(filename string, dsno string, isupdate bool) (map[string]*util.DataShard, map[string]string, map[string]string, error) {
+	// 1.1-构造获取数据分片所在存储节点id的请求
+	gdssn_req := &pb.GDSSNRequest{ClientId: client.ClientID, Filename: filename, Dsno: dsno, Isupdate: isupdate}
+	// 1.2-发送获取分片所在存储节点id的请求消息给审计方
+	gdssn_res, err := client.ACRPC.GetDSSn(context.Background(), gdssn_req)
+	if err != nil {
+		log.Fatalf("auditor could not process request: %v", err)
+	}
+	// 1.3-向存储节点请求数据分片（可能是多个子分片）
+	dssnmap := gdssn_res.Snsds
+	DSs := make(map[string]*util.DataShard) //记录存储节点返回的文件分片，用于最后拼接完整分片,key:dsno
+	errdsnosn := make(map[string]string)    //记录未正常返回分片的snid，key:dsno,value:snid
+	dssMutex := sync.Mutex{}
+	done := make(chan struct{})
+	for key, value := range dssnmap {
+		go func(dsno string, snid string) {
+			// 1.3.1-构造获取分片请求消息
+			gds_req := &pb.GetDSRequest{ClientId: client.ClientID, Filename: filename, Dsno: dsno}
+			// 1.3.2-向存储节点发送请求
+			gds_res, err := client.SNRPCs[snid].GetDataShard(context.Background(), gds_req)
+			if err != nil {
+				log.Println("storagenode could not process request:", err)
+				errdsnosn[dsno] = snid
+			} else if gds_res.DatashardSerialized == nil {
+				log.Println("sn", snid, "return nil datashard", dsno)
+				errdsnosn[dsno] = snid
+			} else {
+				// 1.3.3-反序列化数据分片并验签
+				datashard, _ := util.DeserializeDS(gds_res.DatashardSerialized)
+				lv := client.Filecoder.GetVersion(filename, dsno)
+				lt := client.Filecoder.GetTimestamp(filename, dsno)
+				sigger := client.Filecoder.Sigger
+				if !pdp.VerifySig(sigger.Pairing, sigger.G, sigger.PubKey, datashard.Data, datashard.Sig, lv, lt) {
+					log.Println("datashard ", dsno, " signature verification not pass.")
+					errdsnosn[dsno] = snid
+				}
+				// 1.3.4-将获取到的分片加入到列表中
+				dssMutex.Lock()
+				DSs[dsno] = datashard
+				dssMutex.Unlock()
+			}
+			// 通知主线程任务完成
+			done <- struct{}{}
+		}(key, value)
+	}
+	// 等待所有协程完成
+	for i := 0; i < len(dssnmap); i++ {
+		<-done
+	}
+	// 1.4-故障仲裁与校验块申请,如果故障一直存在则一直申请，直到系统中备用校验块不足而报错
+	// 1.4.1-如果分片只有一个且发生故障，则需要通过恢复文件恢复分片
+	if len(dssnmap) == 1 {
+		for key, _ := range errdsnosn {
+			filestr := client.GetFile(filename, true)
+			//对文件进行分块，选择相应序号的分片放入切片中
+			dsStrings := util.SplitString(filestr, client.Filecoder.Rsec.DataNum)
+			keysplit := strings.Split(key, "-")
+			no, err := strconv.Atoi(keysplit[1])
+			if err != nil {
+				fmt.Println("dsno format error:", err)
+				e := errors.New("dsno format error")
+				return nil, nil, nil, e
+			}
+			//构建一个数据分片
+			dataSlice := util.ByteSliceToInt32Slice([]byte(dsStrings[no]))
+			client.Filecoder.MFMMutex.RLock()
+			oldV := client.Filecoder.GetVersion(filename, dsno)
+			oldT := client.Filecoder.GetTimestamp(filename, dsno)
+			client.Filecoder.MFMMutex.RUnlock()
+			sig := client.Filecoder.Sigger.GetSig(dataSlice, oldT, oldV)
+			datashard := util.NewDataShard(dsno, dataSlice, sig, oldV, oldT)
+			DSs[key] = datashard
+		}
+		return DSs, gdssn_res.Snsds, gdssn_res.Snsps, nil
+	} else {
+		// 1.4.2-如果分片不只有一个且发生故障，则通过纠删码解码恢复分片
+		// 1.4.2.1-设置sn黑名单
+		blacksns := make(map[string]string) //key:snid,vlaue:h-黑,白是分片序号
+		for {
+			if len(errdsnosn) == 0 {
+				break
+			} else {
+				log.Println("get subdatashards from sn errors:", errdsnosn)
+				// 1.4.2.2-将未返回分片的存储节点id加入黑名单
+				for _, value := range errdsnosn {
+					blacksns[value] = "h"
+				}
+				// 1.4.2.3-构造请求消息
+				er_req := &pb.GDSERequest{ClientId: client.ClientID, Filename: filename, Errdssn: errdsnosn, Blacksns: blacksns}
+				// 1.4.2.4-向AC发出请求
+				er_res, err := client.ACRPC.GetDSErrReport(context.Background(), er_req)
+				if err != nil {
+					log.Fatalf("auditor could not process request: %v", err)
+				}
+				// 1.4.2.5-判断AC是否返回足够数量的存储节点，不够时报错
+				if len(er_res.Snsds) < len(errdsnosn) {
+					log.Fatalf("honest sns for parity subshard not enough")
+				} else {
+					errdsnosn = make(map[string]string) //置空错误名单，重利用
+				}
+				// 1.4.2.6-向存储节点请求校验块
+				log.Println("request sns of parity subshards:", er_res.Snsds)
+				for key, value := range er_res.Snsds {
+					go func(dsno string, snid string) {
+						// 1.4.2.6.1-构造获取分片请求消息
+						gds_req := &pb.GetDSRequest{ClientId: client.ClientID, Filename: filename, Dsno: dsno}
+						// 1.4.2.6.2-向存储节点发送请求
+						gds_res, err := client.SNRPCs[snid].GetDataShard(context.Background(), gds_req)
+						if err != nil {
+							log.Println("storagenode could not process request:", err)
+							errdsnosn[dsno] = snid
+						} else if gds_res.DatashardSerialized == nil {
+							log.Println("sn", snid, "return nil paritysubshard", dsno)
+							errdsnosn[dsno] = snid
+						} else {
+							// 1.4.2.6.3-反序列化数据分片并验签
+							datashard, _ := util.DeserializeDS(gds_res.DatashardSerialized)
+							lv := client.Filecoder.GetVersion(filename, dsno)
+							lt := client.Filecoder.GetTimestamp(filename, dsno)
+							sigger := client.Filecoder.Sigger
+							if !pdp.VerifySig(sigger.Pairing, sigger.G, sigger.PubKey, datashard.Data, datashard.Sig, lv, lt) {
+								log.Println("paritysubshard ", dsno, " signature verification not pass.")
+								errdsnosn[dsno] = snid
+							}
+							// 1.4.2.6.4-将获取到的分片加入到列表中
+							dssMutex.Lock()
+							DSs[dsno] = datashard
+							dssMutex.Unlock()
+							// 1.4.2.6.5-将snid加入白名单
+							blacksns[snid] = dsno
+						}
+						// 通知主线程任务完成
+						done <- struct{}{}
+					}(key, value)
+				}
+				// 等待所有协程完成
+				for i := 0; i < len(er_res.Snsds); i++ {
+					<-done
+				}
+			}
+		}
+		// 1.4.2.7-如果未发生故障，只需要将所有子分片拼接；如果发生过故障，则需要纠删码恢复
+		if len(blacksns) == 0 {
+			return DSs, gdssn_res.Snsds, gdssn_res.Snsps, nil
+		} else {
+			var orderedDSs [][]int32
+			var rows []int
+			dprefix := dsno + "-"
+			for i := 0; i < client.Filecoder.Rsec.DataNum; i++ {
+				key := dprefix + strconv.Itoa(i)
+				if DSs[key] != nil {
+					orderedDSs = append(orderedDSs, DSs[key].Data)
+					rows = append(rows, i)
+				}
+			}
+			dsnosplit := strings.Split(dsno, "-")
+			pprefix := "p-" + dsnosplit[1] + "-"
+			for i := 0; i < client.Filecoder.Rsec.ParityNum; i++ {
+				key := pprefix + strconv.Itoa(i)
+				if DSs[key] != nil {
+					orderedDSs = append(orderedDSs, DSs[key].Data)
+					rows = append(rows, client.Filecoder.Rsec.DataNum+i)
+				}
+			}
+			DSsSlice := client.Filecoder.Rsec.Decode(orderedDSs, rows)
+			totalDSs := make(map[string]*util.DataShard)
+			for i := 0; i < client.Filecoder.Rsec.DataNum; i++ {
+				subkey := dsno + "-" + strconv.Itoa(i)
+				if DSs[subkey] != nil {
+					totalDSs[subkey] = DSs[subkey]
+				} else {
+					client.Filecoder.MFMMutex.RLock()
+					oldV := client.Filecoder.GetVersion(filename, dsno)
+					oldT := client.Filecoder.GetTimestamp(filename, dsno)
+					client.Filecoder.MFMMutex.RUnlock()
+					sig := client.Filecoder.Sigger.GetSig(DSsSlice[i], oldT, oldV)
+					totalDSs[subkey] = util.NewDataShard(subkey, DSsSlice[i], sig, oldV, oldT)
+				}
+			}
+			return totalDSs, gdssn_res.Snsds, gdssn_res.Snsps, nil
+		}
+	}
 }
 
 // 存储回复消息转为字符串

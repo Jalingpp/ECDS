@@ -21,5 +21,7 @@ func main() {
 	filename := "testData2"
 	client1.PutFile(filepath, filename)
 	//客户端GetFile
-	client1.GetFile(filename)
+	client1.GetFile(filename, false)
+	//客户端UpdateDS
+	client1.UpdateDS(filename, "d-2", "12345")
 }

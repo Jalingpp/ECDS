@@ -19,9 +19,11 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	SNService_RegisterSN_FullMethodName   = "/proto.SNService/RegisterSN"
-	SNService_PutDataShard_FullMethodName = "/proto.SNService/PutDataShard"
-	SNService_GetDataShard_FullMethodName = "/proto.SNService/GetDataShard"
+	SNService_RegisterSN_FullMethodName         = "/proto.SNService/RegisterSN"
+	SNService_PutDataShard_FullMethodName       = "/proto.SNService/PutDataShard"
+	SNService_GetDataShard_FullMethodName       = "/proto.SNService/GetDataShard"
+	SNService_UpdateDataShards_FullMethodName   = "/proto.SNService/UpdateDataShards"
+	SNService_PutIncParityShards_FullMethodName = "/proto.SNService/PutIncParityShards"
 )
 
 // SNServiceClient is the client API for SNService service.
@@ -31,6 +33,8 @@ type SNServiceClient interface {
 	RegisterSN(ctx context.Context, in *RegistSNRequest, opts ...grpc.CallOption) (*RegistSNResponse, error)
 	PutDataShard(ctx context.Context, in *PutDSRequest, opts ...grpc.CallOption) (*PutDSResponse, error)
 	GetDataShard(ctx context.Context, in *GetDSRequest, opts ...grpc.CallOption) (*GetDSResponse, error)
+	UpdateDataShards(ctx context.Context, in *UpdDSsRequest, opts ...grpc.CallOption) (*UpdDSsResponse, error)
+	PutIncParityShards(ctx context.Context, in *PutIPSRequest, opts ...grpc.CallOption) (*PutIPSResponse, error)
 }
 
 type sNServiceClient struct {
@@ -68,6 +72,24 @@ func (c *sNServiceClient) GetDataShard(ctx context.Context, in *GetDSRequest, op
 	return out, nil
 }
 
+func (c *sNServiceClient) UpdateDataShards(ctx context.Context, in *UpdDSsRequest, opts ...grpc.CallOption) (*UpdDSsResponse, error) {
+	out := new(UpdDSsResponse)
+	err := c.cc.Invoke(ctx, SNService_UpdateDataShards_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *sNServiceClient) PutIncParityShards(ctx context.Context, in *PutIPSRequest, opts ...grpc.CallOption) (*PutIPSResponse, error) {
+	out := new(PutIPSResponse)
+	err := c.cc.Invoke(ctx, SNService_PutIncParityShards_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SNServiceServer is the server API for SNService service.
 // All implementations must embed UnimplementedSNServiceServer
 // for forward compatibility
@@ -75,6 +97,8 @@ type SNServiceServer interface {
 	RegisterSN(context.Context, *RegistSNRequest) (*RegistSNResponse, error)
 	PutDataShard(context.Context, *PutDSRequest) (*PutDSResponse, error)
 	GetDataShard(context.Context, *GetDSRequest) (*GetDSResponse, error)
+	UpdateDataShards(context.Context, *UpdDSsRequest) (*UpdDSsResponse, error)
+	PutIncParityShards(context.Context, *PutIPSRequest) (*PutIPSResponse, error)
 	mustEmbedUnimplementedSNServiceServer()
 }
 
@@ -90,6 +114,12 @@ func (UnimplementedSNServiceServer) PutDataShard(context.Context, *PutDSRequest)
 }
 func (UnimplementedSNServiceServer) GetDataShard(context.Context, *GetDSRequest) (*GetDSResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetDataShard not implemented")
+}
+func (UnimplementedSNServiceServer) UpdateDataShards(context.Context, *UpdDSsRequest) (*UpdDSsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateDataShards not implemented")
+}
+func (UnimplementedSNServiceServer) PutIncParityShards(context.Context, *PutIPSRequest) (*PutIPSResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PutIncParityShards not implemented")
 }
 func (UnimplementedSNServiceServer) mustEmbedUnimplementedSNServiceServer() {}
 
@@ -158,6 +188,42 @@ func _SNService_GetDataShard_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SNService_UpdateDataShards_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdDSsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SNServiceServer).UpdateDataShards(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SNService_UpdateDataShards_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SNServiceServer).UpdateDataShards(ctx, req.(*UpdDSsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SNService_PutIncParityShards_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PutIPSRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SNServiceServer).PutIncParityShards(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SNService_PutIncParityShards_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SNServiceServer).PutIncParityShards(ctx, req.(*PutIPSRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SNService_ServiceDesc is the grpc.ServiceDesc for SNService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -176,6 +242,14 @@ var SNService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetDataShard",
 			Handler:    _SNService_GetDataShard_Handler,
+		},
+		{
+			MethodName: "UpdateDataShards",
+			Handler:    _SNService_UpdateDataShards_Handler,
+		},
+		{
+			MethodName: "PutIncParityShards",
+			Handler:    _SNService_PutIncParityShards_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

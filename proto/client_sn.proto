@@ -8,13 +8,16 @@ service SNService {
     rpc RegisterSN(RegistSNRequest) returns (RegistSNResponse);
     rpc PutDataShard(PutDSRequest) returns (PutDSResponse);
     rpc GetDataShard(GetDSRequest) returns (GetDSResponse);
+    rpc UpdateDataShards(UpdDSsRequest) returns (UpdDSsResponse);
+    rpc PutIncParityShards(PutIPSRequest) returns (PutIPSResponse);
 }
 
 //客户端发起的注册请求
 message RegistSNRequest{
     string clientId = 1; //客户端ID
-    bytes G = 2;  // 字节切片类型的G字段
-    bytes PK = 3; // 字节切片类型的PK字段
+    string params = 2;   //用于构造pairing的参数
+    bytes G = 3;  // 字节切片类型的G字段
+    bytes PK = 4; // 字节切片类型的PK字段
 }
 
 //审计方对客户端注册请求的回复
@@ -27,7 +30,7 @@ message RegistSNResponse{
 message PutDSRequest {
     string clientId = 1;   //客户端ID
     string filename = 2;   //待存储的文件名
-    string dsno = 3;    //文件分片的序号，数据分片为d1,d2,...，校验分片为p1,p2,...
+    string dsno = 3;    //文件分片的序号，数据分片为d-0,d-1,...，校验分片为p-0,p-1,...
     bytes datashard_serialized = 4; //序列化后的数据分片
 }
 
@@ -49,4 +52,35 @@ message GetDSRequest {
 message GetDSResponse {
     string filename = 1;  //待存储的文件名
     bytes datashard_serialized = 2; //序列化后的数据分片
+}
+
+//客户端发起的向存储节点更新数据分片的请求
+message UpdDSsRequest {
+    string clientId = 1;   //客户端ID
+    string filename = 2;   //待更新的文件名
+    repeated string dsnos = 3;    //文件分片的序号，数据分片为d-0,d-1,...，校验分片为p-0,p-1,...
+    repeated bytes datashards_serialized = 4; //序列化后的数据分片
+}
+
+//存储节点对请求的回复
+message UpdDSsResponse {
+    string filename = 1;  //待更新的文件名
+    repeated string dsnos = 2;      //待更新的分片序号
+    string message = 3;  //是否已通过验证并完成更新等信息
+}
+
+//客户端发起的向存储节点放置校验分片增量的请求
+message PutIPSRequest {
+    string clientId = 1;   //客户端ID
+    string filename = 2;   //待存储的文件名
+    string psno = 3;    //校验分片的序号
+    repeated bytes datashards_serialized = 4; //序列化后的校验分片增量
+    int32 randomnum = 5;   //一个随机数，用于生成存储证明
+}
+
+//存储节点对请求的回复
+message PutIPSResponse {
+    string filename = 1;  //文件名
+    string psno = 2;      //已更新的校验分片序号
+    bytes pos_serialized = 3; //序列化后的校验块存储证明
 }

@@ -1,8 +1,12 @@
 package util
 
 import (
+	"bytes"
+	"encoding/gob"
 	"encoding/json"
 	"fmt"
+
+	"github.com/Nik-U/pbc"
 )
 
 type DataShard struct {
@@ -27,12 +31,13 @@ func (ds *DataShard) Print() {
 }
 
 type PublicInfo struct {
-	G  []byte
-	PK []byte
+	Params string //用于生成pairing的参数
+	G      []byte
+	PK     []byte
 }
 
-func NewPublicInfo(gb []byte, pubkey []byte) *PublicInfo {
-	pi := PublicInfo{gb, pubkey}
+func NewPublicInfo(params string, gb []byte, pubkey []byte) *PublicInfo {
+	pi := PublicInfo{params, gb, pubkey}
 	return &pi
 }
 
@@ -54,4 +59,27 @@ func DeserializeDS(data []byte) (*DataShard, error) {
 		return nil, err
 	}
 	return &ds, nil
+}
+
+// 将 *pbc.Pairing 对象序列化为字节流
+func SerializePairing(pairing *pbc.Pairing) []byte {
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(pairing)
+	if err != nil {
+		return nil
+	}
+	return buf.Bytes()
+}
+
+// 将字节流反序列化为 *pbc.Pairing 对象
+func DeserializePairing(data []byte) (*pbc.Pairing, error) {
+	buf := bytes.NewBuffer(data)
+	dec := gob.NewDecoder(buf)
+	var pairing pbc.Pairing
+	err := dec.Decode(&pairing)
+	if err != nil {
+		return nil, err
+	}
+	return &pairing, nil
 }

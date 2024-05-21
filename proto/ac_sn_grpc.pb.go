@@ -19,7 +19,8 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	SNACService_PutDataShardNotice_FullMethodName = "/proto.SNACService/PutDataShardNotice"
+	SNACService_PutDataShardNotice_FullMethodName    = "/proto.SNACService/PutDataShardNotice"
+	SNACService_UpdateDataShardNotice_FullMethodName = "/proto.SNACService/UpdateDataShardNotice"
 )
 
 // SNACServiceClient is the client API for SNACService service.
@@ -27,6 +28,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type SNACServiceClient interface {
 	PutDataShardNotice(ctx context.Context, in *ClientStorageRequest, opts ...grpc.CallOption) (*ClientStorageResponse, error)
+	UpdateDataShardNotice(ctx context.Context, in *ClientUpdDSRequest, opts ...grpc.CallOption) (*ClientUpdDSResponse, error)
 }
 
 type sNACServiceClient struct {
@@ -46,11 +48,21 @@ func (c *sNACServiceClient) PutDataShardNotice(ctx context.Context, in *ClientSt
 	return out, nil
 }
 
+func (c *sNACServiceClient) UpdateDataShardNotice(ctx context.Context, in *ClientUpdDSRequest, opts ...grpc.CallOption) (*ClientUpdDSResponse, error) {
+	out := new(ClientUpdDSResponse)
+	err := c.cc.Invoke(ctx, SNACService_UpdateDataShardNotice_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SNACServiceServer is the server API for SNACService service.
 // All implementations must embed UnimplementedSNACServiceServer
 // for forward compatibility
 type SNACServiceServer interface {
 	PutDataShardNotice(context.Context, *ClientStorageRequest) (*ClientStorageResponse, error)
+	UpdateDataShardNotice(context.Context, *ClientUpdDSRequest) (*ClientUpdDSResponse, error)
 	mustEmbedUnimplementedSNACServiceServer()
 }
 
@@ -60,6 +72,9 @@ type UnimplementedSNACServiceServer struct {
 
 func (UnimplementedSNACServiceServer) PutDataShardNotice(context.Context, *ClientStorageRequest) (*ClientStorageResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PutDataShardNotice not implemented")
+}
+func (UnimplementedSNACServiceServer) UpdateDataShardNotice(context.Context, *ClientUpdDSRequest) (*ClientUpdDSResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateDataShardNotice not implemented")
 }
 func (UnimplementedSNACServiceServer) mustEmbedUnimplementedSNACServiceServer() {}
 
@@ -92,6 +107,24 @@ func _SNACService_PutDataShardNotice_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SNACService_UpdateDataShardNotice_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ClientUpdDSRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SNACServiceServer).UpdateDataShardNotice(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SNACService_UpdateDataShardNotice_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SNACServiceServer).UpdateDataShardNotice(ctx, req.(*ClientUpdDSRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SNACService_ServiceDesc is the grpc.ServiceDesc for SNACService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -102,6 +135,10 @@ var SNACService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PutDataShardNotice",
 			Handler:    _SNACService_PutDataShardNotice_Handler,
+		},
+		{
+			MethodName: "UpdateDataShardNotice",
+			Handler:    _SNACService_UpdateDataShardNotice_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

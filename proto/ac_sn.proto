@@ -7,6 +7,7 @@ option go_package = "./";
 //存储节点为服务器，审计方为客户端
 service SNACService {
     rpc PutDataShardNotice(ClientStorageRequest) returns (ClientStorageResponse);
+    rpc UpdateDataShardNotice(ClientUpdDSRequest) returns (ClientUpdDSResponse);
 }
 
 //客户端发起的存储请求
@@ -23,5 +24,22 @@ message ClientStorageResponse {
     string dsno = 3;     //该存储节点已存储的分片号
     int32 version = 4;   //分片对应的版本号
     string timestamp = 5; //分片对应的时间戳
+    string message = 6;  //附加信息
+}
+
+//客户端发起的更新数据分片请求
+message ClientUpdDSRequest {
+    string clientId = 1;   //客户端ID
+    string filename = 2;   //待存储的文件名
+    string dsno = 3;    //该存储节点待更新的分片号
+}
+
+//存储节点对更新数据分片请求的回复
+message ClientUpdDSResponse {
+    string clientId = 1;   //客户端ID
+    string filename = 2;  //已更新的文件名
+    string dsno = 3;     //该存储节点已更新的分片号
+    int32 version = 4;   //分片更新后的版本号
+    string timestamp = 5; //分片更新后的时间戳
     string message = 6;  //附加信息
 }

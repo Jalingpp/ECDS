@@ -24,6 +24,8 @@ const (
 	ACService_PutFileCommit_FullMethodName  = "/proto.ACService/PutFileCommit"
 	ACService_GetFileSNs_FullMethodName     = "/proto.ACService/GetFileSNs"
 	ACService_GetDSErrReport_FullMethodName = "/proto.ACService/GetDSErrReport"
+	ACService_GetDSSn_FullMethodName        = "/proto.ACService/GetDSSn"
+	ACService_UpdateDSCommit_FullMethodName = "/proto.ACService/UpdateDSCommit"
 )
 
 // ACServiceClient is the client API for ACService service.
@@ -35,6 +37,8 @@ type ACServiceClient interface {
 	PutFileCommit(ctx context.Context, in *PFCRequest, opts ...grpc.CallOption) (*PFCResponse, error)
 	GetFileSNs(ctx context.Context, in *GFACRequest, opts ...grpc.CallOption) (*GFACResponse, error)
 	GetDSErrReport(ctx context.Context, in *GDSERequest, opts ...grpc.CallOption) (*GDSEResponse, error)
+	GetDSSn(ctx context.Context, in *GDSSNRequest, opts ...grpc.CallOption) (*GDSSNResponse, error)
+	UpdateDSCommit(ctx context.Context, in *UDSCRequest, opts ...grpc.CallOption) (*UDSCResponse, error)
 }
 
 type aCServiceClient struct {
@@ -90,6 +94,24 @@ func (c *aCServiceClient) GetDSErrReport(ctx context.Context, in *GDSERequest, o
 	return out, nil
 }
 
+func (c *aCServiceClient) GetDSSn(ctx context.Context, in *GDSSNRequest, opts ...grpc.CallOption) (*GDSSNResponse, error) {
+	out := new(GDSSNResponse)
+	err := c.cc.Invoke(ctx, ACService_GetDSSn_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aCServiceClient) UpdateDSCommit(ctx context.Context, in *UDSCRequest, opts ...grpc.CallOption) (*UDSCResponse, error) {
+	out := new(UDSCResponse)
+	err := c.cc.Invoke(ctx, ACService_UpdateDSCommit_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ACServiceServer is the server API for ACService service.
 // All implementations must embed UnimplementedACServiceServer
 // for forward compatibility
@@ -99,6 +121,8 @@ type ACServiceServer interface {
 	PutFileCommit(context.Context, *PFCRequest) (*PFCResponse, error)
 	GetFileSNs(context.Context, *GFACRequest) (*GFACResponse, error)
 	GetDSErrReport(context.Context, *GDSERequest) (*GDSEResponse, error)
+	GetDSSn(context.Context, *GDSSNRequest) (*GDSSNResponse, error)
+	UpdateDSCommit(context.Context, *UDSCRequest) (*UDSCResponse, error)
 	mustEmbedUnimplementedACServiceServer()
 }
 
@@ -120,6 +144,12 @@ func (UnimplementedACServiceServer) GetFileSNs(context.Context, *GFACRequest) (*
 }
 func (UnimplementedACServiceServer) GetDSErrReport(context.Context, *GDSERequest) (*GDSEResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetDSErrReport not implemented")
+}
+func (UnimplementedACServiceServer) GetDSSn(context.Context, *GDSSNRequest) (*GDSSNResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetDSSn not implemented")
+}
+func (UnimplementedACServiceServer) UpdateDSCommit(context.Context, *UDSCRequest) (*UDSCResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateDSCommit not implemented")
 }
 func (UnimplementedACServiceServer) mustEmbedUnimplementedACServiceServer() {}
 
@@ -224,6 +254,42 @@ func _ACService_GetDSErrReport_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ACService_GetDSSn_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GDSSNRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ACServiceServer).GetDSSn(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ACService_GetDSSn_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ACServiceServer).GetDSSn(ctx, req.(*GDSSNRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ACService_UpdateDSCommit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UDSCRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ACServiceServer).UpdateDSCommit(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ACService_UpdateDSCommit_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ACServiceServer).UpdateDSCommit(ctx, req.(*UDSCRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ACService_ServiceDesc is the grpc.ServiceDesc for ACService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -250,6 +316,14 @@ var ACService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetDSErrReport",
 			Handler:    _ACService_GetDSErrReport_Handler,
+		},
+		{
+			MethodName: "GetDSSn",
+			Handler:    _ACService_GetDSSn_Handler,
+		},
+		{
+			MethodName: "UpdateDSCommit",
+			Handler:    _ACService_UpdateDSCommit_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
