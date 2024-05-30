@@ -29,14 +29,13 @@ type Client struct {
 
 // 新建客户端，dn和pn分别是数据块和校验块的数量
 func NewClient(id string, dn int, pn int, ac_addr string, snaddrmap map[string]string) *Client {
-	filecode := encode.NewFileCoder(dn, pn)
 	// 设置连接审计方服务器的地址
 	conn, err := grpc.Dial(ac_addr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	if err != nil {
 		log.Fatalf("did not connect to auditor: %v", err)
 	}
 	// defer conn.Close()
-	c := pb.NewACServiceClient(conn)
+	acrpc := pb.NewACServiceClient(conn)
 	//设置连接存储节点服务器的地址
 	snrpcs := make(map[string]pb.SNServiceClient)
 	for key, value := range snaddrmap {
@@ -47,7 +46,14 @@ func NewClient(id string, dn int, pn int, ac_addr string, snaddrmap map[string]s
 		sc := pb.NewSNServiceClient(snconn)
 		snrpcs[key] = sc
 	}
-	return &Client{id, filecode, c, snrpcs}
+	//向审计方请求Params和g
+	gpg_req := &pb.GetPGRequest{ClientId: id}
+	gpg_res, err := acrpc.GetParamsG(context.Background(), gpg_req)
+	if err != nil {
+		log.Fatalf("storagenode could not process request: %v", err)
+	}
+	filecode := encode.NewFileCoder(dn, pn, gpg_res.Params, gpg_res.G)
+	return &Client{id, filecode, acrpc, snrpcs}
 }
 
 // 客户端注册，向审计方和存储方广播公开信息
@@ -56,36 +62,36 @@ func (client *Client) Register() {
 	//1.1-构建注册请求消息
 	rac_req := &pb.RegistACRequest{
 		ClientId: client.ClientID,
-		Params:   client.Filecoder.Sigger.Params,
-		G:        client.Filecoder.Sigger.G,
 		PK:       client.Filecoder.Sigger.PubKey,
 	}
 	// 1.2-发送存储请求给审计方
-	rac_res, err := client.ACRPC.RegisterAC(context.Background(), rac_req)
+	_, err := client.ACRPC.RegisterAC(context.Background(), rac_req)
 	if err != nil {
-		log.Fatalf("auditor could not process request: %v", err)
+		log.Println("client regist in ac error:", err)
 	}
-	// 1.3-输出注册结果
-	log.Println("recieved register response from auditor:", rac_res.Message)
+	// else {
+	// 	// 1.3-输出注册结果
+	// 	// log.Println("recieved register response from auditor:", rac_res.Message)
+	// }
 
 	// 2-向所有存储节点注册
 	done := make(chan struct{})
 	for key, value := range client.SNRPCs {
 		go func(snid string, snrpc pb.SNServiceClient) {
 			// 2.1-构造注册请求消息
-			rsn_req := &pb.RegistSNRequest{
+			rsn_req := &pb.CRegistSNRequest{
 				ClientId: client.ClientID,
-				Params:   client.Filecoder.Sigger.Params,
-				G:        client.Filecoder.Sigger.G,
 				PK:       client.Filecoder.Sigger.PubKey,
 			}
 			// 2.2-发送请求消息给存储节点
-			rsn_res, err := client.SNRPCs[snid].RegisterSN(context.Background(), rsn_req)
+			_, err := client.SNRPCs[snid].ClientRegisterSN(context.Background(), rsn_req)
 			if err != nil {
-				log.Fatalf("storagenode could not process request: %v", err)
+				log.Println("client regist in sn error:", err)
 			}
-			// 2.3-输出存储节点回复消息
-			log.Println("recieved register response from ", snid, ":", rsn_res.Message)
+			// else {
+			// 	// 2.3-输出存储节点回复消息
+			// 	log.Println("recieved register response from ", snid, ":", rsn_res.Message)
+			// }
 			// 2.4-通知主线程任务完成
 			done <- struct{}{}
 		}(key, value)
@@ -111,7 +117,7 @@ func (client *Client) PutFile(filepath string, filename string) {
 	}
 
 	//3-从审计方的回复消息中提取存储节点，构建并分发文件分片
-	log.Printf("Received response from Auditor: %s", StorageResponseToString(stor_res))
+	// log.Printf("Received response from Auditor: %s", StorageResponseToString(stor_res))
 	//3.1-读取文件为字符串
 	filestr := util.ReadStringFromFile(filepath)
 	//3.2-纠删码编码出所有分片
@@ -123,6 +129,10 @@ func (client *Client) PutFile(filepath string, filename string) {
 	//3.3.1-并发分发数据分片
 	for i := 0; i < len(sn4ds); i++ {
 		go func(sn string, i int) {
+			//验签
+			if !pdp.VerifySig(client.Filecoder.Sigger.Params, client.Filecoder.Sigger.G, client.Filecoder.Sigger.PubKey, datashards[i].Data, datashards[i].Sig, datashards[i].Version, datashards[i].Timestamp) {
+				log.Println(datashards[i], "signature verify error!")
+			}
 			// 3.3.1 - 构建分片存入请求消息
 			pds_req := &pb.PutDSRequest{
 				ClientId:            client.ClientID,
@@ -132,13 +142,13 @@ func (client *Client) PutFile(filepath string, filename string) {
 			}
 
 			// 3.3.2 - 发送分片存入请求给存储节点
-			pds_res, err := client.SNRPCs[sn].PutDataShard(context.Background(), pds_req)
+			_, err := client.SNRPCs[sn].PutDataShard(context.Background(), pds_req)
 			if err != nil {
-				log.Fatalf("storagenode could not process request: %v", err)
+				log.Println("storagenode could not process request error:", err)
 			}
 
 			// 3.3.3 - 确认存储节点已存储
-			log.Println("Received response from StorageNode", sn, "for datashard", pds_res.Dsno, ". Message:", pds_res.Message)
+			// log.Println(client.ClientID, "received response from", sn, "for", pds_res.Dsno, "of", filename, ". Message:", pds_res.Message)
 
 			// 通知主线程任务完成
 			done <- struct{}{}
@@ -156,13 +166,13 @@ func (client *Client) PutFile(filepath string, filename string) {
 			}
 
 			// 3.3.2 - 发送分片存入请求给存储节点
-			pds_res, err := client.SNRPCs[sn].PutDataShard(context.Background(), pds_req)
+			_, err := client.SNRPCs[sn].PutDataShard(context.Background(), pds_req)
 			if err != nil {
 				log.Fatalf("storagenode could not process request: %v", err)
 			}
 
 			// 3.3.3 - 确认存储节点已存储
-			log.Println("Received response from StorageNode", sn, "for datashard", pds_res.Dsno, ". Message:", pds_res.Message)
+			// log.Println(client.ClientID, "received response from", sn, "for", pds_res.Dsno, "of", filename, ". Message:", pds_res.Message)
 
 			// 通知主线程任务完成
 			done <- struct{}{}
@@ -181,18 +191,19 @@ func (client *Client) PutFile(filepath string, filename string) {
 		Timestamps: client.Filecoder.GetTimestamps(filename),
 	}
 	// 4.2-发送确认请求给审计方
-	pfc_res, err := client.ACRPC.PutFileCommit(context.Background(), pfc_req)
+	_, err = client.ACRPC.PutFileCommit(context.Background(), pfc_req)
 	if err != nil {
 		log.Fatalf("auditor could not process request: %v", err)
 	}
 	//4.3-输出确认回复
-	log.Println("received auditor put file ", pfc_res.Filename, " commit respond:", pfc_res.Message)
+	// log.Println("received auditor put file ", pfc_res.Filename, " commit respond:", pfc_res.Message)
 }
 
 // 客户端获取文件:isorigin=true,则只返回原始dsnum个分片的文件，否则返回所有
 func (client *Client) GetFile(filename string, isorigin bool) string {
 	fileDSs := make(map[string][]int32)  //记录存储节点返回的文件分片，用于最后拼接完整文件,key:dsno
 	errdsnosn := make(map[string]string) //记录未正常返回分片的snid，key:dsno,value:snid
+	// pairing, _ := pbc.NewPairingFromString(client.Filecoder.Sigger.Params)
 	fdssMutex := sync.Mutex{}
 	//1-构建获取文件所在的SNs请求消息
 	gfsns_req := &pb.GFACRequest{
@@ -227,7 +238,7 @@ func (client *Client) GetFile(filename string, isorigin bool) string {
 				lv := client.Filecoder.GetVersion(filename, dsno)
 				lt := client.Filecoder.GetTimestamp(filename, dsno)
 				sigger := client.Filecoder.Sigger
-				if !pdp.VerifySig(sigger.Pairing, sigger.G, sigger.PubKey, datashard.Data, datashard.Sig, lv, lt) {
+				if !pdp.VerifySig(client.Filecoder.Sigger.Params, sigger.G, sigger.PubKey, datashard.Data, datashard.Sig, lv, lt) {
 					log.Println("datashard ", dsno, " signature verification not pass.")
 					errdsnosn[dsno] = snid
 				}
@@ -251,7 +262,7 @@ func (client *Client) GetFile(filename string, isorigin bool) string {
 		if len(errdsnosn) == 0 {
 			break
 		} else {
-			log.Println("get datashards from sn errors:", errdsnosn)
+			// log.Println("get datashards from sn errors:", errdsnosn)
 			// 4.0-将未返回分片的存储节点id加入黑名单
 			for _, value := range errdsnosn {
 				blacksns[value] = "h"
@@ -270,7 +281,7 @@ func (client *Client) GetFile(filename string, isorigin bool) string {
 				errdsnosn = make(map[string]string) //置空错误名单，重利用
 			}
 			// 4.4-向存储节点请求校验块
-			log.Println("request sns of parity shards:", er_res.Snsds)
+			// log.Println("request sns of parity shards:", er_res.Snsds)
 			for key, value := range er_res.Snsds {
 				go func(dsno string, snid string) {
 					// 4.4.1-构造获取分片请求消息
@@ -289,7 +300,7 @@ func (client *Client) GetFile(filename string, isorigin bool) string {
 						lv := client.Filecoder.GetVersion(filename, dsno)
 						lt := client.Filecoder.GetTimestamp(filename, dsno)
 						sigger := client.Filecoder.Sigger
-						if !pdp.VerifySig(sigger.Pairing, sigger.G, sigger.PubKey, datashard.Data, datashard.Sig, lv, lt) {
+						if !pdp.VerifySig(client.Filecoder.Sigger.Params, sigger.G, sigger.PubKey, datashard.Data, datashard.Sig, lv, lt) {
 							log.Println("parityshard ", dsno, " signature verification not pass.")
 							errdsnosn[dsno] = snid
 						}
@@ -314,7 +325,7 @@ func (client *Client) GetFile(filename string, isorigin bool) string {
 	// 5.1-恢复以"d-"和"p-"为前缀的文件分片
 	filestr := client.RecoverFileDS(fileDSs, "d-", "p-")
 	if isorigin {
-		log.Println("Get file", filename, ":", filestr)
+		// log.Println("Get file", filename, ":", filestr)
 		return filestr
 	}
 	// 5.2-若添加过额外的数据分片，则也恢复这部分分片
@@ -324,7 +335,7 @@ func (client *Client) GetFile(filename string, isorigin bool) string {
 		pPrefix := "p-" + strconv.Itoa(client.Filecoder.Rsec.DataNum+turnnum) + "-"
 		filestr = filestr + client.RecoverFileDS(fileDSs, dPrefix, pPrefix)
 	}
-	log.Println("Get file", filename, ":", filestr)
+	// log.Println("Get file", filename, ":", filestr)
 	return filestr
 }
 
@@ -370,6 +381,7 @@ func (client *Client) UpdateDS(filename string, dsno string, newDSStr string) {
 	udpDataRow, _ := strconv.Atoi(splitdsno[1]) //由待更新的dsno导出的待更新分片序号
 	randSource := rand.NewSource(time.Now().UnixNano())
 	r := rand.New(randSource) //设置随机种子
+	// pairing, _ := pbc.NewPairingFromString(client.Filecoder.Sigger.Params)
 	// 1-获取旧的数据分片(和校验块所在的存储节点id)
 	oldDSs, dsSNs, psSNs, err := client.GetDataShard(filename, dsno, true)
 	if err != nil {
@@ -382,7 +394,7 @@ func (client *Client) UpdateDS(filename string, dsno string, newDSStr string) {
 		for _, value := range oldDSs {
 			oldDS = value
 		}
-		log.Println("get old datashard", oldDS.DSno, ":", oldDS.Data)
+		// log.Println("get old datashard", oldDS.DSno, ":", oldDS.Data)
 		// 2.2-旧数据分片为单个：更新分片，得到校验块增量
 		incParityShards := client.Filecoder.UpdateDataShard(filename, udpDataRow, oldDS, newDSStr)
 		// 2.3-将更新后的数据分片发送给存储节点覆盖旧分片
@@ -399,7 +411,6 @@ func (client *Client) UpdateDS(filename string, dsno string, newDSStr string) {
 				// 2.4.1-构造请求
 				randomNum := r.Int31()
 				ipslist := make([][]byte, 0)
-				// log.Println("incPS-No:", incParityShards[ipsno].DSno, ",psno:", psno, "incPS-V:", incParityShards[ipsno].Version, "incPS-T:", incParityShards[ipsno].Timestamp)
 				ipslist = append(ipslist, incParityShards[ipsno].SerializeDS())
 				pips_req := &pb.PutIPSRequest{ClientId: client.ClientID, Filename: filename, Psno: psno, DatashardsSerialized: ipslist, Randomnum: randomNum}
 				// 2.4.2-向存储节点发送请求
@@ -415,11 +426,9 @@ func (client *Client) UpdateDS(filename string, dsno string, newDSStr string) {
 				sigger := client.Filecoder.Sigger
 				v := client.Filecoder.GetVersion(filename, psno)
 				t := client.Filecoder.GetTimestamp(filename, psno)
-				isCorrect := pdp.VerifyPos(pos, sigger.Pairing, sigger.G, sigger.PubKey, v, t, randomNum)
-				if isCorrect {
-					log.Println("storage", psSNs[psno], "update parityshard", psno, "successfully")
-				} else {
-					log.Println("storage", psSNs[psno], "update parityshard", psno, "pos verify not pass")
+				isCorrect := pdp.VerifyPos(pos, client.Filecoder.Sigger.Params, sigger.G, sigger.PubKey, v, t, randomNum)
+				if !isCorrect {
+					log.Println("storage", psSNs[psno], "update parityshard", psno, "of", client.ClientID, filename, "pos verify not pass")
 				}
 				// 通知主线程任务完成
 				done <- struct{}{}
@@ -439,9 +448,10 @@ func (client *Client) UpdateDS(filename string, dsno string, newDSStr string) {
 			newversions[incParityShards[i].DSno] = incParityShards[i].Version
 			newtimestamps[incParityShards[i].DSno] = incParityShards[i].Timestamp
 		}
-		if client.UpdateDSACCommit(filename, newDSnos, newversions, newtimestamps) {
-			log.Println("datashard update completed.")
-		}
+		client.UpdateDSACCommit(filename, newDSnos, newversions, newtimestamps)
+		// if client.UpdateDSACCommit(filename, newDSnos, newversions, newtimestamps) {
+		// 	log.Println(client.ClientID, filename, newDSnos, "update completed.")
+		// }
 	} else if len(oldDSs) > 1 {
 		// 旧数据分片为多个
 		// 2.1-切分新数据字符串
@@ -461,7 +471,7 @@ func (client *Client) UpdateDS(filename string, dsno string, newDSStr string) {
 				odsIPSMutex.Unlock()
 			}(key, filename, udpDR, value, newDSstrs[udpDR])
 		}
-		log.Println("get oldDS:", util.Int32SliceToStr(oldDSData))
+		// log.Println("get oldDS:", util.Int32SliceToStr(oldDSData))
 		// 2.3-将属于同一个存储节点的分片合并
 		sndsnomap := make(map[string][]string) //key:snid,value:dsnos
 		for key, value := range dsSNs {
@@ -521,11 +531,8 @@ func (client *Client) UpdateDS(filename string, dsno string, newDSStr string) {
 				sigger := client.Filecoder.Sigger
 				v := client.Filecoder.GetVersion(filename, psno)
 				t := client.Filecoder.GetTimestamp(filename, psno)
-				log.Println("v:", v, "t:", t)
-				isCorrect := pdp.VerifyPos(pos, sigger.Pairing, sigger.G, sigger.PubKey, v, t, randomNum)
-				if isCorrect {
-					log.Println("storage", psSNs[psno], "update parityshard", psno, "successfully")
-				} else {
+				isCorrect := pdp.VerifyPos(pos, client.Filecoder.Sigger.Params, sigger.G, sigger.PubKey, v, t, randomNum)
+				if !isCorrect {
 					log.Println("storage", psSNs[psno], "update parityshard", psno, "pos verify not pass")
 				}
 				// 通知主线程任务完成
@@ -550,9 +557,10 @@ func (client *Client) UpdateDS(filename string, dsno string, newDSStr string) {
 			newVersions[key] = value[len(value)-1].Version
 			newTimestamps[key] = value[len(value)-1].Timestamp
 		}
-		if client.UpdateDSACCommit(filename, newDSnos, newVersions, newTimestamps) {
-			log.Println("datashard update completed.")
-		}
+		client.UpdateDSACCommit(filename, newDSnos, newVersions, newTimestamps)
+		// if client.UpdateDSACCommit(filename, newDSnos, newVersions, newTimestamps) {
+		// 	log.Println("datashard update completed.")
+		// }
 	} else {
 		log.Println("old datashard not exist")
 	}
@@ -568,7 +576,7 @@ func (client *Client) UpdateDSACCommit(filename string, dsnos []string, versions
 		log.Fatalf("auditor could not process request: %v", err)
 	}
 	//处理审计方回复
-	log.Println("received update DS commit message from auditor:", uds_res.Message)
+	// log.Println("received update DS commit message from auditor:", uds_res.Message)
 	return len(uds_res.Dssnmap) == len(dsnos)
 }
 
@@ -586,7 +594,7 @@ func (client *Client) UpdDSsOnSN(filename string, dsnos []string, dss []*util.Da
 	if err != nil {
 		log.Fatalf("storage could not process request: %v", err)
 	}
-	log.Println("received update datashards message from storagenode:", udss_res.Message)
+	// log.Println("received update datashards message from storagenode:", udss_res.Message)
 	return len(dsnos) == len(udss_res.Dsnos)
 }
 
@@ -604,6 +612,7 @@ func (client *Client) GetDataShard(filename string, dsno string, isupdate bool) 
 	DSs := make(map[string]*util.DataShard) //记录存储节点返回的文件分片，用于最后拼接完整分片,key:dsno
 	errdsnosn := make(map[string]string)    //记录未正常返回分片的snid，key:dsno,value:snid
 	dssMutex := sync.Mutex{}
+	// pairing, _ := pbc.NewPairingFromString(client.Filecoder.Sigger.Params)
 	done := make(chan struct{})
 	for key, value := range dssnmap {
 		go func(dsno string, snid string) {
@@ -612,10 +621,10 @@ func (client *Client) GetDataShard(filename string, dsno string, isupdate bool) 
 			// 1.3.2-向存储节点发送请求
 			gds_res, err := client.SNRPCs[snid].GetDataShard(context.Background(), gds_req)
 			if err != nil {
-				log.Println("storagenode could not process request:", err)
+				// log.Println("storagenode could not process request:", err)
 				errdsnosn[dsno] = snid
 			} else if gds_res.DatashardSerialized == nil {
-				log.Println("sn", snid, "return nil datashard", dsno)
+				// log.Println("sn", snid, "return nil datashard", dsno)
 				errdsnosn[dsno] = snid
 			} else {
 				// 1.3.3-反序列化数据分片并验签
@@ -623,8 +632,8 @@ func (client *Client) GetDataShard(filename string, dsno string, isupdate bool) 
 				lv := client.Filecoder.GetVersion(filename, dsno)
 				lt := client.Filecoder.GetTimestamp(filename, dsno)
 				sigger := client.Filecoder.Sigger
-				if !pdp.VerifySig(sigger.Pairing, sigger.G, sigger.PubKey, datashard.Data, datashard.Sig, lv, lt) {
-					log.Println("datashard ", dsno, " signature verification not pass.")
+				if !pdp.VerifySig(client.Filecoder.Sigger.Params, sigger.G, sigger.PubKey, datashard.Data, datashard.Sig, lv, lt) {
+					// log.Println("datashard ", dsno, " signature verification not pass.")
 					errdsnosn[dsno] = snid
 				}
 				// 1.3.4-将获取到的分片加入到列表中
@@ -673,7 +682,7 @@ func (client *Client) GetDataShard(filename string, dsno string, isupdate bool) 
 			if len(errdsnosn) == 0 {
 				break
 			} else {
-				log.Println("get subdatashards from sn errors:", errdsnosn)
+				// log.Println("get subdatashards from sn errors:", errdsnosn)
 				// 1.4.2.2-将未返回分片的存储节点id加入黑名单
 				for _, value := range errdsnosn {
 					blacksns[value] = "h"
@@ -692,7 +701,7 @@ func (client *Client) GetDataShard(filename string, dsno string, isupdate bool) 
 					errdsnosn = make(map[string]string) //置空错误名单，重利用
 				}
 				// 1.4.2.6-向存储节点请求校验块
-				log.Println("request sns of parity subshards:", er_res.Snsds)
+				// log.Println("request sns of parity subshards:", er_res.Snsds)
 				for key, value := range er_res.Snsds {
 					go func(dsno string, snid string) {
 						// 1.4.2.6.1-构造获取分片请求消息
@@ -700,10 +709,10 @@ func (client *Client) GetDataShard(filename string, dsno string, isupdate bool) 
 						// 1.4.2.6.2-向存储节点发送请求
 						gds_res, err := client.SNRPCs[snid].GetDataShard(context.Background(), gds_req)
 						if err != nil {
-							log.Println("storagenode could not process request:", err)
+							// log.Println("storagenode could not process request:", err)
 							errdsnosn[dsno] = snid
 						} else if gds_res.DatashardSerialized == nil {
-							log.Println("sn", snid, "return nil paritysubshard", dsno)
+							// log.Println("sn", snid, "return nil paritysubshard", dsno)
 							errdsnosn[dsno] = snid
 						} else {
 							// 1.4.2.6.3-反序列化数据分片并验签
@@ -711,8 +720,8 @@ func (client *Client) GetDataShard(filename string, dsno string, isupdate bool) 
 							lv := client.Filecoder.GetVersion(filename, dsno)
 							lt := client.Filecoder.GetTimestamp(filename, dsno)
 							sigger := client.Filecoder.Sigger
-							if !pdp.VerifySig(sigger.Pairing, sigger.G, sigger.PubKey, datashard.Data, datashard.Sig, lv, lt) {
-								log.Println("paritysubshard ", dsno, " signature verification not pass.")
+							if !pdp.VerifySig(client.Filecoder.Sigger.Params, sigger.G, sigger.PubKey, datashard.Data, datashard.Sig, lv, lt) {
+								// log.Println("paritysubshard ", dsno, " signature verification not pass.")
 								errdsnosn[dsno] = snid
 							}
 							// 1.4.2.6.4-将获取到的分片加入到列表中

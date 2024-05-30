@@ -15,28 +15,8 @@ import (
 type FileCoder struct {
 	Rsec        *RSEC
 	Sigger      *pdp.Signature
-	MetaFileMap map[string]*Meta4File // 用于记录每个文件的元数据,key是文件名
-	MFMMutex    sync.RWMutex          //MetaFileMap的读写锁
-}
-
-type Meta4File struct {
-	//用于记录一个文件所有分片的信息
-	LatestVersionSlice   map[string]int32  //key:dsno
-	LatestTimestampSlice map[string]string //key:dsno
-}
-
-// 【客户端执行】创建文件元数据记录器
-func NewMeta4File() *Meta4File {
-	lvs := make(map[string]int32)
-	lts := make(map[string]string)
-	m4f := &Meta4File{lvs, lts}
-	return m4f
-}
-
-// 【客户端执行】更新一个文件的一个分片的元数据
-func (m4f *Meta4File) Update(dsno string, newT string, newV int32) {
-	m4f.LatestTimestampSlice[dsno] = newT
-	m4f.LatestVersionSlice[dsno] = newV
+	MetaFileMap map[string]*util.Meta4File // 用于记录每个文件的元数据,key是文件名
+	MFMMutex    sync.RWMutex               //MetaFileMap的读写锁
 }
 
 // 获取文件所有分片版本号
@@ -72,14 +52,14 @@ func (fc *FileCoder) GetTimestamp(filename string, dsno string) string {
 }
 
 // 【客户端执行】创建文件编码器
-func NewFileCoder(dn int, pn int) *FileCoder {
+func NewFileCoder(dn int, pn int, params string, g []byte) *FileCoder {
 	fc := FileCoder{}
 	//创建编码器
 	fc.Rsec = NewRSEC(dn, pn)
 	//创建签名器
-	fc.Sigger = pdp.NewSig()
+	fc.Sigger = pdp.NewSig(params, g)
 	//初始化元数据记录器
-	fc.MetaFileMap = make(map[string]*Meta4File)
+	fc.MetaFileMap = make(map[string]*util.Meta4File)
 	return &fc
 }
 
@@ -103,7 +83,7 @@ func (fc *FileCoder) Setup(filename string, filedata string) []util.DataShard {
 		panic(err)
 	}
 	//为文件初始化一个元数据记录器
-	meta4file := NewMeta4File()
+	meta4file := util.NewMeta4File()
 	//对切片中的每个块签名后构建DataShard
 	var dataShardSlice []util.DataShard
 	for i := 0; i < dsnum; i++ {
@@ -174,27 +154,26 @@ func (fc *FileCoder) UpdateDataShard(filename string, drow int, ds *util.DataSha
 }
 
 // 【存储节点执行】根据校验块增量分片更新校验块分片
-func UpdateParityShard(oldParityShard *util.DataShard, incParityShard *util.DataShard, pairing *pbc.Pairing, publicInfo *util.PublicInfo) *util.DataShard {
-	// log.Println("【before update】")
-	// oldParityShard.Print()
+func UpdateParityShard(oldParityShard *util.DataShard, incParityShard *util.DataShard, params string) *util.DataShard {
 	//更新分片数据
 	oldParityShard.Data = UpdateParity(oldParityShard.Data, incParityShard.Data)
 	//更新分片签名
-	oldParityShard.Sig = pdp.UpdateSigByIncSig(pairing, oldParityShard.Sig, incParityShard.Sig)
+	oldParityShard.Sig = pdp.UpdateSigByIncSig(params, oldParityShard.Sig, incParityShard.Sig)
 	//更新分片版本
 	oldParityShard.Version = incParityShard.Version
 	//更新分片时间戳
 	oldParityShard.Timestamp = incParityShard.Timestamp
-	// log.Println("【after update】")
-	// oldParityShard.Print()
 	return oldParityShard
 }
 
 func TestFileCoder() {
 	dataNum := 5
 	parityNum := 3
+	params := pbc.GenerateA(160, 512).String()
+	pairing, _ := pbc.NewPairingFromString(params)
+	g := pairing.NewG2().Rand().Bytes()
 	//创建文件编码器
-	fileCoder := NewFileCoder(dataNum, parityNum)
+	fileCoder := NewFileCoder(dataNum, parityNum, params, g)
 	//数据文件-字符串型
 	filename := "testFile"
 	fileStr := "abcdef123456123456123456123456"
@@ -209,7 +188,7 @@ func TestFileCoder() {
 	for i := 0; i < len(dataShards); i++ {
 		ds := dataShards[i]
 		fmt.Println("Verify datashard-", i)
-		pdp.VerifySig(fileCoder.Sigger.Pairing, fileCoder.Sigger.G, fileCoder.Sigger.PubKey, ds.Data, ds.Sig, ds.Version, ds.Timestamp)
+		pdp.VerifySig(params, fileCoder.Sigger.G, fileCoder.Sigger.PubKey, ds.Data, ds.Sig, ds.Version, ds.Timestamp)
 	}
 	//更新数据块
 	newDataStr := "abcdef"
@@ -222,9 +201,8 @@ func TestFileCoder() {
 	}
 	//更新校验块
 	fmt.Println("新的校验块分片：")
-	publicInfo := util.NewPublicInfo(fileCoder.Sigger.Params, fileCoder.Sigger.G, fileCoder.Sigger.PubKey)
 	for i := dataNum; i < dataNum+parityNum; i++ {
-		newParityShard := UpdateParityShard(&dataShards[i], &incParityShards[i-dataNum], fileCoder.Sigger.Pairing, publicInfo)
+		newParityShard := UpdateParityShard(&dataShards[i], &incParityShards[i-dataNum], params)
 		newParityShard.Print()
 		dataShards[i] = *newParityShard
 	}
@@ -237,7 +215,7 @@ func TestFileCoder() {
 	for i := dataNum; i < dataNum+parityNum; i++ {
 		ds := dataShards[i]
 		fmt.Println("Verify parityshard-", i)
-		pdp.VerifySig(fileCoder.Sigger.Pairing, publicInfo.G, publicInfo.PK, ds.Data, ds.Sig, ds.Version, ds.Timestamp)
+		pdp.VerifySig(params, fileCoder.Sigger.G, fileCoder.Sigger.PubKey, ds.Data, ds.Sig, ds.Version, ds.Timestamp)
 	}
 
 }

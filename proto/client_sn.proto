@@ -5,7 +5,7 @@ package proto;
 option go_package = "./";
 
 service SNService {
-    rpc RegisterSN(RegistSNRequest) returns (RegistSNResponse);
+    rpc ClientRegisterSN(CRegistSNRequest) returns (CRegistSNResponse);
     rpc PutDataShard(PutDSRequest) returns (PutDSResponse);
     rpc GetDataShard(GetDSRequest) returns (GetDSResponse);
     rpc UpdateDataShards(UpdDSsRequest) returns (UpdDSsResponse);
@@ -13,15 +13,13 @@ service SNService {
 }
 
 //客户端发起的注册请求
-message RegistSNRequest{
+message CRegistSNRequest{
     string clientId = 1; //客户端ID
-    string params = 2;   //用于构造pairing的参数
-    bytes G = 3;  // 字节切片类型的G字段
-    bytes PK = 4; // 字节切片类型的PK字段
+    bytes PK = 2; // 字节切片类型的PK字段
 }
 
-//审计方对客户端注册请求的回复
-message RegistSNResponse{
+//存储节点对客户端注册请求的回复
+message CRegistSNResponse{
     string clientId = 1; //客户端ID
     string message = 2;  //回复信息
 }

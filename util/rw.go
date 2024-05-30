@@ -59,3 +59,20 @@ func ReadSNAddrFile(filepath string) *map[string]string {
 	}
 	return &snaddrmap
 }
+
+// 写一个字符串到文件末尾
+func LogToFile(filepath string, content string) {
+	// 打开文件以附加内容（如果文件不存在则创建）
+	file, err := os.OpenFile(filepath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Println("Error opening file:", err)
+		return
+	}
+	defer file.Close()
+
+	// 写入内容到文件末尾
+	if _, err := file.WriteString(content); err != nil {
+		fmt.Println("Error writing to file:", err)
+		return
+	}
+}

@@ -5,6 +5,7 @@ package proto;
 option go_package = "./";
 
 service ACService {
+    rpc GetParamsG(GetPGRequest) returns (GetPGResponse);         //客户端向AC请求Params和G
     rpc RegisterAC(RegistACRequest) returns (RegistACResponse);   //客户端向AC注册
     rpc SelectSNs(StorageRequest) returns (StorageResponse);      //客户端向AC申请存储文件，获取存储各分片的存储节点id
     rpc PutFileCommit(PFCRequest) returns (PFCResponse);          //客户端向AC确认完成文件存储
@@ -14,12 +15,21 @@ service ACService {
     rpc UpdateDSCommit(UDSCRequest) returns (UDSCResponse);       //客户端向AC确认完成数据分片更新（包括校验块更新）
 }
 
+//客户端发起的获取Params和G的请求
+message GetPGRequest{
+    string clientId = 1; //客户端ID
+}
+
+//审计方对客户端获取Params和G的回复
+message GetPGResponse{
+    string params = 1;  //用于构造pairing的参数
+    bytes g = 2;        //用于计算的公钥G
+}
+
 //客户端发起的注册请求
 message RegistACRequest{
     string clientId = 1; //客户端ID
-    string params = 2;   //用于构造pairing的参数
-    bytes G = 3;  // 字节切片类型的G字段
-    bytes PK = 4; // 字节切片类型的PK字段
+    bytes PK = 2; // 字节切片类型的PK字段
 }
 
 //审计方对客户端注册请求的回复

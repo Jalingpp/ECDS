@@ -21,6 +21,9 @@ const _ = grpc.SupportPackageIsVersion7
 const (
 	SNACService_PutDataShardNotice_FullMethodName    = "/proto.SNACService/PutDataShardNotice"
 	SNACService_UpdateDataShardNotice_FullMethodName = "/proto.SNACService/UpdateDataShardNotice"
+	SNACService_ACRegisterSN_FullMethodName          = "/proto.SNACService/ACRegisterSN"
+	SNACService_PreAuditSN_FullMethodName            = "/proto.SNACService/PreAuditSN"
+	SNACService_GetAggPosSN_FullMethodName           = "/proto.SNACService/GetAggPosSN"
 )
 
 // SNACServiceClient is the client API for SNACService service.
@@ -29,6 +32,9 @@ const (
 type SNACServiceClient interface {
 	PutDataShardNotice(ctx context.Context, in *ClientStorageRequest, opts ...grpc.CallOption) (*ClientStorageResponse, error)
 	UpdateDataShardNotice(ctx context.Context, in *ClientUpdDSRequest, opts ...grpc.CallOption) (*ClientUpdDSResponse, error)
+	ACRegisterSN(ctx context.Context, in *ACRegistSNRequest, opts ...grpc.CallOption) (*ACRegistSNResponse, error)
+	PreAuditSN(ctx context.Context, in *PASNRequest, opts ...grpc.CallOption) (*PASNResponse, error)
+	GetAggPosSN(ctx context.Context, in *GAPSNRequest, opts ...grpc.CallOption) (*GAPSNResponse, error)
 }
 
 type sNACServiceClient struct {
@@ -57,12 +63,42 @@ func (c *sNACServiceClient) UpdateDataShardNotice(ctx context.Context, in *Clien
 	return out, nil
 }
 
+func (c *sNACServiceClient) ACRegisterSN(ctx context.Context, in *ACRegistSNRequest, opts ...grpc.CallOption) (*ACRegistSNResponse, error) {
+	out := new(ACRegistSNResponse)
+	err := c.cc.Invoke(ctx, SNACService_ACRegisterSN_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *sNACServiceClient) PreAuditSN(ctx context.Context, in *PASNRequest, opts ...grpc.CallOption) (*PASNResponse, error) {
+	out := new(PASNResponse)
+	err := c.cc.Invoke(ctx, SNACService_PreAuditSN_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *sNACServiceClient) GetAggPosSN(ctx context.Context, in *GAPSNRequest, opts ...grpc.CallOption) (*GAPSNResponse, error) {
+	out := new(GAPSNResponse)
+	err := c.cc.Invoke(ctx, SNACService_GetAggPosSN_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SNACServiceServer is the server API for SNACService service.
 // All implementations must embed UnimplementedSNACServiceServer
 // for forward compatibility
 type SNACServiceServer interface {
 	PutDataShardNotice(context.Context, *ClientStorageRequest) (*ClientStorageResponse, error)
 	UpdateDataShardNotice(context.Context, *ClientUpdDSRequest) (*ClientUpdDSResponse, error)
+	ACRegisterSN(context.Context, *ACRegistSNRequest) (*ACRegistSNResponse, error)
+	PreAuditSN(context.Context, *PASNRequest) (*PASNResponse, error)
+	GetAggPosSN(context.Context, *GAPSNRequest) (*GAPSNResponse, error)
 	mustEmbedUnimplementedSNACServiceServer()
 }
 
@@ -75,6 +111,15 @@ func (UnimplementedSNACServiceServer) PutDataShardNotice(context.Context, *Clien
 }
 func (UnimplementedSNACServiceServer) UpdateDataShardNotice(context.Context, *ClientUpdDSRequest) (*ClientUpdDSResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateDataShardNotice not implemented")
+}
+func (UnimplementedSNACServiceServer) ACRegisterSN(context.Context, *ACRegistSNRequest) (*ACRegistSNResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ACRegisterSN not implemented")
+}
+func (UnimplementedSNACServiceServer) PreAuditSN(context.Context, *PASNRequest) (*PASNResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PreAuditSN not implemented")
+}
+func (UnimplementedSNACServiceServer) GetAggPosSN(context.Context, *GAPSNRequest) (*GAPSNResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAggPosSN not implemented")
 }
 func (UnimplementedSNACServiceServer) mustEmbedUnimplementedSNACServiceServer() {}
 
@@ -125,6 +170,60 @@ func _SNACService_UpdateDataShardNotice_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SNACService_ACRegisterSN_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ACRegistSNRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SNACServiceServer).ACRegisterSN(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SNACService_ACRegisterSN_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SNACServiceServer).ACRegisterSN(ctx, req.(*ACRegistSNRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SNACService_PreAuditSN_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PASNRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SNACServiceServer).PreAuditSN(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SNACService_PreAuditSN_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SNACServiceServer).PreAuditSN(ctx, req.(*PASNRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SNACService_GetAggPosSN_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GAPSNRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SNACServiceServer).GetAggPosSN(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SNACService_GetAggPosSN_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SNACServiceServer).GetAggPosSN(ctx, req.(*GAPSNRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SNACService_ServiceDesc is the grpc.ServiceDesc for SNACService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -139,6 +238,18 @@ var SNACService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateDataShardNotice",
 			Handler:    _SNACService_UpdateDataShardNotice_Handler,
+		},
+		{
+			MethodName: "ACRegisterSN",
+			Handler:    _SNACService_ACRegisterSN_Handler,
+		},
+		{
+			MethodName: "PreAuditSN",
+			Handler:    _SNACService_PreAuditSN_Handler,
+		},
+		{
+			MethodName: "GetAggPosSN",
+			Handler:    _SNACService_GetAggPosSN_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

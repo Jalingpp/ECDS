@@ -19,6 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
+	ACService_GetParamsG_FullMethodName     = "/proto.ACService/GetParamsG"
 	ACService_RegisterAC_FullMethodName     = "/proto.ACService/RegisterAC"
 	ACService_SelectSNs_FullMethodName      = "/proto.ACService/SelectSNs"
 	ACService_PutFileCommit_FullMethodName  = "/proto.ACService/PutFileCommit"
@@ -32,6 +33,7 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ACServiceClient interface {
+	GetParamsG(ctx context.Context, in *GetPGRequest, opts ...grpc.CallOption) (*GetPGResponse, error)
 	RegisterAC(ctx context.Context, in *RegistACRequest, opts ...grpc.CallOption) (*RegistACResponse, error)
 	SelectSNs(ctx context.Context, in *StorageRequest, opts ...grpc.CallOption) (*StorageResponse, error)
 	PutFileCommit(ctx context.Context, in *PFCRequest, opts ...grpc.CallOption) (*PFCResponse, error)
@@ -47,6 +49,15 @@ type aCServiceClient struct {
 
 func NewACServiceClient(cc grpc.ClientConnInterface) ACServiceClient {
 	return &aCServiceClient{cc}
+}
+
+func (c *aCServiceClient) GetParamsG(ctx context.Context, in *GetPGRequest, opts ...grpc.CallOption) (*GetPGResponse, error) {
+	out := new(GetPGResponse)
+	err := c.cc.Invoke(ctx, ACService_GetParamsG_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *aCServiceClient) RegisterAC(ctx context.Context, in *RegistACRequest, opts ...grpc.CallOption) (*RegistACResponse, error) {
@@ -116,6 +127,7 @@ func (c *aCServiceClient) UpdateDSCommit(ctx context.Context, in *UDSCRequest, o
 // All implementations must embed UnimplementedACServiceServer
 // for forward compatibility
 type ACServiceServer interface {
+	GetParamsG(context.Context, *GetPGRequest) (*GetPGResponse, error)
 	RegisterAC(context.Context, *RegistACRequest) (*RegistACResponse, error)
 	SelectSNs(context.Context, *StorageRequest) (*StorageResponse, error)
 	PutFileCommit(context.Context, *PFCRequest) (*PFCResponse, error)
@@ -130,6 +142,9 @@ type ACServiceServer interface {
 type UnimplementedACServiceServer struct {
 }
 
+func (UnimplementedACServiceServer) GetParamsG(context.Context, *GetPGRequest) (*GetPGResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetParamsG not implemented")
+}
 func (UnimplementedACServiceServer) RegisterAC(context.Context, *RegistACRequest) (*RegistACResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RegisterAC not implemented")
 }
@@ -162,6 +177,24 @@ type UnsafeACServiceServer interface {
 
 func RegisterACServiceServer(s grpc.ServiceRegistrar, srv ACServiceServer) {
 	s.RegisterService(&ACService_ServiceDesc, srv)
+}
+
+func _ACService_GetParamsG_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPGRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ACServiceServer).GetParamsG(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ACService_GetParamsG_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ACServiceServer).GetParamsG(ctx, req.(*GetPGRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _ACService_RegisterAC_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -297,6 +330,10 @@ var ACService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "proto.ACService",
 	HandlerType: (*ACServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "GetParamsG",
+			Handler:    _ACService_GetParamsG_Handler,
+		},
 		{
 			MethodName: "RegisterAC",
 			Handler:    _ACService_RegisterAC_Handler,

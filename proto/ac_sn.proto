@@ -8,6 +8,9 @@ option go_package = "./";
 service SNACService {
     rpc PutDataShardNotice(ClientStorageRequest) returns (ClientStorageResponse);
     rpc UpdateDataShardNotice(ClientUpdDSRequest) returns (ClientUpdDSResponse);
+    rpc ACRegisterSN(ACRegistSNRequest) returns (ACRegistSNResponse);
+    rpc PreAuditSN(PASNRequest) returns (PASNResponse);
+    rpc GetAggPosSN(GAPSNRequest) returns (GAPSNResponse);
 }
 
 //客户端发起的存储请求
@@ -42,4 +45,39 @@ message ClientUpdDSResponse {
     int32 version = 4;   //分片更新后的版本号
     string timestamp = 5; //分片更新后的时间戳
     string message = 6;  //附加信息
+}
+
+//审计方发起的注册请求
+message ACRegistSNRequest{
+    string params = 1;   //用于构造pairing的参数
+    bytes G = 2;  // 字节切片类型的G字段
+}
+
+//存储节点对审计方注册请求的回复
+message ACRegistSNResponse{
+    string message = 1;  //回复信息
+}
+
+//审计方发起的预审计请求
+message PASNRequest{
+    string auditno = 1;  //审计代号:audit1,audit2...
+    string snid = 2;   //请求的存储节点id
+    map<string, int32> dsversion = 3;  //挑战的分片及其版本，key:clientId-filename-dsno,value:版本号
+}
+
+//存储节点对审计方预审计请求的回复
+message PASNResponse{
+    bool isready = 1;   //是否准备好审计，即可以预留快照
+    map<string, int32> dsversion = 2;  //如果不能预留，告知审计方哪些分片的版本已过时，否则为空
+}
+
+//获取存储节点上所有存储分片的聚合存储证明的请求
+message GAPSNRequest{
+    string auditno = 1;   //审计代号
+    int32 random = 2;  //挑战的随机数
+}
+
+//存储节点对所有存储分片的聚合存储证明请求的回复
+message GAPSNResponse{
+    bytes aggpos = 1;   //聚合存储证明
 }

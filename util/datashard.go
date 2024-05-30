@@ -30,17 +30,6 @@ func (ds *DataShard) Print() {
 	fmt.Println("timestamp:", ds.Timestamp)
 }
 
-type PublicInfo struct {
-	Params string //用于生成pairing的参数
-	G      []byte
-	PK     []byte
-}
-
-func NewPublicInfo(params string, gb []byte, pubkey []byte) *PublicInfo {
-	pi := PublicInfo{params, gb, pubkey}
-	return &pi
-}
-
 // 序列化数据分片
 func (ds *DataShard) SerializeDS() []byte {
 	jsonDS, err := json.Marshal(ds)
@@ -82,4 +71,34 @@ func DeserializePairing(data []byte) (*pbc.Pairing, error) {
 		return nil, err
 	}
 	return &pairing, nil
+}
+
+type Meta4File struct {
+	//用于记录一个文件所有分片的信息
+	LatestVersionSlice   map[string]int32  //key:dsno
+	LatestTimestampSlice map[string]string //key:dsno
+}
+
+// 【客户端执行】创建文件元数据记录器
+func NewMeta4File() *Meta4File {
+	lvs := make(map[string]int32)
+	lts := make(map[string]string)
+	m4f := &Meta4File{lvs, lts}
+	return m4f
+}
+
+// 复制一个元数据记录器
+func CopyMeta4File(m4f *Meta4File) *Meta4File {
+	nm4f := NewMeta4File()
+	for dsno, _ := range m4f.LatestVersionSlice {
+		nm4f.LatestVersionSlice[dsno] = m4f.LatestVersionSlice[dsno]
+		nm4f.LatestTimestampSlice[dsno] = m4f.LatestTimestampSlice[dsno]
+	}
+	return nm4f
+}
+
+// 【客户端执行】更新一个文件的一个分片的元数据
+func (m4f *Meta4File) Update(dsno string, newT string, newV int32) {
+	m4f.LatestTimestampSlice[dsno] = newT
+	m4f.LatestVersionSlice[dsno] = newV
 }
