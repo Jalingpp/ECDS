@@ -58,3 +58,23 @@ The result after executing the script is as shown in the following image:
 
 ## 3 Install PBC
 
+The Pairing-Based Cryptography (PBC) is a cryptographic library specifically designed to handle pairing operations. These operations are commonly used to construct cryptographic schemes based on bilinear maps, such as identity authentication, signatures, and other encryption schemes.
+
+Step1. Two dependencies need installed before installing PBC:
+
+```
+sudo apt-get install libgmp-dev
+sudo apt-get install build-essential flex bison
+```
+
+NOTICE: If meeting error `E: Unable to fetch some archives, maybe run apt-get update or try with --fix-missing?`, execute `apt-get update` and then re-execute the command.
+
+Step2. Download PBC package and install it. Download url: `https://crypto.stanford.edu/pbc/download.html`. Download pbc version is `pbc-0.5.14.tar.gz`. Extract it and `cd pbc-0.5.14`, then execute `./configure`, then execute `make` and `make install`. After installation, rebuild the search library path: `ldconfig`.
+
+## 4 Test ECDS
+
+Step1. Start the storage nodes: `go run stornode_main.go`.
+
+Step2. Start the auditor node: `go run auditor_main.go`.
+
+Step3. Start the clients: `go run client_main.go`.
