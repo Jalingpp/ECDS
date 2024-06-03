@@ -1,3 +1,3 @@
 # ECDS
 
-这是一个基于纠删码的去中心化存储系统。
+This is an Erasure Coded Decentralized Storage System. ECDS implements functions such as encoded file writing, complete reading, single data block updating, and asynchronous storage auditing.

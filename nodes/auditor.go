@@ -644,7 +644,7 @@ func (ac *Auditor) UpdateDSCommit(ctx context.Context, req *pb.UDSCRequest) (*pb
 
 // 【在生成Auditor对象时启动】审计方每隔sleepSeconds秒随机选择dsnum个存储节点进行存储审计
 func (ac *Auditor) KeepAuditing(sleepSeconds int) {
-	time.Sleep(20 * time.Second)
+	time.Sleep(50 * time.Second)
 	auditNo := 0
 	seed := time.Now().UnixNano()
 	randor := rand.New(rand.NewSource(seed))
