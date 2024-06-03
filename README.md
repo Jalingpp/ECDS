@@ -1,6 +1,8 @@
 # ECDS
 
-This is an Erasure Coded Decentralized Storage System. ECDS implements functions such as encoded file writing, complete reading, single data block updating, and asynchronous storage auditing. The installation and testing steps for ECDS are as follows.
+This is an Erasure Coded Decentralized Storage System. ECDS implements functions such as encoded file writing, complete reading, single data block updating, and asynchronous storage auditing. 
+
+The installation and testing steps for ECDS are as follows.
 
 ## 1 Install gRPC 
 
