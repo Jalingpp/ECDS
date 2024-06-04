@@ -11,9 +11,9 @@ import (
 func main() {
 	dn := 11
 	pn := 20
-	acAddr := "localhost:50051"
+	acAddr := "10.0.4.15:50051"
 	snAddrFilepath := "data/snaddr"
-	clientNum := 300
+	clientNum := 150
 	fileNum := 100
 	// logoutpath := "data/outlog"
 	//读存储节点地址表
