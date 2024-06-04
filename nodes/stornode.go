@@ -174,27 +174,27 @@ func (sn *StorageNode) PutDataShardNotice(ctx context.Context, preq *pb.ClientSt
 	filename := preq.Filename
 	dsno := preq.Dsno
 	cid_fn := clientId + "-" + filename
-	// //写来自审计方的分片存储通知
-	// sn.PACNMutex.Lock()
-	// if sn.PendingACPutDSNotice[cid_fn] == nil {
-	// 	sn.PendingACPutDSNotice[cid_fn] = make(map[string]int)
-	// }
-	// sn.PendingACPutDSNotice[cid_fn][dsno] = 1
-	// sn.PACNMutex.Unlock()
-	// //阻塞监测分片是否已完成存储
-	// iscomplete := 1
-	// for {
-	// 	sn.PACNMutex.RLock()
-	// 	iscomplete = sn.PendingACPutDSNotice[cid_fn][dsno]
-	// 	sn.PACNMutex.RUnlock()
-	// 	if iscomplete == 2 {
-	// 		break
-	// 	}
-	// }
-	// //分片完成存储，则删除pending元素，给审计方返回消息
-	// sn.PACNMutex.Lock()
-	// delete(sn.PendingACPutDSNotice[cid_fn], dsno)
-	// sn.PACNMutex.Unlock()
+	//写来自审计方的分片存储通知
+	sn.PACNMutex.Lock()
+	if sn.PendingACPutDSNotice[cid_fn] == nil {
+		sn.PendingACPutDSNotice[cid_fn] = make(map[string]int)
+	}
+	sn.PendingACPutDSNotice[cid_fn][dsno] = 1
+	sn.PACNMutex.Unlock()
+	//阻塞监测分片是否已完成存储
+	iscomplete := 1
+	for {
+		sn.PACNMutex.RLock()
+		iscomplete = sn.PendingACPutDSNotice[cid_fn][dsno]
+		sn.PACNMutex.RUnlock()
+		if iscomplete == 2 {
+			break
+		}
+	}
+	//分片完成存储，则删除pending元素，给审计方返回消息
+	sn.PACNMutex.Lock()
+	delete(sn.PendingACPutDSNotice[cid_fn], dsno)
+	sn.PACNMutex.Unlock()
 	//获取分片版本号和时间戳
 	sn.FSMMMutex.RLock()
 	version := sn.FileShardsMap[cid_fn][dsno].Version
