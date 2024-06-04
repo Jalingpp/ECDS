@@ -13,7 +13,7 @@ func main() {
 	pn := 20
 	acAddr := "10.0.4.15:50051"
 	snAddrFilepath := "data/snaddr"
-	clientNum := 150
+	clientNum := 50
 	fileNum := 100
 	// logoutpath := "data/outlog"
 	//读存储节点地址表
