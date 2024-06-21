@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"strings"
 )
@@ -75,4 +76,49 @@ func LogToFile(filepath string, content string) {
 		fmt.Println("Error writing to file:", err)
 		return
 	}
+}
+
+// 为字节数组创建一个临时文件
+func CreateTempFile4Bytes(someBytes []byte, filename string) *os.File {
+	fmt.Println("filename:", filename)
+	// 创建一个临时文件
+	pieceFile, err := os.CreateTemp("", filename)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.Remove(pieceFile.Name())
+	fmt.Println("after createtemp")
+
+	// 将随机数据写入文件
+	_, err = pieceFile.Write(someBytes)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("after write somebytes")
+
+	// 关闭文件以确保数据写入
+	err = pieceFile.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return pieceFile
+}
+
+// 创建一个临时文件
+func CreateTempFile(filename string) *os.File {
+	// 创建一个临时文件
+	file, err := os.CreateTemp("", filename)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.Remove(file.Name())
+
+	// 关闭文件以确保数据写入
+	err = file.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return file
 }
