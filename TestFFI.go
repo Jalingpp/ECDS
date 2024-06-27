@@ -23,45 +23,29 @@ func main() {
 	sealedSectorFile := requireTempFile(bytes.NewReader([]byte{}), 0)
 	defer sealedSectorFile.Close()
 
-	// 生成一段随机的字节数据
-	// someBytes := make([]byte, abi.PaddedPieceSize(2048).Unpadded())
-	// io.ReadFull(rand.Reader, someBytes)
-	// log.Println("len(someBytes):", len(someBytes))
-	// l := len(someBytes)
-	// // 将随机数组作为数据分片写入一个临时创建的文件
-	// pieceFileA := requireTempFile(bytes.NewReader(someBytes), 508)
-
 	data := []byte("your data here")
 	paddedData, err := PaddleData(data)
 	if err != nil {
 		log.Fatalf("failed to pad data: %v", err)
 	}
 	log.Println("paddedData:", paddedData)
+
 	pieceFileA := requireTempFile(bytes.NewReader(paddedData), uint64(len(paddedData)))
-	// 获取该分片CID
 	sealProofType := abi.RegisteredSealProof_StackedDrg2KiBV1
+
+	//将data写入pieceFileA的方法一
 	pieceCIDA, err := ffi.GeneratePieceCIDFromFile(sealProofType, pieceFileA, abi.UnpaddedPieceSize(len(paddedData)))
 	if err != nil {
 		log.Println("GeneratePieceCIDFromFile Error:", err)
 	}
-	log.Println("pieceCIDA:", pieceCIDA)
-	// _, err := pieceFileA.Seek(0, 0)
+	log.Println("pieceCIDA1:", pieceCIDA)
 	pieceFileA.Seek(0, 0)
-	// 将分片写入Sector
-	// _, _, err = ffi.WriteWithoutAlignment(sealProofType, pieceFileA, 515, stagedSectorFile)
-	ffi.WriteWithoutAlignment(sealProofType, pieceFileA, abi.UnpaddedPieceSize(len(paddedData)), stagedSectorFile)
 
-	// pieceFileB := requireTempFile(bytes.NewReader(someBytes[0:1016]), 1016)
-	// pieceCIDB, err := ffi.GeneratePieceCIDFromFile(sealProofType, pieceFileB, 1016)
-	// _, err = pieceFileB.Seek(0, 0)
-	// _, _, _, err = ffi.WriteWithAlignment(sealProofType, pieceFileB, 1016, stagedSectorFile, []abi.UnpaddedPieceSize{127})
-	// publicPieces := []abi.PieceInfo{{
-	// 	Size:     abi.UnpaddedPieceSize(127).Padded(),
-	// 	PieceCID: pieceCIDA,
-	// }, {
-	// 	Size:     abi.UnpaddedPieceSize(1016).Padded(),
-	// 	PieceCID: pieceCIDB,
-	// }}
+	// 将data写入pieceFileA的方法二
+	// _, _, err = ffi.WriteWithoutAlignment(sealProofType, pieceFileA, 515, stagedSectorFile)
+	_, pieceCIDA, err = ffi.WriteWithoutAlignment(sealProofType, pieceFileA, abi.UnpaddedPieceSize(len(paddedData)), stagedSectorFile)
+	log.Println("pieceCIDA2:", pieceCIDA)
+	pieceFileA.Seek(0, 0)
 
 	// 构建分片的公共信息
 	publicPieces := []abi.PieceInfo{{
@@ -71,8 +55,8 @@ func main() {
 
 	// 为sector中的数据分片生成未封装CID
 	// _, err = ffi.GenerateUnsealedCID(sealProofType, publicPieces)
-	ffi.GenerateUnsealedCID(sealProofType, publicPieces)
-	sectorNum := abi.SectorNumber(42)
+	// ffi.GenerateUnsealedCID(sealProofType, publicPieces)
+	sectorNum := abi.SectorNumber(1)
 	ticket := abi.SealRandomness{5, 4, 2}
 	seed := abi.InteractiveSealRandomness{7, 4, 2}
 	// 预提交封装

@@ -1,0 +1,101 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = "./";
+
+service StorjACService {
+    rpc StorjSelectSNs(StorjStorageRequest) returns (StorjStorageResponse);      //客户端向AC申请存储文件，获取存储各分片的存储节点id
+    rpc StorjPutFileCommit(StorjPFCRequest) returns (StorjPFCResponse);          //客户端向AC确认完成文件存储
+    rpc StorjGetFileSNs(StorjGFACRequest) returns (StorjGFACResponse);           //客户端向AC请求存储文件数据分片的存储节点id
+    rpc StorjGetDSErrReport(StorjGDSERequest) returns (StorjGDSEResponse);       //客户端向AC报告存储分片获取有误，并申请校验分片
+    rpc StorjGetDSSn(StorjGDSSNRequest) returns (StorjGDSSNResponse);            //客户端向AC请求某个分片的存储节点
+    rpc StorjUpdateDSCommit(StorjUDSCRequest) returns (StorjUDSCResponse);       //客户端向AC确认完成数据分片更新（包括校验块更新）
+}
+
+//客户端发起的存储请求
+message StorjStorageRequest {
+    string clientId = 1;   //客户端ID
+    string filename = 2;   //待存储的文件名
+}
+
+//审计方对存储请求的回复
+message StorjStorageResponse {
+    string filename = 1;  //待存储的文件名
+    repeated string sns_for_fd = 2;  //用于存储文件副本的存储节点id
+}
+
+message Int32ArrayAC {
+    repeated int32 values = 1;
+}
+
+//客户端发起的写元信息请求
+message StorjPFCRequest {
+    string clientId = 1;   //客户端ID
+    string filename = 2;   //文件名
+    map<string, Int32ArrayAC> randmap = 3;  //各副本对应的随机数集
+    map<string, bytes> rootmap = 4; //各副本对应的默克尔树根哈希
+}
+
+//审计方对写元信息请求的回复
+message StorjPFCResponse {
+    string filename = 1;  //待存储的文件名
+    string message = 2;  //附带信息
+}
+
+//客户端发起的获取文件请求
+message StorjGFACRequest {
+    string clientId = 1;   //客户端ID
+    string filename = 2;   //请求的文件名
+}
+
+//审计方对获取文件请求的回复
+message StorjGFACResponse {
+    string filename = 1;  //请求的文件名
+    map<string, string> snsds = 2;  //数据分片所在的存储节点id，key:dsno,value:snid
+}
+
+//客户端发起的获取分片错误仲裁请求
+message StorjGDSERequest {
+    string clientId = 1;   //客户端ID
+    string filename = 2;   //请求的文件名
+    map<string,string> errdssn = 3;  //发生错误的存储节点id,key:dsno,value:snid
+    map<string,string> blacksns = 4;   //存储节点黑名单,key:snid,value:h-黑,b-白
+}
+
+//审计方对获取分片错误仲裁请求的回复
+message StorjGDSEResponse {
+    string filename = 1;  //请求的文件名
+    map<string, string> snsds = 2;  //校验分片所在的存储节点id，key:dsno,value:snid
+}
+
+//客户端发起的获取分片所在存储节点的请求
+message StorjGDSSNRequest {
+    string clientId = 1;   //客户端ID
+    string filename = 2;   //请求的文件名
+    string dsno = 3;       //请求的分片序号
+    bool isupdate = 4;     //后续是否更新
+}
+
+//审计方对获取分片所在存储节点请求的回复
+message StorjGDSSNResponse {
+    string filename = 1;  //请求的文件名
+    map<string, string> snsds = 2;  //请求分片所在的存储节点id，key:dsno,value:snid（分片可能包含dsnum个子分片）
+    map<string, string> snsps = 3;  //校验分片所在的存储节点id，key:dsno,value:snid
+}
+
+//客户端发起的数据分片元信息更新请求
+message StorjUDSCRequest {
+    string clientId = 1;   //客户端ID
+    string filename = 2;   //文件名
+    repeated string dsnos = 3;      //所有分片序号，包括数据分片和校验分片
+    map<string, int32> versions = 4;  //各分片对应的版本号
+    map<string, string> timestamps = 5; //各分片对应的时间戳
+}
+
+//审计方对数据分片元信息更新请求的回复
+message StorjUDSCResponse {
+    string filename = 1;  //待存储的文件名
+    map<string,string> dssnmap = 2;  //已完成元信息更新的分片列表,key:dsno,value:snid
+    string message = 3;  //附带信息
+}

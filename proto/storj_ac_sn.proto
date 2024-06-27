@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = "./";
+
+//存储节点为服务器，审计方为客户端
+service StorjSNACService {
+    rpc StorjPutFileNotice(StorjClientStorageRequest) returns (StorjClientStorageResponse);
+    rpc StorjUpdateDataShardNotice(StorjClientUpdDSRequest) returns (StorjClientUpdDSResponse);
+    rpc StorjPreAuditSN(StorjPASNRequest) returns (StorjPASNResponse);
+}
+
+//客户端发起的存储请求
+message StorjClientStorageRequest {
+    string clientId = 1;   //客户端ID
+    string filename = 2;   //待存储的文件名
+    int32 repno = 3;  //文件副本号
+}
+
+//存储节点对存储请求的回复
+message StorjClientStorageResponse {
+    string clientId = 1;   //客户端ID
+    string filename = 2;  //待存储的文件名
+    int32 repno = 3;  //文件副本号
+    bytes root = 4;   //文件根哈希
+    string snid = 5;  //存储节点id
+    string message = 6;  //附加信息
+}
+
+//客户端发起的更新数据分片请求
+message StorjClientUpdDSRequest {
+    string clientId = 1;   //客户端ID
+    string filename = 2;   //待存储的文件名
+    string dsno = 3;    //该存储节点待更新的分片号
+}
+
+//存储节点对更新数据分片请求的回复
+message StorjClientUpdDSResponse {
+    string clientId = 1;   //客户端ID
+    string filename = 2;  //已更新的文件名
+    string dsno = 3;     //该存储节点已更新的分片号
+    int32 version = 4;   //分片更新后的版本号
+    string timestamp = 5; //分片更新后的时间戳
+    string message = 6;  //附加信息
+}
+
+
+//审计方发起的预审计请求
+message StorjPASNRequest{
+    string auditno = 1;  //审计代号:audit1,audit2...
+    string snid = 2;   //请求的存储节点id
+    map<string, int32> dsversion = 3;  //挑战的分片及其版本，key:clientId-filename-dsno,value:版本号
+}
+
+//存储节点对审计方预审计请求的回复
+message StorjPASNResponse{
+    bool isready = 1;   //是否准备好审计，即可以预留快照
+    map<string, int32> dsversion = 2;  //如果不能预留，告知审计方哪些分片的版本已过时，否则为空
+}

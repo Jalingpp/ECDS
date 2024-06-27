@@ -1,8 +1,12 @@
 package util
 
 import (
+	"crypto/sha256"
+	"encoding/binary"
 	"fmt"
 	"math"
+	"math/rand"
+	"time"
 )
 
 func SplitString(str string, n int) []string {
@@ -120,4 +124,57 @@ func Int32SliceToStr(is []int32) string {
 		bs[i] = byte(is[i])
 	}
 	return string(bs)
+}
+
+// 计算SHA-256哈希
+func Hash(data []byte) []byte {
+	hash := sha256.Sum256(data)
+	return hash[:]
+}
+
+// 生成随机数s_i并计算叶子节点H(H(s_i + dataslice[i]))
+func GenerateLeaf(data []int32) ([]byte, int32) {
+	// 生成随机数s_i
+	rand.Seed(time.Now().UnixNano())
+	s_i := rand.Int31()
+
+	// 将s_i转换为字节数组
+	s_iBytes := make([]byte, 4)
+	binary.LittleEndian.PutUint32(s_iBytes, uint32(s_i))
+
+	// 将data转换为字节数组
+	dataBytes := make([]byte, 4*len(data))
+	for i, v := range data {
+		binary.LittleEndian.PutUint32(dataBytes[i*4:], uint32(v))
+	}
+
+	// 计算s_i + dataslice[i]
+	combined := append(s_iBytes, dataBytes...)
+
+	// 计算H(H(s_i + dataslice[i]))
+	firstHash := Hash(combined)
+	secondHash := Hash(firstHash)
+
+	return secondHash, s_i
+}
+
+// 构建默克尔树
+func BuildMerkleTree(leafHashes [][]byte) []byte {
+	if len(leafHashes) == 1 {
+		return leafHashes[0]
+	}
+
+	var newLevel [][]byte
+	for i := 0; i < len(leafHashes); i += 2 {
+		if i+1 < len(leafHashes) {
+			combined := append(leafHashes[i], leafHashes[i+1]...)
+			newHash := Hash(combined)
+			newLevel = append(newLevel, newHash)
+		} else {
+			// 如果是奇数个叶子节点，则直接提升
+			newLevel = append(newLevel, leafHashes[i])
+		}
+	}
+
+	return BuildMerkleTree(newLevel)
 }
