@@ -1,11 +1,13 @@
 package util
 
 import (
+	pb "ECDS/proto" // 根据实际路径修改
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
 	"math"
 	"math/rand"
+	"strconv"
 	"time"
 )
 
@@ -177,4 +179,23 @@ func BuildMerkleTree(leafHashes [][]byte) []byte {
 	}
 
 	return BuildMerkleTree(newLevel)
+}
+
+// 将一个string转换为int32
+func StrToInt32(str string) int32 {
+	val, err := strconv.ParseInt(str, 10, 32)
+	if err != nil {
+		// 返回 int32 的零值 (0)，或者你可以选择在这里记录错误或采取其他措施
+		return 0
+	}
+	return int32(val)
+}
+
+// 将二维数组转换为 Int32ArraySN 消息
+func Int32SliceToInt32ArraySNSlice(int32slice [][]int32) []*pb.Int32ArraySN {
+	var dataShardSlice []*pb.Int32ArraySN
+	for _, shard := range int32slice {
+		dataShardSlice = append(dataShardSlice, &pb.Int32ArraySN{Values: shard})
+	}
+	return dataShardSlice
 }

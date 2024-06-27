@@ -193,6 +193,28 @@ func (ac *StorjAC) StorjPutFileCommit(ctx context.Context, req *pb.StorjPFCReque
 	return &pb.StorjPFCResponse{Filename: req.Filename, Message: message}, nil
 }
 
+// 【供client使用的RPC】获取文件数据分片所在的存储节点id
+func (ac *StorjAC) StorjGetFileSNs(ctx context.Context, req *pb.StorjGFACRequest) (*pb.StorjGFACResponse, error) {
+	cid := req.ClientId
+	snsds := make(map[string]string)
+	//为客户端找到文件的所有数据分片对应的存储节点
+	ac.CFRMMutex.RLock()
+	if ac.ClientFileRepMap[cid] == nil {
+		ac.CFRMMutex.RUnlock()
+		e := errors.New("client filename not exist")
+		return &pb.StorjGFACResponse{Filename: req.Filename, Snsds: snsds}, e
+	} else {
+		snsds = ac.ClientFileRepMap[cid]
+		ac.CFRMMutex.RUnlock()
+	}
+	return &pb.StorjGFACResponse{Filename: req.Filename, Snsds: snsds}, nil
+}
+
+// 【供client使用的RPC】获取副本的随机数集和默克尔树根
+func (ac *StorjAC) StorjGetRandRoot(ctx context.Context, req *pb.StorjGRRRequest) (*pb.StorjGRRResponse, error) {
+
+}
+
 // 打印auditor
 func (ac *StorjAC) PrintStorjAuditor() {
 	str := "Auditor:{IpAddr:" + ac.IpAddr + ",SNAddrMap:{"

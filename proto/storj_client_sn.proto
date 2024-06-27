@@ -6,7 +6,7 @@ option go_package = "./";
 
 service StorjSNService {
     rpc StorjPutFile(StorjPutFRequest) returns (StorjPutFResponse);
-    rpc StorjGetDataShard(StorjGetDSRequest) returns (StorjGetDSResponse);
+    rpc StorjGetFile(StorjGetFRequest) returns (StorjGetFResponse);
     rpc StorjUpdateDataShards(StorjUpdDSsRequest) returns (StorjUpdDSsResponse);
     rpc StorjPutIncParityShards(StorjPutIPSRequest) returns (StorjPutIPSResponse);
 }
@@ -33,16 +33,18 @@ message StorjPutFResponse {
 }
 
 //客户端发起的向存储节点获取数据分片的请求
-message StorjGetDSRequest {
+message StorjGetFRequest {
     string clientId = 1;   //客户端ID
     string filename = 2;   //待存储的文件名
-    string dsno = 3;    //请求的分片序号
+    string rep = 3;    //请求的副本号
+    int32 dsnum = 4;  //数据分片的数量
 }
 
 //存储节点对请求的回复
-message StorjGetDSResponse {
+message StorjGetFResponse {
     string filename = 1;  //待存储的文件名
-    bytes datashard_serialized = 2; //序列化后的数据分片
+    repeated Int32ArraySN dataShards = 2; //数据分片
+    repeated bytes merkle_leaves = 3; //校验分片对应的叶节点
 }
 
 //客户端发起的向存储节点更新数据分片的请求

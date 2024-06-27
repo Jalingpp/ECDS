@@ -2,12 +2,14 @@ package storjnodes
 
 import (
 	"ECDS/encode"
+	"ECDS/pdp"
 	pb "ECDS/proto" // 根据实际路径修改
 	"ECDS/util"
 	"bytes"
 	"context"
 	"log"
 	"strconv"
+	"strings"
 	"sync"
 
 	"google.golang.org/grpc"
@@ -81,10 +83,7 @@ func (client *StorjClient) StorjPutFile(filepath string, filename string) {
 			rootmap[indexKey] = root
 			randrootmapMutex.Unlock()
 			// 将二维数组转换为 DataShardSlice 消息
-			var dataShardSlice []*pb.Int32ArraySN
-			for _, shard := range datashards {
-				dataShardSlice = append(dataShardSlice, &pb.Int32ArraySN{Values: shard})
-			}
+			dataShardSlice := util.Int32SliceToInt32ArraySNSlice(datashards)
 			// 发送分片和叶子给存储节点
 			pf_req := &pb.StorjPutFRequest{
 				ClientId:     client.ClientID,
@@ -168,4 +167,125 @@ func (client *StorjClient) StorjConsMerkleTree(dataslice [][]int32) ([]int32, []
 	// 构建默克尔树
 	rootHash := util.BuildMerkleTree(leafNodes)
 	return randomNumbers, leafNodes, rootHash
+}
+
+// 客户端获取文件:isorigin=true,则只返回原始dsnum个分片的文件，否则返回所有
+func (client *StorjClient) GetFile(filename string, isorigin bool) string {
+	//获取存储该文件的存储节点，依次请求数据分片，若数据分片验证无效，则请求校验分片，若该节点请求响应超时，则请求下一个存储节点
+	fileDSs := make([][]int32, 0) //记录存储节点返回的文件分片，用于最后拼接完整文件,key:dsno
+	//1-构建获取文件所在的SNs请求消息
+	gfsns_req := &pb.StorjGFACRequest{
+		ClientId: client.ClientID,
+		Filename: filename,
+	}
+	// 2-发送获取文件所在的SNs请求消息给审计方
+	gfsns_res, err := client.ACRPC.StorjGetFileSNs(context.Background(), gfsns_req)
+	if err != nil {
+		log.Fatalf("auditor could not process request: %v", err)
+	}
+	// 3-依次向SN请求文件数据分片，请求到验证通过后则退出循环
+	fsnmap := gfsns_res.Snsds
+	for key, value := range fsnmap {
+		// 解析副本号
+		keysplit := strings.Split(key, "-")
+		rep := keysplit[1]
+		log.Println("rep:", rep)
+		// 3.1-构造获取文件的请求消息
+		gds_req := &pb.StorjGetFRequest{ClientId: client.ClientID, Filename: filename, Rep: rep, Dsnum: int32(client.Rsec.DataNum)}
+		// 3.2-向存储节点发送请求
+		gds_res, err := client.SNRPCs[value].StorjGetFile(context.Background(), gds_req)
+		if err != nil {
+			log.Fatalln("storagenode getfile error:", err)
+		} else {
+			//验证数据有效性
+			// 3.3-向审计方请求默克尔树根和随机数集
+			
+		}
+	}
+	// 等待所有协程完成
+	for i := 0; i < len(dssnmap); i++ {
+		<-done
+	}
+	// 4-故障仲裁与校验块申请,如果故障一直存在则一直申请，直到系统中备用校验块不足而报错
+	// 4.0-设置sn黑名单
+	blacksns := make(map[string]string) //key:snid,vlaue:h-黑,白是分片序号
+	for {
+		if len(errdsnosn) == 0 {
+			break
+		} else {
+			// log.Println("get datashards from sn errors:", errdsnosn)
+			// 4.0-将未返回分片的存储节点id加入黑名单
+			for _, value := range errdsnosn {
+				blacksns[value] = "h"
+			}
+			// 4.1-构造请求消息
+			er_req := &pb.GDSERequest{ClientId: client.ClientID, Filename: filename, Errdssn: errdsnosn, Blacksns: blacksns}
+			// 4.2-向AC发出请求
+			er_res, err := client.ACRPC.GetDSErrReport(context.Background(), er_req)
+			if err != nil {
+				log.Fatalf("auditor could not process request: %v", err)
+			}
+			// 4.3-判断AC是否返回足够数量的存储节点，不够时报错
+			if len(er_res.Snsds) < len(errdsnosn) {
+				log.Fatalf("honest sns for parity shard not enough")
+			} else {
+				errdsnosn = make(map[string]string) //置空错误名单，重利用
+			}
+			// 4.4-向存储节点请求校验块
+			// log.Println("request sns of parity shards:", er_res.Snsds)
+			for key, value := range er_res.Snsds {
+				go func(dsno string, snid string) {
+					// 4.4.1-构造获取分片请求消息
+					gds_req := &pb.GetDSRequest{ClientId: client.ClientID, Filename: filename, Dsno: dsno}
+					// 4.4.2-向存储节点发送请求
+					gds_res, err := client.SNRPCs[snid].GetDataShard(context.Background(), gds_req)
+					if err != nil {
+						log.Println("storagenode could not process request:", err)
+						errdsnosn[dsno] = snid
+					} else if gds_res.DatashardSerialized == nil {
+						log.Println("sn", snid, "return nil parityshard", dsno)
+						errdsnosn[dsno] = snid
+					} else {
+						// 4.4.3-反序列化数据分片并验签
+						datashard, _ := util.DeserializeDS(gds_res.DatashardSerialized)
+						lv := client.Filecoder.GetVersion(filename, dsno)
+						lt := client.Filecoder.GetTimestamp(filename, dsno)
+						sigger := client.Filecoder.Sigger
+						if !pdp.VerifySig(client.Filecoder.Sigger.Params, sigger.G, sigger.PubKey, datashard.Data, datashard.Sig, lv, lt) {
+							log.Println("parityshard ", dsno, " signature verification not pass.")
+							errdsnosn[dsno] = snid
+						}
+						// 4.4.4-将获取到的分片加入到列表中
+						fdssMutex.Lock()
+						fileDSs[dsno] = datashard.Data
+						fdssMutex.Unlock()
+						// 4.4.5-将snid加入白名单
+						blacksns[snid] = dsno
+					}
+					// 通知主线程任务完成
+					done <- struct{}{}
+				}(key, value)
+			}
+			// 等待所有协程完成
+			for i := 0; i < len(er_res.Snsds); i++ {
+				<-done
+			}
+		}
+	}
+	// 5-恢复完整文件
+	// 5.1-恢复以"d-"和"p-"为前缀的文件分片
+	filestr := client.RecoverFileDS(fileDSs, "d-", "p-")
+	if isorigin {
+		// log.Println("Get file", filename, ":", filestr)
+		return filestr
+	}
+	// 5.2-若添加过额外的数据分片，则也恢复这部分分片
+	turnnum := len(fileDSs)/client.Filecoder.Rsec.DataNum - 1
+	for i := 0; i < turnnum; i++ {
+		dPrefix := "d-" + strconv.Itoa(client.Filecoder.Rsec.DataNum+turnnum) + "-"
+		pPrefix := "p-" + strconv.Itoa(client.Filecoder.Rsec.DataNum+turnnum) + "-"
+		filestr = filestr + client.RecoverFileDS(fileDSs, dPrefix, pPrefix)
+	}
+	// log.Println("Get file", filename, ":", filestr)
+	return filestr
 }

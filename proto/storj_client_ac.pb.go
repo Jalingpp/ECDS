@@ -370,7 +370,7 @@ type StorjGFACResponse struct {
 	unknownFields protoimpl.UnknownFields
 
 	Filename string            `protobuf:"bytes,1,opt,name=filename,proto3" json:"filename,omitempty"`                                                                                   //请求的文件名
-	Snsds    map[string]string `protobuf:"bytes,2,rep,name=snsds,proto3" json:"snsds,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"` //数据分片所在的存储节点id，key:dsno,value:snid
+	Snsds    map[string]string `protobuf:"bytes,2,rep,name=snsds,proto3" json:"snsds,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"` //数据分片所在的存储节点id，key:filename-i,value:snid
 }
 
 func (x *StorjGFACResponse) Reset() {
@@ -419,6 +419,126 @@ func (x *StorjGFACResponse) GetSnsds() map[string]string {
 	return nil
 }
 
+// 客户端发起的获取文件请求
+type StorjGRRRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	ClientId string `protobuf:"bytes,1,opt,name=clientId,proto3" json:"clientId,omitempty"` //客户端ID
+	Filename string `protobuf:"bytes,2,opt,name=filename,proto3" json:"filename,omitempty"` //请求的文件名
+	Rep      string `protobuf:"bytes,3,opt,name=rep,proto3" json:"rep,omitempty"`           //请求的文件副本号
+}
+
+func (x *StorjGRRRequest) Reset() {
+	*x = StorjGRRRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_storj_client_ac_proto_msgTypes[7]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *StorjGRRRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StorjGRRRequest) ProtoMessage() {}
+
+func (x *StorjGRRRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_storj_client_ac_proto_msgTypes[7]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StorjGRRRequest.ProtoReflect.Descriptor instead.
+func (*StorjGRRRequest) Descriptor() ([]byte, []int) {
+	return file_storj_client_ac_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *StorjGRRRequest) GetClientId() string {
+	if x != nil {
+		return x.ClientId
+	}
+	return ""
+}
+
+func (x *StorjGRRRequest) GetFilename() string {
+	if x != nil {
+		return x.Filename
+	}
+	return ""
+}
+
+func (x *StorjGRRRequest) GetRep() string {
+	if x != nil {
+		return x.Rep
+	}
+	return ""
+}
+
+// 审计方对获取文件请求的回复
+type StorjGRRResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Rands *Int32ArrayAC `protobuf:"bytes,1,opt,name=rands,proto3" json:"rands,omitempty"` //请求的副本对应的随机数集
+	Root  []byte        `protobuf:"bytes,2,opt,name=root,proto3" json:"root,omitempty"`   //请求的副本对应的默克尔树根
+}
+
+func (x *StorjGRRResponse) Reset() {
+	*x = StorjGRRResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_storj_client_ac_proto_msgTypes[8]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *StorjGRRResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StorjGRRResponse) ProtoMessage() {}
+
+func (x *StorjGRRResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_storj_client_ac_proto_msgTypes[8]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StorjGRRResponse.ProtoReflect.Descriptor instead.
+func (*StorjGRRResponse) Descriptor() ([]byte, []int) {
+	return file_storj_client_ac_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *StorjGRRResponse) GetRands() *Int32ArrayAC {
+	if x != nil {
+		return x.Rands
+	}
+	return nil
+}
+
+func (x *StorjGRRResponse) GetRoot() []byte {
+	if x != nil {
+		return x.Root
+	}
+	return nil
+}
+
 // 客户端发起的获取分片错误仲裁请求
 type StorjGDSERequest struct {
 	state         protoimpl.MessageState
@@ -434,7 +554,7 @@ type StorjGDSERequest struct {
 func (x *StorjGDSERequest) Reset() {
 	*x = StorjGDSERequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_storj_client_ac_proto_msgTypes[7]
+		mi := &file_storj_client_ac_proto_msgTypes[9]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -447,7 +567,7 @@ func (x *StorjGDSERequest) String() string {
 func (*StorjGDSERequest) ProtoMessage() {}
 
 func (x *StorjGDSERequest) ProtoReflect() protoreflect.Message {
-	mi := &file_storj_client_ac_proto_msgTypes[7]
+	mi := &file_storj_client_ac_proto_msgTypes[9]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -460,7 +580,7 @@ func (x *StorjGDSERequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StorjGDSERequest.ProtoReflect.Descriptor instead.
 func (*StorjGDSERequest) Descriptor() ([]byte, []int) {
-	return file_storj_client_ac_proto_rawDescGZIP(), []int{7}
+	return file_storj_client_ac_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *StorjGDSERequest) GetClientId() string {
@@ -504,7 +624,7 @@ type StorjGDSEResponse struct {
 func (x *StorjGDSEResponse) Reset() {
 	*x = StorjGDSEResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_storj_client_ac_proto_msgTypes[8]
+		mi := &file_storj_client_ac_proto_msgTypes[10]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -517,7 +637,7 @@ func (x *StorjGDSEResponse) String() string {
 func (*StorjGDSEResponse) ProtoMessage() {}
 
 func (x *StorjGDSEResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_storj_client_ac_proto_msgTypes[8]
+	mi := &file_storj_client_ac_proto_msgTypes[10]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -530,7 +650,7 @@ func (x *StorjGDSEResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StorjGDSEResponse.ProtoReflect.Descriptor instead.
 func (*StorjGDSEResponse) Descriptor() ([]byte, []int) {
-	return file_storj_client_ac_proto_rawDescGZIP(), []int{8}
+	return file_storj_client_ac_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *StorjGDSEResponse) GetFilename() string {
@@ -562,7 +682,7 @@ type StorjGDSSNRequest struct {
 func (x *StorjGDSSNRequest) Reset() {
 	*x = StorjGDSSNRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_storj_client_ac_proto_msgTypes[9]
+		mi := &file_storj_client_ac_proto_msgTypes[11]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -575,7 +695,7 @@ func (x *StorjGDSSNRequest) String() string {
 func (*StorjGDSSNRequest) ProtoMessage() {}
 
 func (x *StorjGDSSNRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_storj_client_ac_proto_msgTypes[9]
+	mi := &file_storj_client_ac_proto_msgTypes[11]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -588,7 +708,7 @@ func (x *StorjGDSSNRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StorjGDSSNRequest.ProtoReflect.Descriptor instead.
 func (*StorjGDSSNRequest) Descriptor() ([]byte, []int) {
-	return file_storj_client_ac_proto_rawDescGZIP(), []int{9}
+	return file_storj_client_ac_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *StorjGDSSNRequest) GetClientId() string {
@@ -633,7 +753,7 @@ type StorjGDSSNResponse struct {
 func (x *StorjGDSSNResponse) Reset() {
 	*x = StorjGDSSNResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_storj_client_ac_proto_msgTypes[10]
+		mi := &file_storj_client_ac_proto_msgTypes[12]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -646,7 +766,7 @@ func (x *StorjGDSSNResponse) String() string {
 func (*StorjGDSSNResponse) ProtoMessage() {}
 
 func (x *StorjGDSSNResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_storj_client_ac_proto_msgTypes[10]
+	mi := &file_storj_client_ac_proto_msgTypes[12]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -659,7 +779,7 @@ func (x *StorjGDSSNResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StorjGDSSNResponse.ProtoReflect.Descriptor instead.
 func (*StorjGDSSNResponse) Descriptor() ([]byte, []int) {
-	return file_storj_client_ac_proto_rawDescGZIP(), []int{10}
+	return file_storj_client_ac_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *StorjGDSSNResponse) GetFilename() string {
@@ -699,7 +819,7 @@ type StorjUDSCRequest struct {
 func (x *StorjUDSCRequest) Reset() {
 	*x = StorjUDSCRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_storj_client_ac_proto_msgTypes[11]
+		mi := &file_storj_client_ac_proto_msgTypes[13]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -712,7 +832,7 @@ func (x *StorjUDSCRequest) String() string {
 func (*StorjUDSCRequest) ProtoMessage() {}
 
 func (x *StorjUDSCRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_storj_client_ac_proto_msgTypes[11]
+	mi := &file_storj_client_ac_proto_msgTypes[13]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -725,7 +845,7 @@ func (x *StorjUDSCRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StorjUDSCRequest.ProtoReflect.Descriptor instead.
 func (*StorjUDSCRequest) Descriptor() ([]byte, []int) {
-	return file_storj_client_ac_proto_rawDescGZIP(), []int{11}
+	return file_storj_client_ac_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *StorjUDSCRequest) GetClientId() string {
@@ -777,7 +897,7 @@ type StorjUDSCResponse struct {
 func (x *StorjUDSCResponse) Reset() {
 	*x = StorjUDSCResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_storj_client_ac_proto_msgTypes[12]
+		mi := &file_storj_client_ac_proto_msgTypes[14]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -790,7 +910,7 @@ func (x *StorjUDSCResponse) String() string {
 func (*StorjUDSCResponse) ProtoMessage() {}
 
 func (x *StorjUDSCResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_storj_client_ac_proto_msgTypes[12]
+	mi := &file_storj_client_ac_proto_msgTypes[14]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -803,7 +923,7 @@ func (x *StorjUDSCResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StorjUDSCResponse.ProtoReflect.Descriptor instead.
 func (*StorjUDSCResponse) Descriptor() ([]byte, []int) {
-	return file_storj_client_ac_proto_rawDescGZIP(), []int{12}
+	return file_storj_client_ac_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *StorjUDSCResponse) GetFilename() string {
@@ -885,7 +1005,18 @@ var file_storj_client_ac_proto_rawDesc = []byte{
 	0x73, 0x1a, 0x38, 0x0a, 0x0a, 0x53, 0x6e, 0x73, 0x64, 0x73, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x12,
 	0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b, 0x65,
 	0x79, 0x12, 0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09,
-	0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01, 0x22, 0xc6, 0x02, 0x0a, 0x10,
+	0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01, 0x22, 0x5b, 0x0a, 0x0f, 0x53,
+	0x74, 0x6f, 0x72, 0x6a, 0x47, 0x52, 0x52, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x1a,
+	0x0a, 0x08, 0x63, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x49, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09,
+	0x52, 0x08, 0x63, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x49, 0x64, 0x12, 0x1a, 0x0a, 0x08, 0x66, 0x69,
+	0x6c, 0x65, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x66, 0x69,
+	0x6c, 0x65, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x10, 0x0a, 0x03, 0x72, 0x65, 0x70, 0x18, 0x03, 0x20,
+	0x01, 0x28, 0x09, 0x52, 0x03, 0x72, 0x65, 0x70, 0x22, 0x51, 0x0a, 0x10, 0x53, 0x74, 0x6f, 0x72,
+	0x6a, 0x47, 0x52, 0x52, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x29, 0x0a, 0x05,
+	0x72, 0x61, 0x6e, 0x64, 0x73, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x13, 0x2e, 0x70, 0x72,
+	0x6f, 0x74, 0x6f, 0x2e, 0x49, 0x6e, 0x74, 0x33, 0x32, 0x41, 0x72, 0x72, 0x61, 0x79, 0x41, 0x43,
+	0x52, 0x05, 0x72, 0x61, 0x6e, 0x64, 0x73, 0x12, 0x12, 0x0a, 0x04, 0x72, 0x6f, 0x6f, 0x74, 0x18,
+	0x02, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x04, 0x72, 0x6f, 0x6f, 0x74, 0x22, 0xc6, 0x02, 0x0a, 0x10,
 	0x53, 0x74, 0x6f, 0x72, 0x6a, 0x47, 0x44, 0x53, 0x45, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
 	0x12, 0x1a, 0x0a, 0x08, 0x63, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x49, 0x64, 0x18, 0x01, 0x20, 0x01,
 	0x28, 0x09, 0x52, 0x08, 0x63, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x49, 0x64, 0x12, 0x1a, 0x0a, 0x08,
@@ -977,7 +1108,7 @@ var file_storj_client_ac_proto_rawDesc = []byte{
 	0x3a, 0x0a, 0x0c, 0x44, 0x73, 0x73, 0x6e, 0x6d, 0x61, 0x70, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x12,
 	0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b, 0x65,
 	0x79, 0x12, 0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09,
-	0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01, 0x32, 0xc1, 0x03, 0x0a, 0x0e,
+	0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01, 0x32, 0x86, 0x04, 0x0a, 0x0e,
 	0x53, 0x74, 0x6f, 0x72, 0x6a, 0x41, 0x43, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x49,
 	0x0a, 0x0e, 0x53, 0x74, 0x6f, 0x72, 0x6a, 0x53, 0x65, 0x6c, 0x65, 0x63, 0x74, 0x53, 0x4e, 0x73,
 	0x12, 0x1a, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x53, 0x74, 0x6f, 0x72, 0x6a, 0x53, 0x74,
@@ -992,21 +1123,26 @@ var file_storj_client_ac_proto_rawDesc = []byte{
 	0x53, 0x4e, 0x73, 0x12, 0x17, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x53, 0x74, 0x6f, 0x72,
 	0x6a, 0x47, 0x46, 0x41, 0x43, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x18, 0x2e, 0x70,
 	0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x53, 0x74, 0x6f, 0x72, 0x6a, 0x47, 0x46, 0x41, 0x43, 0x52, 0x65,
-	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x48, 0x0a, 0x13, 0x53, 0x74, 0x6f, 0x72, 0x6a, 0x47,
-	0x65, 0x74, 0x44, 0x53, 0x45, 0x72, 0x72, 0x52, 0x65, 0x70, 0x6f, 0x72, 0x74, 0x12, 0x17, 0x2e,
-	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x53, 0x74, 0x6f, 0x72, 0x6a, 0x47, 0x44, 0x53, 0x45, 0x52,
-	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x18, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x53,
-	0x74, 0x6f, 0x72, 0x6a, 0x47, 0x44, 0x53, 0x45, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
-	0x12, 0x43, 0x0a, 0x0c, 0x53, 0x74, 0x6f, 0x72, 0x6a, 0x47, 0x65, 0x74, 0x44, 0x53, 0x53, 0x6e,
-	0x12, 0x18, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x53, 0x74, 0x6f, 0x72, 0x6a, 0x47, 0x44,
-	0x53, 0x53, 0x4e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x19, 0x2e, 0x70, 0x72, 0x6f,
-	0x74, 0x6f, 0x2e, 0x53, 0x74, 0x6f, 0x72, 0x6a, 0x47, 0x44, 0x53, 0x53, 0x4e, 0x52, 0x65, 0x73,
-	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x48, 0x0a, 0x13, 0x53, 0x74, 0x6f, 0x72, 0x6a, 0x55, 0x70,
-	0x64, 0x61, 0x74, 0x65, 0x44, 0x53, 0x43, 0x6f, 0x6d, 0x6d, 0x69, 0x74, 0x12, 0x17, 0x2e, 0x70,
-	0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x53, 0x74, 0x6f, 0x72, 0x6a, 0x55, 0x44, 0x53, 0x43, 0x52, 0x65,
-	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x18, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x53, 0x74,
-	0x6f, 0x72, 0x6a, 0x55, 0x44, 0x53, 0x43, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x42,
-	0x04, 0x5a, 0x02, 0x2e, 0x2f, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x43, 0x0a, 0x10, 0x53, 0x74, 0x6f, 0x72, 0x6a, 0x47,
+	0x65, 0x74, 0x52, 0x61, 0x6e, 0x64, 0x52, 0x6f, 0x6f, 0x74, 0x12, 0x16, 0x2e, 0x70, 0x72, 0x6f,
+	0x74, 0x6f, 0x2e, 0x53, 0x74, 0x6f, 0x72, 0x6a, 0x47, 0x52, 0x52, 0x52, 0x65, 0x71, 0x75, 0x65,
+	0x73, 0x74, 0x1a, 0x17, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x53, 0x74, 0x6f, 0x72, 0x6a,
+	0x47, 0x52, 0x52, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x48, 0x0a, 0x13, 0x53,
+	0x74, 0x6f, 0x72, 0x6a, 0x47, 0x65, 0x74, 0x44, 0x53, 0x45, 0x72, 0x72, 0x52, 0x65, 0x70, 0x6f,
+	0x72, 0x74, 0x12, 0x17, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x53, 0x74, 0x6f, 0x72, 0x6a,
+	0x47, 0x44, 0x53, 0x45, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x18, 0x2e, 0x70, 0x72,
+	0x6f, 0x74, 0x6f, 0x2e, 0x53, 0x74, 0x6f, 0x72, 0x6a, 0x47, 0x44, 0x53, 0x45, 0x52, 0x65, 0x73,
+	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x43, 0x0a, 0x0c, 0x53, 0x74, 0x6f, 0x72, 0x6a, 0x47, 0x65,
+	0x74, 0x44, 0x53, 0x53, 0x6e, 0x12, 0x18, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x53, 0x74,
+	0x6f, 0x72, 0x6a, 0x47, 0x44, 0x53, 0x53, 0x4e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a,
+	0x19, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x53, 0x74, 0x6f, 0x72, 0x6a, 0x47, 0x44, 0x53,
+	0x53, 0x4e, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x48, 0x0a, 0x13, 0x53, 0x74,
+	0x6f, 0x72, 0x6a, 0x55, 0x70, 0x64, 0x61, 0x74, 0x65, 0x44, 0x53, 0x43, 0x6f, 0x6d, 0x6d, 0x69,
+	0x74, 0x12, 0x17, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x53, 0x74, 0x6f, 0x72, 0x6a, 0x55,
+	0x44, 0x53, 0x43, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x18, 0x2e, 0x70, 0x72, 0x6f,
+	0x74, 0x6f, 0x2e, 0x53, 0x74, 0x6f, 0x72, 0x6a, 0x55, 0x44, 0x53, 0x43, 0x52, 0x65, 0x73, 0x70,
+	0x6f, 0x6e, 0x73, 0x65, 0x42, 0x04, 0x5a, 0x02, 0x2e, 0x2f, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74,
+	0x6f, 0x33,
 }
 
 var (
@@ -1021,7 +1157,7 @@ func file_storj_client_ac_proto_rawDescGZIP() []byte {
 	return file_storj_client_ac_proto_rawDescData
 }
 
-var file_storj_client_ac_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
+var file_storj_client_ac_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_storj_client_ac_proto_goTypes = []interface{}{
 	(*StorjStorageRequest)(nil),  // 0: proto.StorjStorageRequest
 	(*StorjStorageResponse)(nil), // 1: proto.StorjStorageResponse
@@ -1030,54 +1166,59 @@ var file_storj_client_ac_proto_goTypes = []interface{}{
 	(*StorjPFCResponse)(nil),     // 4: proto.StorjPFCResponse
 	(*StorjGFACRequest)(nil),     // 5: proto.StorjGFACRequest
 	(*StorjGFACResponse)(nil),    // 6: proto.StorjGFACResponse
-	(*StorjGDSERequest)(nil),     // 7: proto.StorjGDSERequest
-	(*StorjGDSEResponse)(nil),    // 8: proto.StorjGDSEResponse
-	(*StorjGDSSNRequest)(nil),    // 9: proto.StorjGDSSNRequest
-	(*StorjGDSSNResponse)(nil),   // 10: proto.StorjGDSSNResponse
-	(*StorjUDSCRequest)(nil),     // 11: proto.StorjUDSCRequest
-	(*StorjUDSCResponse)(nil),    // 12: proto.StorjUDSCResponse
-	nil,                          // 13: proto.StorjPFCRequest.RandmapEntry
-	nil,                          // 14: proto.StorjPFCRequest.RootmapEntry
-	nil,                          // 15: proto.StorjGFACResponse.SnsdsEntry
-	nil,                          // 16: proto.StorjGDSERequest.ErrdssnEntry
-	nil,                          // 17: proto.StorjGDSERequest.BlacksnsEntry
-	nil,                          // 18: proto.StorjGDSEResponse.SnsdsEntry
-	nil,                          // 19: proto.StorjGDSSNResponse.SnsdsEntry
-	nil,                          // 20: proto.StorjGDSSNResponse.SnspsEntry
-	nil,                          // 21: proto.StorjUDSCRequest.VersionsEntry
-	nil,                          // 22: proto.StorjUDSCRequest.TimestampsEntry
-	nil,                          // 23: proto.StorjUDSCResponse.DssnmapEntry
+	(*StorjGRRRequest)(nil),      // 7: proto.StorjGRRRequest
+	(*StorjGRRResponse)(nil),     // 8: proto.StorjGRRResponse
+	(*StorjGDSERequest)(nil),     // 9: proto.StorjGDSERequest
+	(*StorjGDSEResponse)(nil),    // 10: proto.StorjGDSEResponse
+	(*StorjGDSSNRequest)(nil),    // 11: proto.StorjGDSSNRequest
+	(*StorjGDSSNResponse)(nil),   // 12: proto.StorjGDSSNResponse
+	(*StorjUDSCRequest)(nil),     // 13: proto.StorjUDSCRequest
+	(*StorjUDSCResponse)(nil),    // 14: proto.StorjUDSCResponse
+	nil,                          // 15: proto.StorjPFCRequest.RandmapEntry
+	nil,                          // 16: proto.StorjPFCRequest.RootmapEntry
+	nil,                          // 17: proto.StorjGFACResponse.SnsdsEntry
+	nil,                          // 18: proto.StorjGDSERequest.ErrdssnEntry
+	nil,                          // 19: proto.StorjGDSERequest.BlacksnsEntry
+	nil,                          // 20: proto.StorjGDSEResponse.SnsdsEntry
+	nil,                          // 21: proto.StorjGDSSNResponse.SnsdsEntry
+	nil,                          // 22: proto.StorjGDSSNResponse.SnspsEntry
+	nil,                          // 23: proto.StorjUDSCRequest.VersionsEntry
+	nil,                          // 24: proto.StorjUDSCRequest.TimestampsEntry
+	nil,                          // 25: proto.StorjUDSCResponse.DssnmapEntry
 }
 var file_storj_client_ac_proto_depIdxs = []int32{
-	13, // 0: proto.StorjPFCRequest.randmap:type_name -> proto.StorjPFCRequest.RandmapEntry
-	14, // 1: proto.StorjPFCRequest.rootmap:type_name -> proto.StorjPFCRequest.RootmapEntry
-	15, // 2: proto.StorjGFACResponse.snsds:type_name -> proto.StorjGFACResponse.SnsdsEntry
-	16, // 3: proto.StorjGDSERequest.errdssn:type_name -> proto.StorjGDSERequest.ErrdssnEntry
-	17, // 4: proto.StorjGDSERequest.blacksns:type_name -> proto.StorjGDSERequest.BlacksnsEntry
-	18, // 5: proto.StorjGDSEResponse.snsds:type_name -> proto.StorjGDSEResponse.SnsdsEntry
-	19, // 6: proto.StorjGDSSNResponse.snsds:type_name -> proto.StorjGDSSNResponse.SnsdsEntry
-	20, // 7: proto.StorjGDSSNResponse.snsps:type_name -> proto.StorjGDSSNResponse.SnspsEntry
-	21, // 8: proto.StorjUDSCRequest.versions:type_name -> proto.StorjUDSCRequest.VersionsEntry
-	22, // 9: proto.StorjUDSCRequest.timestamps:type_name -> proto.StorjUDSCRequest.TimestampsEntry
-	23, // 10: proto.StorjUDSCResponse.dssnmap:type_name -> proto.StorjUDSCResponse.DssnmapEntry
-	2,  // 11: proto.StorjPFCRequest.RandmapEntry.value:type_name -> proto.Int32ArrayAC
-	0,  // 12: proto.StorjACService.StorjSelectSNs:input_type -> proto.StorjStorageRequest
-	3,  // 13: proto.StorjACService.StorjPutFileCommit:input_type -> proto.StorjPFCRequest
-	5,  // 14: proto.StorjACService.StorjGetFileSNs:input_type -> proto.StorjGFACRequest
-	7,  // 15: proto.StorjACService.StorjGetDSErrReport:input_type -> proto.StorjGDSERequest
-	9,  // 16: proto.StorjACService.StorjGetDSSn:input_type -> proto.StorjGDSSNRequest
-	11, // 17: proto.StorjACService.StorjUpdateDSCommit:input_type -> proto.StorjUDSCRequest
-	1,  // 18: proto.StorjACService.StorjSelectSNs:output_type -> proto.StorjStorageResponse
-	4,  // 19: proto.StorjACService.StorjPutFileCommit:output_type -> proto.StorjPFCResponse
-	6,  // 20: proto.StorjACService.StorjGetFileSNs:output_type -> proto.StorjGFACResponse
-	8,  // 21: proto.StorjACService.StorjGetDSErrReport:output_type -> proto.StorjGDSEResponse
-	10, // 22: proto.StorjACService.StorjGetDSSn:output_type -> proto.StorjGDSSNResponse
-	12, // 23: proto.StorjACService.StorjUpdateDSCommit:output_type -> proto.StorjUDSCResponse
-	18, // [18:24] is the sub-list for method output_type
-	12, // [12:18] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	15, // 0: proto.StorjPFCRequest.randmap:type_name -> proto.StorjPFCRequest.RandmapEntry
+	16, // 1: proto.StorjPFCRequest.rootmap:type_name -> proto.StorjPFCRequest.RootmapEntry
+	17, // 2: proto.StorjGFACResponse.snsds:type_name -> proto.StorjGFACResponse.SnsdsEntry
+	2,  // 3: proto.StorjGRRResponse.rands:type_name -> proto.Int32ArrayAC
+	18, // 4: proto.StorjGDSERequest.errdssn:type_name -> proto.StorjGDSERequest.ErrdssnEntry
+	19, // 5: proto.StorjGDSERequest.blacksns:type_name -> proto.StorjGDSERequest.BlacksnsEntry
+	20, // 6: proto.StorjGDSEResponse.snsds:type_name -> proto.StorjGDSEResponse.SnsdsEntry
+	21, // 7: proto.StorjGDSSNResponse.snsds:type_name -> proto.StorjGDSSNResponse.SnsdsEntry
+	22, // 8: proto.StorjGDSSNResponse.snsps:type_name -> proto.StorjGDSSNResponse.SnspsEntry
+	23, // 9: proto.StorjUDSCRequest.versions:type_name -> proto.StorjUDSCRequest.VersionsEntry
+	24, // 10: proto.StorjUDSCRequest.timestamps:type_name -> proto.StorjUDSCRequest.TimestampsEntry
+	25, // 11: proto.StorjUDSCResponse.dssnmap:type_name -> proto.StorjUDSCResponse.DssnmapEntry
+	2,  // 12: proto.StorjPFCRequest.RandmapEntry.value:type_name -> proto.Int32ArrayAC
+	0,  // 13: proto.StorjACService.StorjSelectSNs:input_type -> proto.StorjStorageRequest
+	3,  // 14: proto.StorjACService.StorjPutFileCommit:input_type -> proto.StorjPFCRequest
+	5,  // 15: proto.StorjACService.StorjGetFileSNs:input_type -> proto.StorjGFACRequest
+	7,  // 16: proto.StorjACService.StorjGetRandRoot:input_type -> proto.StorjGRRRequest
+	9,  // 17: proto.StorjACService.StorjGetDSErrReport:input_type -> proto.StorjGDSERequest
+	11, // 18: proto.StorjACService.StorjGetDSSn:input_type -> proto.StorjGDSSNRequest
+	13, // 19: proto.StorjACService.StorjUpdateDSCommit:input_type -> proto.StorjUDSCRequest
+	1,  // 20: proto.StorjACService.StorjSelectSNs:output_type -> proto.StorjStorageResponse
+	4,  // 21: proto.StorjACService.StorjPutFileCommit:output_type -> proto.StorjPFCResponse
+	6,  // 22: proto.StorjACService.StorjGetFileSNs:output_type -> proto.StorjGFACResponse
+	8,  // 23: proto.StorjACService.StorjGetRandRoot:output_type -> proto.StorjGRRResponse
+	10, // 24: proto.StorjACService.StorjGetDSErrReport:output_type -> proto.StorjGDSEResponse
+	12, // 25: proto.StorjACService.StorjGetDSSn:output_type -> proto.StorjGDSSNResponse
+	14, // 26: proto.StorjACService.StorjUpdateDSCommit:output_type -> proto.StorjUDSCResponse
+	20, // [20:27] is the sub-list for method output_type
+	13, // [13:20] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_storj_client_ac_proto_init() }
@@ -1171,7 +1312,7 @@ func file_storj_client_ac_proto_init() {
 			}
 		}
 		file_storj_client_ac_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*StorjGDSERequest); i {
+			switch v := v.(*StorjGRRRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1183,7 +1324,7 @@ func file_storj_client_ac_proto_init() {
 			}
 		}
 		file_storj_client_ac_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*StorjGDSEResponse); i {
+			switch v := v.(*StorjGRRResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1195,7 +1336,7 @@ func file_storj_client_ac_proto_init() {
 			}
 		}
 		file_storj_client_ac_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*StorjGDSSNRequest); i {
+			switch v := v.(*StorjGDSERequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1207,7 +1348,7 @@ func file_storj_client_ac_proto_init() {
 			}
 		}
 		file_storj_client_ac_proto_msgTypes[10].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*StorjGDSSNResponse); i {
+			switch v := v.(*StorjGDSEResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1219,7 +1360,7 @@ func file_storj_client_ac_proto_init() {
 			}
 		}
 		file_storj_client_ac_proto_msgTypes[11].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*StorjUDSCRequest); i {
+			switch v := v.(*StorjGDSSNRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1231,6 +1372,30 @@ func file_storj_client_ac_proto_init() {
 			}
 		}
 		file_storj_client_ac_proto_msgTypes[12].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*StorjGDSSNResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_storj_client_ac_proto_msgTypes[13].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*StorjUDSCRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_storj_client_ac_proto_msgTypes[14].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*StorjUDSCResponse); i {
 			case 0:
 				return &v.state
@@ -1249,7 +1414,7 @@ func file_storj_client_ac_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_storj_client_ac_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   24,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

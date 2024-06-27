@@ -142,3 +142,30 @@ func (sn *StorjSN) StorjPutFileNotice(ctx context.Context, preq *pb.StorjClientS
 	log.Println(sn.SNId, "已接收通知", cid_fn)
 	return &pb.StorjClientStorageResponse{ClientId: clientId, Filename: filename, Repno: repno, Root: root, Snid: sn.SNId, Message: sn.SNId + " completes the storage of " + cid_fn + "."}, nil
 }
+
+// 【供客户端使用的RPC】
+func (sn *StorjSN) StorjGetFile(ctx context.Context, req *pb.StorjGetFRequest) (*pb.StorjGetFResponse, error) {
+	cid_fn := req.ClientId + "-" + req.Filename + "-" + req.Rep
+	datashards := make([][]int32, 0)
+	parityleaves := make([][]byte, 0)
+	sn.FSLRMMMutex.RLock()
+	if sn.FileShardsMap[cid_fn] == nil {
+		sn.FSLRMMMutex.RUnlock()
+		e := errors.New("datashards not exist")
+		return &pb.StorjGetFResponse{Filename: req.Filename, DataShards: nil, MerkleLeaves: nil}, e
+	} else if sn.FileLeavesMap[cid_fn] == nil {
+		sn.FSLRMMMutex.RUnlock()
+		e := errors.New("leaves not exist")
+		return &pb.StorjGetFResponse{Filename: req.Filename, DataShards: nil, MerkleLeaves: nil}, e
+	} else {
+		//返回dsnum个数据分片和校验块的叶节点
+		for i := 0; i < int(req.Dsnum); i++ {
+			datashards = append(datashards, sn.FileShardsMap[cid_fn][i])
+		}
+		for i := int(req.Dsnum); i < len(sn.FileLeavesMap); i++ {
+			parityleaves = append(parityleaves, sn.FileLeavesMap[cid_fn][i])
+		}
+		sn.FSLRMMMutex.RUnlock()
+		return &pb.StorjGetFResponse{Filename: req.Filename, DataShards: util.Int32SliceToInt32ArraySNSlice(datashards), MerkleLeaves: parityleaves}, nil
+	}
+}
