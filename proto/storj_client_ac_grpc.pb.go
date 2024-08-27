@@ -19,12 +19,12 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	StorjACService_StorjSelectSNs_FullMethodName      = "/proto.StorjACService/StorjSelectSNs"
-	StorjACService_StorjPutFileCommit_FullMethodName  = "/proto.StorjACService/StorjPutFileCommit"
-	StorjACService_StorjGetFileSNs_FullMethodName     = "/proto.StorjACService/StorjGetFileSNs"
-	StorjACService_StorjGetDSErrReport_FullMethodName = "/proto.StorjACService/StorjGetDSErrReport"
-	StorjACService_StorjGetDSSn_FullMethodName        = "/proto.StorjACService/StorjGetDSSn"
-	StorjACService_StorjUpdateDSCommit_FullMethodName = "/proto.StorjACService/StorjUpdateDSCommit"
+	StorjACService_StorjSelectSNs_FullMethodName        = "/proto.StorjACService/StorjSelectSNs"
+	StorjACService_StorjPutFileCommit_FullMethodName    = "/proto.StorjACService/StorjPutFileCommit"
+	StorjACService_StorjGetFileSNs_FullMethodName       = "/proto.StorjACService/StorjGetFileSNs"
+	StorjACService_StorjGetRandRoot_FullMethodName      = "/proto.StorjACService/StorjGetRandRoot"
+	StorjACService_StorjUpdateFileReq_FullMethodName    = "/proto.StorjACService/StorjUpdateFileReq"
+	StorjACService_StorjUpdateFileCommit_FullMethodName = "/proto.StorjACService/StorjUpdateFileCommit"
 )
 
 // StorjACServiceClient is the client API for StorjACService service.
@@ -34,9 +34,9 @@ type StorjACServiceClient interface {
 	StorjSelectSNs(ctx context.Context, in *StorjStorageRequest, opts ...grpc.CallOption) (*StorjStorageResponse, error)
 	StorjPutFileCommit(ctx context.Context, in *StorjPFCRequest, opts ...grpc.CallOption) (*StorjPFCResponse, error)
 	StorjGetFileSNs(ctx context.Context, in *StorjGFACRequest, opts ...grpc.CallOption) (*StorjGFACResponse, error)
-	StorjGetDSErrReport(ctx context.Context, in *StorjGDSERequest, opts ...grpc.CallOption) (*StorjGDSEResponse, error)
-	StorjGetDSSn(ctx context.Context, in *StorjGDSSNRequest, opts ...grpc.CallOption) (*StorjGDSSNResponse, error)
-	StorjUpdateDSCommit(ctx context.Context, in *StorjUDSCRequest, opts ...grpc.CallOption) (*StorjUDSCResponse, error)
+	StorjGetRandRoot(ctx context.Context, in *StorjGRRRequest, opts ...grpc.CallOption) (*StorjGRRResponse, error)
+	StorjUpdateFileReq(ctx context.Context, in *StorjUFRequest, opts ...grpc.CallOption) (*StorjUFResponse, error)
+	StorjUpdateFileCommit(ctx context.Context, in *StorjUFCRequest, opts ...grpc.CallOption) (*StorjUFCResponse, error)
 }
 
 type storjACServiceClient struct {
@@ -74,27 +74,27 @@ func (c *storjACServiceClient) StorjGetFileSNs(ctx context.Context, in *StorjGFA
 	return out, nil
 }
 
-func (c *storjACServiceClient) StorjGetDSErrReport(ctx context.Context, in *StorjGDSERequest, opts ...grpc.CallOption) (*StorjGDSEResponse, error) {
-	out := new(StorjGDSEResponse)
-	err := c.cc.Invoke(ctx, StorjACService_StorjGetDSErrReport_FullMethodName, in, out, opts...)
+func (c *storjACServiceClient) StorjGetRandRoot(ctx context.Context, in *StorjGRRRequest, opts ...grpc.CallOption) (*StorjGRRResponse, error) {
+	out := new(StorjGRRResponse)
+	err := c.cc.Invoke(ctx, StorjACService_StorjGetRandRoot_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *storjACServiceClient) StorjGetDSSn(ctx context.Context, in *StorjGDSSNRequest, opts ...grpc.CallOption) (*StorjGDSSNResponse, error) {
-	out := new(StorjGDSSNResponse)
-	err := c.cc.Invoke(ctx, StorjACService_StorjGetDSSn_FullMethodName, in, out, opts...)
+func (c *storjACServiceClient) StorjUpdateFileReq(ctx context.Context, in *StorjUFRequest, opts ...grpc.CallOption) (*StorjUFResponse, error) {
+	out := new(StorjUFResponse)
+	err := c.cc.Invoke(ctx, StorjACService_StorjUpdateFileReq_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *storjACServiceClient) StorjUpdateDSCommit(ctx context.Context, in *StorjUDSCRequest, opts ...grpc.CallOption) (*StorjUDSCResponse, error) {
-	out := new(StorjUDSCResponse)
-	err := c.cc.Invoke(ctx, StorjACService_StorjUpdateDSCommit_FullMethodName, in, out, opts...)
+func (c *storjACServiceClient) StorjUpdateFileCommit(ctx context.Context, in *StorjUFCRequest, opts ...grpc.CallOption) (*StorjUFCResponse, error) {
+	out := new(StorjUFCResponse)
+	err := c.cc.Invoke(ctx, StorjACService_StorjUpdateFileCommit_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -108,9 +108,9 @@ type StorjACServiceServer interface {
 	StorjSelectSNs(context.Context, *StorjStorageRequest) (*StorjStorageResponse, error)
 	StorjPutFileCommit(context.Context, *StorjPFCRequest) (*StorjPFCResponse, error)
 	StorjGetFileSNs(context.Context, *StorjGFACRequest) (*StorjGFACResponse, error)
-	StorjGetDSErrReport(context.Context, *StorjGDSERequest) (*StorjGDSEResponse, error)
-	StorjGetDSSn(context.Context, *StorjGDSSNRequest) (*StorjGDSSNResponse, error)
-	StorjUpdateDSCommit(context.Context, *StorjUDSCRequest) (*StorjUDSCResponse, error)
+	StorjGetRandRoot(context.Context, *StorjGRRRequest) (*StorjGRRResponse, error)
+	StorjUpdateFileReq(context.Context, *StorjUFRequest) (*StorjUFResponse, error)
+	StorjUpdateFileCommit(context.Context, *StorjUFCRequest) (*StorjUFCResponse, error)
 	mustEmbedUnimplementedStorjACServiceServer()
 }
 
@@ -127,14 +127,14 @@ func (UnimplementedStorjACServiceServer) StorjPutFileCommit(context.Context, *St
 func (UnimplementedStorjACServiceServer) StorjGetFileSNs(context.Context, *StorjGFACRequest) (*StorjGFACResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method StorjGetFileSNs not implemented")
 }
-func (UnimplementedStorjACServiceServer) StorjGetDSErrReport(context.Context, *StorjGDSERequest) (*StorjGDSEResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method StorjGetDSErrReport not implemented")
+func (UnimplementedStorjACServiceServer) StorjGetRandRoot(context.Context, *StorjGRRRequest) (*StorjGRRResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StorjGetRandRoot not implemented")
 }
-func (UnimplementedStorjACServiceServer) StorjGetDSSn(context.Context, *StorjGDSSNRequest) (*StorjGDSSNResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method StorjGetDSSn not implemented")
+func (UnimplementedStorjACServiceServer) StorjUpdateFileReq(context.Context, *StorjUFRequest) (*StorjUFResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StorjUpdateFileReq not implemented")
 }
-func (UnimplementedStorjACServiceServer) StorjUpdateDSCommit(context.Context, *StorjUDSCRequest) (*StorjUDSCResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method StorjUpdateDSCommit not implemented")
+func (UnimplementedStorjACServiceServer) StorjUpdateFileCommit(context.Context, *StorjUFCRequest) (*StorjUFCResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StorjUpdateFileCommit not implemented")
 }
 func (UnimplementedStorjACServiceServer) mustEmbedUnimplementedStorjACServiceServer() {}
 
@@ -203,56 +203,56 @@ func _StorjACService_StorjGetFileSNs_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
-func _StorjACService_StorjGetDSErrReport_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StorjGDSERequest)
+func _StorjACService_StorjGetRandRoot_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StorjGRRRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(StorjACServiceServer).StorjGetDSErrReport(ctx, in)
+		return srv.(StorjACServiceServer).StorjGetRandRoot(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: StorjACService_StorjGetDSErrReport_FullMethodName,
+		FullMethod: StorjACService_StorjGetRandRoot_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(StorjACServiceServer).StorjGetDSErrReport(ctx, req.(*StorjGDSERequest))
+		return srv.(StorjACServiceServer).StorjGetRandRoot(ctx, req.(*StorjGRRRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _StorjACService_StorjGetDSSn_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StorjGDSSNRequest)
+func _StorjACService_StorjUpdateFileReq_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StorjUFRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(StorjACServiceServer).StorjGetDSSn(ctx, in)
+		return srv.(StorjACServiceServer).StorjUpdateFileReq(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: StorjACService_StorjGetDSSn_FullMethodName,
+		FullMethod: StorjACService_StorjUpdateFileReq_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(StorjACServiceServer).StorjGetDSSn(ctx, req.(*StorjGDSSNRequest))
+		return srv.(StorjACServiceServer).StorjUpdateFileReq(ctx, req.(*StorjUFRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _StorjACService_StorjUpdateDSCommit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StorjUDSCRequest)
+func _StorjACService_StorjUpdateFileCommit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StorjUFCRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(StorjACServiceServer).StorjUpdateDSCommit(ctx, in)
+		return srv.(StorjACServiceServer).StorjUpdateFileCommit(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: StorjACService_StorjUpdateDSCommit_FullMethodName,
+		FullMethod: StorjACService_StorjUpdateFileCommit_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(StorjACServiceServer).StorjUpdateDSCommit(ctx, req.(*StorjUDSCRequest))
+		return srv.(StorjACServiceServer).StorjUpdateFileCommit(ctx, req.(*StorjUFCRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -277,16 +277,16 @@ var StorjACService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _StorjACService_StorjGetFileSNs_Handler,
 		},
 		{
-			MethodName: "StorjGetDSErrReport",
-			Handler:    _StorjACService_StorjGetDSErrReport_Handler,
+			MethodName: "StorjGetRandRoot",
+			Handler:    _StorjACService_StorjGetRandRoot_Handler,
 		},
 		{
-			MethodName: "StorjGetDSSn",
-			Handler:    _StorjACService_StorjGetDSSn_Handler,
+			MethodName: "StorjUpdateFileReq",
+			Handler:    _StorjACService_StorjUpdateFileReq_Handler,
 		},
 		{
-			MethodName: "StorjUpdateDSCommit",
-			Handler:    _StorjACService_StorjUpdateDSCommit_Handler,
+			MethodName: "StorjUpdateFileCommit",
+			Handler:    _StorjACService_StorjUpdateFileCommit_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

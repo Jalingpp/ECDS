@@ -1,11 +1,13 @@
 package util
 
 import (
+	pb "ECDS/proto" // 根据实际路径修改
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
 	"math"
 	"math/rand"
+	"strconv"
 	"time"
 )
 
@@ -158,6 +160,24 @@ func GenerateLeaf(data []int32) ([]byte, int32) {
 	return secondHash, s_i
 }
 
+// 根据给定的随机数为数据分片生成叶子
+func GenerateLeafByRands(data []int32, rand int32) []byte {
+	// 将s_i转换为字节数组
+	s_iBytes := make([]byte, 4)
+	binary.LittleEndian.PutUint32(s_iBytes, uint32(rand))
+	// 将data转换为字节数组
+	dataBytes := make([]byte, 4*len(data))
+	for i, v := range data {
+		binary.LittleEndian.PutUint32(dataBytes[i*4:], uint32(v))
+	}
+	// 计算s_i + dataslice[i]
+	combined := append(s_iBytes, dataBytes...)
+	// 计算H(H(s_i + dataslice[i]))
+	firstHash := Hash(combined)
+	secondHash := Hash(firstHash)
+	return secondHash
+}
+
 // 构建默克尔树
 func BuildMerkleTree(leafHashes [][]byte) []byte {
 	if len(leafHashes) == 1 {
@@ -177,4 +197,51 @@ func BuildMerkleTree(leafHashes [][]byte) []byte {
 	}
 
 	return BuildMerkleTree(newLevel)
+}
+
+// 生成默克尔树根
+func GenerateMTRoot(datashards [][]int32, rands []int32, parityleaves [][]byte) []byte {
+	var leaves [][]byte
+
+	for i := 0; i < len(datashards); i++ {
+		leaf := GenerateLeafByRands(datashards[i], rands[i])
+		leaves = append(leaves, leaf)
+	}
+
+	for i := 0; i < len(parityleaves); i++ {
+		leaves = append(leaves, parityleaves[i])
+	}
+
+	return BuildMerkleTree(leaves)
+}
+
+// 根据preleafs生成默克尔树根
+func GenerateMTRootByPreleafs(preleafs [][]byte) []byte {
+	leafs := make([][]byte, 0)
+
+	for i := 0; i < len(preleafs); i++ {
+		lf := Hash(preleafs[i])
+		leafs = append(leafs, lf)
+	}
+
+	return BuildMerkleTree(leafs)
+}
+
+// 将一个string转换为int32
+func StrToInt32(str string) int32 {
+	val, err := strconv.ParseInt(str, 10, 32)
+	if err != nil {
+		// 返回 int32 的零值 (0)，或者你可以选择在这里记录错误或采取其他措施
+		return 0
+	}
+	return int32(val)
+}
+
+// 将二维数组转换为 Int32ArraySN 消息
+func Int32SliceToInt32ArraySNSlice(int32slice [][]int32) []*pb.Int32ArraySN {
+	var dataShardSlice []*pb.Int32ArraySN
+	for _, shard := range int32slice {
+		dataShardSlice = append(dataShardSlice, &pb.Int32ArraySN{Values: shard})
+	}
+	return dataShardSlice
 }

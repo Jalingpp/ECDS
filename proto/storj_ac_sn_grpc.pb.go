@@ -19,9 +19,10 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	StorjSNACService_StorjPutFileNotice_FullMethodName         = "/proto.StorjSNACService/StorjPutFileNotice"
-	StorjSNACService_StorjUpdateDataShardNotice_FullMethodName = "/proto.StorjSNACService/StorjUpdateDataShardNotice"
-	StorjSNACService_StorjPreAuditSN_FullMethodName            = "/proto.StorjSNACService/StorjPreAuditSN"
+	StorjSNACService_StorjPutFileNotice_FullMethodName    = "/proto.StorjSNACService/StorjPutFileNotice"
+	StorjSNACService_StorjUpdateFileNotice_FullMethodName = "/proto.StorjSNACService/StorjUpdateFileNotice"
+	StorjSNACService_StorjPreAuditSN_FullMethodName       = "/proto.StorjSNACService/StorjPreAuditSN"
+	StorjSNACService_StorjGetPosSN_FullMethodName         = "/proto.StorjSNACService/StorjGetPosSN"
 )
 
 // StorjSNACServiceClient is the client API for StorjSNACService service.
@@ -29,8 +30,9 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type StorjSNACServiceClient interface {
 	StorjPutFileNotice(ctx context.Context, in *StorjClientStorageRequest, opts ...grpc.CallOption) (*StorjClientStorageResponse, error)
-	StorjUpdateDataShardNotice(ctx context.Context, in *StorjClientUpdDSRequest, opts ...grpc.CallOption) (*StorjClientUpdDSResponse, error)
+	StorjUpdateFileNotice(ctx context.Context, in *StorjClientUFRequest, opts ...grpc.CallOption) (*StorjClientUFResponse, error)
 	StorjPreAuditSN(ctx context.Context, in *StorjPASNRequest, opts ...grpc.CallOption) (*StorjPASNResponse, error)
+	StorjGetPosSN(ctx context.Context, in *StorjGAPSNRequest, opts ...grpc.CallOption) (*StorjGAPSNResponse, error)
 }
 
 type storjSNACServiceClient struct {
@@ -50,9 +52,9 @@ func (c *storjSNACServiceClient) StorjPutFileNotice(ctx context.Context, in *Sto
 	return out, nil
 }
 
-func (c *storjSNACServiceClient) StorjUpdateDataShardNotice(ctx context.Context, in *StorjClientUpdDSRequest, opts ...grpc.CallOption) (*StorjClientUpdDSResponse, error) {
-	out := new(StorjClientUpdDSResponse)
-	err := c.cc.Invoke(ctx, StorjSNACService_StorjUpdateDataShardNotice_FullMethodName, in, out, opts...)
+func (c *storjSNACServiceClient) StorjUpdateFileNotice(ctx context.Context, in *StorjClientUFRequest, opts ...grpc.CallOption) (*StorjClientUFResponse, error) {
+	out := new(StorjClientUFResponse)
+	err := c.cc.Invoke(ctx, StorjSNACService_StorjUpdateFileNotice_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -68,13 +70,23 @@ func (c *storjSNACServiceClient) StorjPreAuditSN(ctx context.Context, in *StorjP
 	return out, nil
 }
 
+func (c *storjSNACServiceClient) StorjGetPosSN(ctx context.Context, in *StorjGAPSNRequest, opts ...grpc.CallOption) (*StorjGAPSNResponse, error) {
+	out := new(StorjGAPSNResponse)
+	err := c.cc.Invoke(ctx, StorjSNACService_StorjGetPosSN_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // StorjSNACServiceServer is the server API for StorjSNACService service.
 // All implementations must embed UnimplementedStorjSNACServiceServer
 // for forward compatibility
 type StorjSNACServiceServer interface {
 	StorjPutFileNotice(context.Context, *StorjClientStorageRequest) (*StorjClientStorageResponse, error)
-	StorjUpdateDataShardNotice(context.Context, *StorjClientUpdDSRequest) (*StorjClientUpdDSResponse, error)
+	StorjUpdateFileNotice(context.Context, *StorjClientUFRequest) (*StorjClientUFResponse, error)
 	StorjPreAuditSN(context.Context, *StorjPASNRequest) (*StorjPASNResponse, error)
+	StorjGetPosSN(context.Context, *StorjGAPSNRequest) (*StorjGAPSNResponse, error)
 	mustEmbedUnimplementedStorjSNACServiceServer()
 }
 
@@ -85,11 +97,14 @@ type UnimplementedStorjSNACServiceServer struct {
 func (UnimplementedStorjSNACServiceServer) StorjPutFileNotice(context.Context, *StorjClientStorageRequest) (*StorjClientStorageResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method StorjPutFileNotice not implemented")
 }
-func (UnimplementedStorjSNACServiceServer) StorjUpdateDataShardNotice(context.Context, *StorjClientUpdDSRequest) (*StorjClientUpdDSResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method StorjUpdateDataShardNotice not implemented")
+func (UnimplementedStorjSNACServiceServer) StorjUpdateFileNotice(context.Context, *StorjClientUFRequest) (*StorjClientUFResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StorjUpdateFileNotice not implemented")
 }
 func (UnimplementedStorjSNACServiceServer) StorjPreAuditSN(context.Context, *StorjPASNRequest) (*StorjPASNResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method StorjPreAuditSN not implemented")
+}
+func (UnimplementedStorjSNACServiceServer) StorjGetPosSN(context.Context, *StorjGAPSNRequest) (*StorjGAPSNResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StorjGetPosSN not implemented")
 }
 func (UnimplementedStorjSNACServiceServer) mustEmbedUnimplementedStorjSNACServiceServer() {}
 
@@ -122,20 +137,20 @@ func _StorjSNACService_StorjPutFileNotice_Handler(srv interface{}, ctx context.C
 	return interceptor(ctx, in, info, handler)
 }
 
-func _StorjSNACService_StorjUpdateDataShardNotice_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StorjClientUpdDSRequest)
+func _StorjSNACService_StorjUpdateFileNotice_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StorjClientUFRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(StorjSNACServiceServer).StorjUpdateDataShardNotice(ctx, in)
+		return srv.(StorjSNACServiceServer).StorjUpdateFileNotice(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: StorjSNACService_StorjUpdateDataShardNotice_FullMethodName,
+		FullMethod: StorjSNACService_StorjUpdateFileNotice_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(StorjSNACServiceServer).StorjUpdateDataShardNotice(ctx, req.(*StorjClientUpdDSRequest))
+		return srv.(StorjSNACServiceServer).StorjUpdateFileNotice(ctx, req.(*StorjClientUFRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -158,6 +173,24 @@ func _StorjSNACService_StorjPreAuditSN_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _StorjSNACService_StorjGetPosSN_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StorjGAPSNRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StorjSNACServiceServer).StorjGetPosSN(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: StorjSNACService_StorjGetPosSN_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StorjSNACServiceServer).StorjGetPosSN(ctx, req.(*StorjGAPSNRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // StorjSNACService_ServiceDesc is the grpc.ServiceDesc for StorjSNACService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -170,12 +203,16 @@ var StorjSNACService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _StorjSNACService_StorjPutFileNotice_Handler,
 		},
 		{
-			MethodName: "StorjUpdateDataShardNotice",
-			Handler:    _StorjSNACService_StorjUpdateDataShardNotice_Handler,
+			MethodName: "StorjUpdateFileNotice",
+			Handler:    _StorjSNACService_StorjUpdateFileNotice_Handler,
 		},
 		{
 			MethodName: "StorjPreAuditSN",
 			Handler:    _StorjSNACService_StorjPreAuditSN_Handler,
+		},
+		{
+			MethodName: "StorjGetPosSN",
+			Handler:    _StorjSNACService_StorjGetPosSN_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

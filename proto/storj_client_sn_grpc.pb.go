@@ -19,10 +19,9 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	StorjSNService_StorjPutFile_FullMethodName            = "/proto.StorjSNService/StorjPutFile"
-	StorjSNService_StorjGetDataShard_FullMethodName       = "/proto.StorjSNService/StorjGetDataShard"
-	StorjSNService_StorjUpdateDataShards_FullMethodName   = "/proto.StorjSNService/StorjUpdateDataShards"
-	StorjSNService_StorjPutIncParityShards_FullMethodName = "/proto.StorjSNService/StorjPutIncParityShards"
+	StorjSNService_StorjPutFile_FullMethodName    = "/proto.StorjSNService/StorjPutFile"
+	StorjSNService_StorjGetFile_FullMethodName    = "/proto.StorjSNService/StorjGetFile"
+	StorjSNService_StorjUpdateFile_FullMethodName = "/proto.StorjSNService/StorjUpdateFile"
 )
 
 // StorjSNServiceClient is the client API for StorjSNService service.
@@ -30,9 +29,8 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type StorjSNServiceClient interface {
 	StorjPutFile(ctx context.Context, in *StorjPutFRequest, opts ...grpc.CallOption) (*StorjPutFResponse, error)
-	StorjGetDataShard(ctx context.Context, in *StorjGetDSRequest, opts ...grpc.CallOption) (*StorjGetDSResponse, error)
-	StorjUpdateDataShards(ctx context.Context, in *StorjUpdDSsRequest, opts ...grpc.CallOption) (*StorjUpdDSsResponse, error)
-	StorjPutIncParityShards(ctx context.Context, in *StorjPutIPSRequest, opts ...grpc.CallOption) (*StorjPutIPSResponse, error)
+	StorjGetFile(ctx context.Context, in *StorjGetFRequest, opts ...grpc.CallOption) (*StorjGetFResponse, error)
+	StorjUpdateFile(ctx context.Context, in *StorjUpdFRequest, opts ...grpc.CallOption) (*StorjUpdFResponse, error)
 }
 
 type storjSNServiceClient struct {
@@ -52,27 +50,18 @@ func (c *storjSNServiceClient) StorjPutFile(ctx context.Context, in *StorjPutFRe
 	return out, nil
 }
 
-func (c *storjSNServiceClient) StorjGetDataShard(ctx context.Context, in *StorjGetDSRequest, opts ...grpc.CallOption) (*StorjGetDSResponse, error) {
-	out := new(StorjGetDSResponse)
-	err := c.cc.Invoke(ctx, StorjSNService_StorjGetDataShard_FullMethodName, in, out, opts...)
+func (c *storjSNServiceClient) StorjGetFile(ctx context.Context, in *StorjGetFRequest, opts ...grpc.CallOption) (*StorjGetFResponse, error) {
+	out := new(StorjGetFResponse)
+	err := c.cc.Invoke(ctx, StorjSNService_StorjGetFile_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *storjSNServiceClient) StorjUpdateDataShards(ctx context.Context, in *StorjUpdDSsRequest, opts ...grpc.CallOption) (*StorjUpdDSsResponse, error) {
-	out := new(StorjUpdDSsResponse)
-	err := c.cc.Invoke(ctx, StorjSNService_StorjUpdateDataShards_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *storjSNServiceClient) StorjPutIncParityShards(ctx context.Context, in *StorjPutIPSRequest, opts ...grpc.CallOption) (*StorjPutIPSResponse, error) {
-	out := new(StorjPutIPSResponse)
-	err := c.cc.Invoke(ctx, StorjSNService_StorjPutIncParityShards_FullMethodName, in, out, opts...)
+func (c *storjSNServiceClient) StorjUpdateFile(ctx context.Context, in *StorjUpdFRequest, opts ...grpc.CallOption) (*StorjUpdFResponse, error) {
+	out := new(StorjUpdFResponse)
+	err := c.cc.Invoke(ctx, StorjSNService_StorjUpdateFile_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -84,9 +73,8 @@ func (c *storjSNServiceClient) StorjPutIncParityShards(ctx context.Context, in *
 // for forward compatibility
 type StorjSNServiceServer interface {
 	StorjPutFile(context.Context, *StorjPutFRequest) (*StorjPutFResponse, error)
-	StorjGetDataShard(context.Context, *StorjGetDSRequest) (*StorjGetDSResponse, error)
-	StorjUpdateDataShards(context.Context, *StorjUpdDSsRequest) (*StorjUpdDSsResponse, error)
-	StorjPutIncParityShards(context.Context, *StorjPutIPSRequest) (*StorjPutIPSResponse, error)
+	StorjGetFile(context.Context, *StorjGetFRequest) (*StorjGetFResponse, error)
+	StorjUpdateFile(context.Context, *StorjUpdFRequest) (*StorjUpdFResponse, error)
 	mustEmbedUnimplementedStorjSNServiceServer()
 }
 
@@ -97,14 +85,11 @@ type UnimplementedStorjSNServiceServer struct {
 func (UnimplementedStorjSNServiceServer) StorjPutFile(context.Context, *StorjPutFRequest) (*StorjPutFResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method StorjPutFile not implemented")
 }
-func (UnimplementedStorjSNServiceServer) StorjGetDataShard(context.Context, *StorjGetDSRequest) (*StorjGetDSResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method StorjGetDataShard not implemented")
+func (UnimplementedStorjSNServiceServer) StorjGetFile(context.Context, *StorjGetFRequest) (*StorjGetFResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StorjGetFile not implemented")
 }
-func (UnimplementedStorjSNServiceServer) StorjUpdateDataShards(context.Context, *StorjUpdDSsRequest) (*StorjUpdDSsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method StorjUpdateDataShards not implemented")
-}
-func (UnimplementedStorjSNServiceServer) StorjPutIncParityShards(context.Context, *StorjPutIPSRequest) (*StorjPutIPSResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method StorjPutIncParityShards not implemented")
+func (UnimplementedStorjSNServiceServer) StorjUpdateFile(context.Context, *StorjUpdFRequest) (*StorjUpdFResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StorjUpdateFile not implemented")
 }
 func (UnimplementedStorjSNServiceServer) mustEmbedUnimplementedStorjSNServiceServer() {}
 
@@ -137,56 +122,38 @@ func _StorjSNService_StorjPutFile_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
-func _StorjSNService_StorjGetDataShard_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StorjGetDSRequest)
+func _StorjSNService_StorjGetFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StorjGetFRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(StorjSNServiceServer).StorjGetDataShard(ctx, in)
+		return srv.(StorjSNServiceServer).StorjGetFile(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: StorjSNService_StorjGetDataShard_FullMethodName,
+		FullMethod: StorjSNService_StorjGetFile_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(StorjSNServiceServer).StorjGetDataShard(ctx, req.(*StorjGetDSRequest))
+		return srv.(StorjSNServiceServer).StorjGetFile(ctx, req.(*StorjGetFRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _StorjSNService_StorjUpdateDataShards_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StorjUpdDSsRequest)
+func _StorjSNService_StorjUpdateFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StorjUpdFRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(StorjSNServiceServer).StorjUpdateDataShards(ctx, in)
+		return srv.(StorjSNServiceServer).StorjUpdateFile(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: StorjSNService_StorjUpdateDataShards_FullMethodName,
+		FullMethod: StorjSNService_StorjUpdateFile_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(StorjSNServiceServer).StorjUpdateDataShards(ctx, req.(*StorjUpdDSsRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _StorjSNService_StorjPutIncParityShards_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StorjPutIPSRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(StorjSNServiceServer).StorjPutIncParityShards(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: StorjSNService_StorjPutIncParityShards_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(StorjSNServiceServer).StorjPutIncParityShards(ctx, req.(*StorjPutIPSRequest))
+		return srv.(StorjSNServiceServer).StorjUpdateFile(ctx, req.(*StorjUpdFRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -203,16 +170,12 @@ var StorjSNService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _StorjSNService_StorjPutFile_Handler,
 		},
 		{
-			MethodName: "StorjGetDataShard",
-			Handler:    _StorjSNService_StorjGetDataShard_Handler,
+			MethodName: "StorjGetFile",
+			Handler:    _StorjSNService_StorjGetFile_Handler,
 		},
 		{
-			MethodName: "StorjUpdateDataShards",
-			Handler:    _StorjSNService_StorjUpdateDataShards_Handler,
-		},
-		{
-			MethodName: "StorjPutIncParityShards",
-			Handler:    _StorjSNService_StorjPutIncParityShards_Handler,
+			MethodName: "StorjUpdateFile",
+			Handler:    _StorjSNService_StorjUpdateFile_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

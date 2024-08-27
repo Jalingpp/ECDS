@@ -6,9 +6,8 @@ option go_package = "./";
 
 service StorjSNService {
     rpc StorjPutFile(StorjPutFRequest) returns (StorjPutFResponse);
-    rpc StorjGetDataShard(StorjGetDSRequest) returns (StorjGetDSResponse);
-    rpc StorjUpdateDataShards(StorjUpdDSsRequest) returns (StorjUpdDSsResponse);
-    rpc StorjPutIncParityShards(StorjPutIPSRequest) returns (StorjPutIPSResponse);
+    rpc StorjGetFile(StorjGetFRequest) returns (StorjGetFResponse);
+    rpc StorjUpdateFile(StorjUpdFRequest) returns (StorjUpdFResponse);
 }
 
 message Int32ArraySN {
@@ -20,8 +19,9 @@ message StorjPutFRequest {
     string clientId = 1;   //客户端ID
     string filename = 2;   //待存储的文件名
     int32 repno = 3;   //文件副本号
-    repeated Int32ArraySN dataShards = 4; //序列化后的数据分片
-    repeated bytes merkle_leaves = 5;   //所有叶子节点
+    int32 version = 4;  //文件版本号
+    repeated Int32ArraySN dataShards = 5; //序列化后的数据分片
+    repeated bytes merkle_leaves = 6;   //所有叶子节点
 }
 
 //存储节点对请求的回复
@@ -33,45 +33,34 @@ message StorjPutFResponse {
 }
 
 //客户端发起的向存储节点获取数据分片的请求
-message StorjGetDSRequest {
+message StorjGetFRequest {
     string clientId = 1;   //客户端ID
     string filename = 2;   //待存储的文件名
-    string dsno = 3;    //请求的分片序号
+    string rep = 3;    //请求的副本号
+    int32 dsnum = 4;  //数据分片的数量
 }
 
 //存储节点对请求的回复
-message StorjGetDSResponse {
-    string filename = 1;  //待存储的文件名
-    bytes datashard_serialized = 2; //序列化后的数据分片
+message StorjGetFResponse {
+    string filename = 1;  //文件名
+    int32 version = 2;    //文件版本号
+    repeated Int32ArraySN dataShards = 3; //数据分片
+    repeated bytes merkle_leaves = 4; //校验分片对应的叶节点
 }
 
 //客户端发起的向存储节点更新数据分片的请求
-message StorjUpdDSsRequest {
+message StorjUpdFRequest {
     string clientId = 1;   //客户端ID
     string filename = 2;   //待更新的文件名
-    repeated string dsnos = 3;    //文件分片的序号，数据分片为d-0,d-1,...，校验分片为p-0,p-1,...
-    repeated bytes datashards_serialized = 4; //序列化后的数据分片
+    int32 rep = 3;        //待更新的文件副本号
+    repeated Int32ArraySN dataShards = 4; //序列化后的数据分片
+    repeated bytes merkle_leaves = 5;   //所有叶子节点
 }
 
 //存储节点对请求的回复
-message StorjUpdDSsResponse {
-    string filename = 1;  //待更新的文件名
-    repeated string dsnos = 2;      //待更新的分片序号
-    string message = 3;  //是否已通过验证并完成更新等信息
-}
-
-//客户端发起的向存储节点放置校验分片增量的请求
-message StorjPutIPSRequest {
-    string clientId = 1;   //客户端ID
-    string filename = 2;   //待存储的文件名
-    string psno = 3;    //校验分片的序号
-    repeated bytes datashards_serialized = 4; //序列化后的校验分片增量
-    int32 randomnum = 5;   //一个随机数，用于生成存储证明
-}
-
-//存储节点对请求的回复
-message StorjPutIPSResponse {
-    string filename = 1;  //文件名
-    string psno = 2;      //已更新的校验分片序号
-    bytes pos_serialized = 3; //序列化后的校验块存储证明
+message StorjUpdFResponse {
+    string filename = 1;  //待存储的文件名
+    int32 repno = 2;   //文件副本号
+    bytes root = 3;   //存储节点计算得到的根哈希
+    string message = 4;  //是否已通过验证并存储等信息
 }
