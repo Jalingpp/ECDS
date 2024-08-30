@@ -36,9 +36,9 @@ func main() {
 
 	someBytes := make([]byte, abi.PaddedPieceSize(2048).Unpadded())
 
-	pieceFileA := requireTempFile(bytes.NewReader(paddedData[0:508]), 508)
+	pieceFileA := requireTempFile(bytes.NewReader(paddedData[0:1016]), 1016)
 	//将data写入pieceFileA的方法一
-	pieceCIDA, err := ffi.GeneratePieceCIDFromFile(sealProofType, pieceFileA, 508)
+	pieceCIDA, err := ffi.GeneratePieceCIDFromFile(sealProofType, pieceFileA, 1016)
 	if err != nil {
 		log.Println("GeneratePieceCIDFromFile Error:", err)
 	}
@@ -46,14 +46,14 @@ func main() {
 
 	// 将data写入pieceFileA的方法二
 	// _, _, err = ffi.WriteWithoutAlignment(sealProofType, pieceFileA, 515, stagedSectorFile)
-	_, _, err = ffi.WriteWithoutAlignment(sealProofType, pieceFileA, 508, stagedSectorFile)
+	_, _, err = ffi.WriteWithoutAlignment(sealProofType, pieceFileA, 1016, stagedSectorFile)
 	if err != nil {
 		fmt.Println("WriteWithoutAlignment", err.Error())
 	}
 	pieceFileA.Seek(0, 0)
 
-	pieceFileB := requireTempFile(bytes.NewReader(someBytes[0:1016]), 1016)
-	pieceCIDB, err := ffi.GeneratePieceCIDFromFile(sealProofType, pieceFileB, 1016)
+	pieceFileB := requireTempFile(bytes.NewReader(someBytes[0:508]), 508)
+	pieceCIDB, err := ffi.GeneratePieceCIDFromFile(sealProofType, pieceFileB, 508)
 	if err != nil {
 		fmt.Println("GeneratePieceCIDFromFile", err.Error())
 	}
@@ -61,7 +61,7 @@ func main() {
 	if err != nil {
 		fmt.Println("Seek", err.Error())
 	}
-	_, _, _, err = ffi.WriteWithAlignment(sealProofType, pieceFileB, 1016, stagedSectorFile, []abi.UnpaddedPieceSize{508})
+	_, _, _, err = ffi.WriteWithAlignment(sealProofType, pieceFileB, 508, stagedSectorFile, []abi.UnpaddedPieceSize{1016})
 	if err != nil {
 		fmt.Println("WriteWithAlignment", err.Error())
 	}
@@ -72,10 +72,10 @@ func main() {
 	// 	PieceCID: pieceCIDA,
 	// }}
 	publicPieces := []abi.PieceInfo{{
-		Size:     abi.UnpaddedPieceSize(508).Padded(),
+		Size:     abi.UnpaddedPieceSize(1016).Padded(),
 		PieceCID: pieceCIDA,
 	}, {
-		Size:     abi.UnpaddedPieceSize(1016).Padded(),
+		Size:     abi.UnpaddedPieceSize(508).Padded(),
 		PieceCID: pieceCIDB,
 	}}
 
@@ -169,14 +169,15 @@ func main() {
 	log.Println("verify winning post:", isValid)
 }
 
+// 508
 func PaddleData(data []byte) ([]byte, error) {
-	if len(data) < 508 {
-		padding := make([]byte, 508-len(data))
+	if len(data) < 1016 {
+		padding := make([]byte, 1016-len(data))
 		data = append(data, padding...)
 	}
 
 	// Calculate the next multiple of 508
-	paddedSize := ((len(data) + 507) / 508) * 508
+	paddedSize := ((len(data) + 1015) / 1016) * 1016
 
 	buf := bytes.NewBuffer(data)
 	paddedReader, _ := padreader.New(buf, uint64(paddedSize))
