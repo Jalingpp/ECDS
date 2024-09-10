@@ -1,0 +1,99 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = "./";
+
+//存储节点为服务器，审计方为客户端
+service FilecoinSNACService {
+    rpc FilecoinPutFileNotice(FilecoinClientStorageRequest) returns (FilecoinClientStorageResponse);
+    rpc FilecoinUpdateFileNotice(FilecoinClientUFRequest) returns (FilecoinClientUFResponse);
+    rpc FilecoinPreAuditSN(FilecoinPASNRequest) returns (FilecoinPASNResponse);
+    rpc FilecoinGetPosSN(FilecoinGAPSNRequest) returns (FilecoinGAPSNResponse);
+}
+
+//客户端发起的存储请求
+message FilecoinClientStorageRequest {
+    string clientId = 1;   //客户端ID
+    string filename = 2;   //待存储的文件名
+    int32 repno = 3;  //文件副本号
+    int32 version = 4;   //文件版本号
+}
+
+//存储节点对存储请求的回复
+message FilecoinClientStorageResponse {
+    string clientId = 1;   //客户端ID
+    string filename = 2;  //待存储的文件名
+    int32 repno = 3;  //文件副本号
+    string snid = 4;  //存储节点id
+    int32 minerID = 5;  //Filecoin存储证明矿工ID
+    repeated int32 sectorNum = 6;  //Filecoin存储证明扇区号
+    repeated string sealedCID = 7;  //Filecoin存储证明封装ID
+    repeated string unsealedCID = 8; //Filecoin存储证明未封装ID
+    repeated bytes proof = 9;    //Filecoin存储证明封装证明
+    string message = 10;  //附加信息
+}
+
+//客户端发起的更新数据分片请求
+message FilecoinClientUFRequest {
+    string clientId = 1;   //客户端ID
+    string filename = 2;   //待存储的文件名
+    int32 rep = 3;    //待更新的文件副本号
+    int32 version = 4;  //待更新的文件新版本号
+}
+
+//存储节点对更新数据分片请求的回复
+message FilecoinClientUFResponse {
+    string clientId = 1;   //客户端ID
+    string filename = 2;  //待存储的文件名
+    int32 repno = 3;  //文件副本号
+    string snid = 4;  //存储节点id
+    int32 minerID = 5;  //Filecoin存储证明矿工ID
+    repeated int32 sectorNum = 6;  //Filecoin存储证明扇区号
+    repeated string sealedCID = 7;  //Filecoin存储证明封装ID
+    repeated string unsealedCID = 8; //Filecoin存储证明未封装ID
+    repeated bytes proof = 9;    //Filecoin存储证明封装证明
+    string message = 10;  //附加信息
+}
+
+//审计方发起的预审计请求
+message FilecoinPASNRequest{
+    string auditno = 1;  //审计代号:audit1,audit2...
+    string snid = 2;   //请求的存储节点id
+    repeated string cidfnis = 3;  //挑战的文件副本clientId-filename-i
+    map<string,int32> cidfniv = 4;   //挑战的文件副本的版本，key:cid-fn-i,value:版本号
+    int32 totalrpcs = 5;    //这组rpc的总数
+    int32 currpcno = 6;     //当前RPC的id
+}
+
+//存储节点对审计方预审计请求的回复
+message FilecoinPASNResponse{
+    bool isready = 1;   //是否准备好审计，即可以预留快照
+    map<string, int32> fversion = 2;  //如果不能预留，告知审计方哪些文件的版本已过时，否则为空
+    int32 totalrpcs = 3;    //这组rpc的总数
+    int32 currpcno = 4;     //当前RPC的id
+}
+
+message Int32ArrayFilecoin {
+    repeated int32 values = 1;
+}
+
+//获取存储节点上所有存储分片的聚合存储证明的请求
+message FilecoinGAPSNRequest{
+    string auditno = 1;   //审计代号
+    bytes randomness = 2;   //挑战随机数
+    int32 totalrpcs = 3;    //这组rpc的总数
+    int32 currpcno = 4;     //当前RPC的id
+}
+
+message FilecoinBytesArray {
+    repeated bytes values = 1;
+}
+
+//存储节点对所有存储分片的聚合存储证明请求的回复
+message FilecoinGAPSNResponse{
+    string auditno = 1;   //审计代号
+    map<string, FilecoinBytesArray> proofs = 2;   //存储证明，key:cid-fn-i-sectnum,value:proofs
+    int32 totalrpcs = 3;    //这组rpc的总数
+    int32 currpcno = 4;     //当前RPC的id
+}

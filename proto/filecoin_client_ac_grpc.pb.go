@@ -22,7 +22,6 @@ const (
 	FilecoinACService_FilecoinSelectSNs_FullMethodName        = "/proto.FilecoinACService/FilecoinSelectSNs"
 	FilecoinACService_FilecoinPutFileCommit_FullMethodName    = "/proto.FilecoinACService/FilecoinPutFileCommit"
 	FilecoinACService_FilecoinGetFileSNs_FullMethodName       = "/proto.FilecoinACService/FilecoinGetFileSNs"
-	FilecoinACService_FilecoinGetRandRoot_FullMethodName      = "/proto.FilecoinACService/FilecoinGetRandRoot"
 	FilecoinACService_FilecoinUpdateFileReq_FullMethodName    = "/proto.FilecoinACService/FilecoinUpdateFileReq"
 	FilecoinACService_FilecoinUpdateFileCommit_FullMethodName = "/proto.FilecoinACService/FilecoinUpdateFileCommit"
 )
@@ -34,7 +33,6 @@ type FilecoinACServiceClient interface {
 	FilecoinSelectSNs(ctx context.Context, in *FilecoinStorageRequest, opts ...grpc.CallOption) (*FilecoinStorageResponse, error)
 	FilecoinPutFileCommit(ctx context.Context, in *FilecoinPFCRequest, opts ...grpc.CallOption) (*FilecoinPFCResponse, error)
 	FilecoinGetFileSNs(ctx context.Context, in *FilecoinGFACRequest, opts ...grpc.CallOption) (*FilecoinGFACResponse, error)
-	FilecoinGetRandRoot(ctx context.Context, in *FilecoinGRRRequest, opts ...grpc.CallOption) (*FilecoinGRRResponse, error)
 	FilecoinUpdateFileReq(ctx context.Context, in *FilecoinUFRequest, opts ...grpc.CallOption) (*FilecoinUFResponse, error)
 	FilecoinUpdateFileCommit(ctx context.Context, in *FilecoinUFCRequest, opts ...grpc.CallOption) (*FilecoinUFCResponse, error)
 }
@@ -77,16 +75,6 @@ func (c *filecoinACServiceClient) FilecoinGetFileSNs(ctx context.Context, in *Fi
 	return out, nil
 }
 
-func (c *filecoinACServiceClient) FilecoinGetRandRoot(ctx context.Context, in *FilecoinGRRRequest, opts ...grpc.CallOption) (*FilecoinGRRResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(FilecoinGRRResponse)
-	err := c.cc.Invoke(ctx, FilecoinACService_FilecoinGetRandRoot_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *filecoinACServiceClient) FilecoinUpdateFileReq(ctx context.Context, in *FilecoinUFRequest, opts ...grpc.CallOption) (*FilecoinUFResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(FilecoinUFResponse)
@@ -114,7 +102,6 @@ type FilecoinACServiceServer interface {
 	FilecoinSelectSNs(context.Context, *FilecoinStorageRequest) (*FilecoinStorageResponse, error)
 	FilecoinPutFileCommit(context.Context, *FilecoinPFCRequest) (*FilecoinPFCResponse, error)
 	FilecoinGetFileSNs(context.Context, *FilecoinGFACRequest) (*FilecoinGFACResponse, error)
-	FilecoinGetRandRoot(context.Context, *FilecoinGRRRequest) (*FilecoinGRRResponse, error)
 	FilecoinUpdateFileReq(context.Context, *FilecoinUFRequest) (*FilecoinUFResponse, error)
 	FilecoinUpdateFileCommit(context.Context, *FilecoinUFCRequest) (*FilecoinUFCResponse, error)
 	mustEmbedUnimplementedFilecoinACServiceServer()
@@ -135,9 +122,6 @@ func (UnimplementedFilecoinACServiceServer) FilecoinPutFileCommit(context.Contex
 }
 func (UnimplementedFilecoinACServiceServer) FilecoinGetFileSNs(context.Context, *FilecoinGFACRequest) (*FilecoinGFACResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method FilecoinGetFileSNs not implemented")
-}
-func (UnimplementedFilecoinACServiceServer) FilecoinGetRandRoot(context.Context, *FilecoinGRRRequest) (*FilecoinGRRResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method FilecoinGetRandRoot not implemented")
 }
 func (UnimplementedFilecoinACServiceServer) FilecoinUpdateFileReq(context.Context, *FilecoinUFRequest) (*FilecoinUFResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method FilecoinUpdateFileReq not implemented")
@@ -220,24 +204,6 @@ func _FilecoinACService_FilecoinGetFileSNs_Handler(srv interface{}, ctx context.
 	return interceptor(ctx, in, info, handler)
 }
 
-func _FilecoinACService_FilecoinGetRandRoot_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(FilecoinGRRRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(FilecoinACServiceServer).FilecoinGetRandRoot(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: FilecoinACService_FilecoinGetRandRoot_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(FilecoinACServiceServer).FilecoinGetRandRoot(ctx, req.(*FilecoinGRRRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _FilecoinACService_FilecoinUpdateFileReq_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(FilecoinUFRequest)
 	if err := dec(in); err != nil {
@@ -292,10 +258,6 @@ var FilecoinACService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "FilecoinGetFileSNs",
 			Handler:    _FilecoinACService_FilecoinGetFileSNs_Handler,
-		},
-		{
-			MethodName: "FilecoinGetRandRoot",
-			Handler:    _FilecoinACService_FilecoinGetRandRoot_Handler,
 		},
 		{
 			MethodName: "FilecoinUpdateFileReq",

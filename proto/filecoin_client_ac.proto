@@ -8,7 +8,6 @@ service FilecoinACService {
     rpc FilecoinSelectSNs(FilecoinStorageRequest) returns (FilecoinStorageResponse);      //客户端向AC申请存储文件，获取存储各分片的存储节点id
     rpc FilecoinPutFileCommit(FilecoinPFCRequest) returns (FilecoinPFCResponse);          //客户端向AC确认完成文件存储
     rpc FilecoinGetFileSNs(FilecoinGFACRequest) returns (FilecoinGFACResponse);           //客户端向AC请求存储文件数据分片的存储节点id
-    rpc FilecoinGetRandRoot(FilecoinGRRRequest) returns (FilecoinGRRResponse);            //客户端向AC请求某个存储文件副本的随机数集和默克尔根哈希
     rpc FilecoinUpdateFileReq(FilecoinUFRequest) returns (FilecoinUFResponse);            //客户端向AC请求修改存储文件所有副本的数据
     rpc FilecoinUpdateFileCommit(FilecoinUFCRequest) returns (FilecoinUFCResponse);       //客户端向AC确认完成所有文件副本的数据更新
 }
@@ -34,8 +33,6 @@ message Int32ArrayACFilecoin {
 message FilecoinPFCRequest {
     string clientId = 1;   //客户端ID
     string filename = 2;   //文件名
-    map<string, Int32ArrayACFilecoin> randmap = 3;  //各副本对应的随机数集
-    map<string, bytes> rootmap = 4; //各副本对应的默克尔树根哈希
 }
 
 //审计方对写元信息请求的回复
@@ -54,41 +51,27 @@ message FilecoinGFACRequest {
 message FilecoinGFACResponse {
     string filename = 1;  //请求的文件名
     int32 version = 2;    //文件版本号
-    map<string, string> snsds = 3;  //数据分片所在的存储节点id，key:filename-i,value:snid
-}
-
-//客户端发起的获取文件请求
-message FilecoinGRRRequest {
-    string clientId = 1;   //客户端ID
-    string filename = 2;   //请求的文件名
-    string rep = 3;        //请求的文件副本号
-}
-
-//审计方对获取文件请求的回复
-message FilecoinGRRResponse {
-    Int32ArrayACFilecoin rands = 1;  //请求的副本对应的随机数集
-    bytes root = 2;  //请求的副本对应的默克尔树根
+    map<string, string> snsds = 3;  //数据副本所在的存储节点id，key:client-filename-i,value:snid
 }
 
 //客户端发起的文件数据更新请求
 message FilecoinUFRequest {
     string clientId = 1;   //客户端ID
     string filename = 2;   //文件名
-    int32 version = 3;     //文件版本号
 }
 
 //审计方对数据分片元信息更新请求的回复
 message FilecoinUFResponse {
     string filename = 1;  //待更新的文件名
-    map<string, string> snsds = 2;  //数据分片所在的存储节点id，key:filename-i,value:snid
+    int32 version = 2;  //当前文件版本号
+    map<string, string> snsds = 3;  //数据分片所在的存储节点id，key:cid-filename-i,value:snid
 }
 
 //客户端发起的数据分片元信息更新请求
 message FilecoinUFCRequest {
     string clientId = 1;   //客户端ID
     string filename = 2;   //文件名
-    map<string, Int32ArrayACFilecoin> randmap = 3;  //各副本对应的随机数集
-    map<string, bytes> rootmap = 4; //各副本对应的默克尔树根哈希
+    int32 newversion = 3;   //新版本号
 }
 
 //审计方对数据分片元信息更新请求的回复

@@ -17,7 +17,7 @@ import (
 )
 
 func main() {
-	minerID := abi.ActorID(42)
+	minerID := abi.ActorID(52)
 	sealProofType := abi.RegisteredSealProof_StackedDrg2KiBV1
 
 	sectorCacheDirPath := requireTempDirPath("sector-cache-dir")
@@ -36,24 +36,22 @@ func main() {
 
 	someBytes := make([]byte, abi.PaddedPieceSize(2048).Unpadded())
 
-	pieceFileA := requireTempFile(bytes.NewReader(paddedData[0:1016]), 1016)
+	pieceFileA := requireTempFile(bytes.NewReader(paddedData[0:508]), 508)
 	//将data写入pieceFileA的方法一
-	pieceCIDA, err := ffi.GeneratePieceCIDFromFile(sealProofType, pieceFileA, 1016)
+	pieceCIDA, err := ffi.GeneratePieceCIDFromFile(sealProofType, pieceFileA, 508)
 	if err != nil {
 		log.Println("GeneratePieceCIDFromFile Error:", err)
 	}
 	pieceFileA.Seek(0, 0)
 
 	// 将data写入pieceFileA的方法二
-	// _, _, err = ffi.WriteWithoutAlignment(sealProofType, pieceFileA, 515, stagedSectorFile)
-	_, _, err = ffi.WriteWithoutAlignment(sealProofType, pieceFileA, 1016, stagedSectorFile)
+	_, _, err = ffi.WriteWithoutAlignment(sealProofType, pieceFileA, 508, stagedSectorFile)
 	if err != nil {
 		fmt.Println("WriteWithoutAlignment", err.Error())
 	}
-	pieceFileA.Seek(0, 0)
 
-	pieceFileB := requireTempFile(bytes.NewReader(someBytes[0:508]), 508)
-	pieceCIDB, err := ffi.GeneratePieceCIDFromFile(sealProofType, pieceFileB, 508)
+	pieceFileB := requireTempFile(bytes.NewReader(someBytes[0:1016]), 1016)
+	pieceCIDB, err := ffi.GeneratePieceCIDFromFile(sealProofType, pieceFileB, 1016)
 	if err != nil {
 		fmt.Println("GeneratePieceCIDFromFile", err.Error())
 	}
@@ -61,7 +59,7 @@ func main() {
 	if err != nil {
 		fmt.Println("Seek", err.Error())
 	}
-	_, _, _, err = ffi.WriteWithAlignment(sealProofType, pieceFileB, 508, stagedSectorFile, []abi.UnpaddedPieceSize{1016})
+	_, _, _, err = ffi.WriteWithAlignment(sealProofType, pieceFileB, 1016, stagedSectorFile, []abi.UnpaddedPieceSize{508})
 	if err != nil {
 		fmt.Println("WriteWithAlignment", err.Error())
 	}
@@ -72,17 +70,17 @@ func main() {
 	// 	PieceCID: pieceCIDA,
 	// }}
 	publicPieces := []abi.PieceInfo{{
-		Size:     abi.UnpaddedPieceSize(1016).Padded(),
+		Size:     abi.UnpaddedPieceSize(508).Padded(),
 		PieceCID: pieceCIDA,
 	}, {
-		Size:     abi.UnpaddedPieceSize(508).Padded(),
+		Size:     abi.UnpaddedPieceSize(1016).Padded(),
 		PieceCID: pieceCIDB,
 	}}
 
 	// 为sector中的数据分片生成未封装CID
 	// _, err = ffi.GenerateUnsealedCID(sealProofType, publicPieces)
 	// ffi.GenerateUnsealedCID(sealProofType, publicPieces)
-	sectorNum := abi.SectorNumber(1)
+	sectorNum := abi.SectorNumber(2)
 	ticket := abi.SealRandomness{5, 4, 2}
 	seed := abi.InteractiveSealRandomness{7, 4, 2}
 	// 预提交封装
@@ -100,11 +98,12 @@ func main() {
 	if err != nil {
 		fmt.Println("SealCommitPhase1", err.Error())
 	}
+	log.Println("sealCommitPhase1Output:", sealCommitPhase1Output)
 	proof, err := ffi.SealCommitPhase2(sealCommitPhase1Output, sectorNum, minerID)
 	if err != nil {
 		fmt.Println("SealCommitPhase2", err.Error())
 	}
-	// log.Println("sealproof:", proof)
+	log.Println("sealproof:", proof)
 	// // 验证封装证明
 	isValid, err := ffi.VerifySeal(prooftypes.SealVerifyInfo{
 		SectorID: abi.SectorID{
@@ -142,7 +141,7 @@ func main() {
 	}}
 
 	// 生成存储证明审计挑战
-	randomness := [32]byte{9, 9, 9}
+	randomness := [32]byte{14, 8, 12}
 	indicesInProvingSet, err := ffi.GenerateWinningPoStSectorChallenge(winningPostProofType, minerID, randomness[:], uint64(len(provingSet)))
 	if err != nil {
 		fmt.Println("GenerateWinningPoStSectorChallenge", err.Error())
@@ -169,15 +168,14 @@ func main() {
 	log.Println("verify winning post:", isValid)
 }
 
-// 508
 func PaddleData(data []byte) ([]byte, error) {
-	if len(data) < 1016 {
-		padding := make([]byte, 1016-len(data))
+	if len(data) < 508 {
+		padding := make([]byte, 508-len(data))
 		data = append(data, padding...)
 	}
 
 	// Calculate the next multiple of 508
-	paddedSize := ((len(data) + 1015) / 1016) * 1016
+	paddedSize := ((len(data) + 507) / 508) * 508
 
 	buf := bytes.NewBuffer(data)
 	paddedReader, _ := padreader.New(buf, uint64(paddedSize))

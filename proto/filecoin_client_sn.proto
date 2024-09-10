@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = "./";
+
+service FilecoinSNService {
+    rpc FilecoinPutFile(FilecoinPutFRequest) returns (FilecoinPutFResponse);
+    rpc FilecoinGetFile(FilecoinGetFRequest) returns (FilecoinGetFResponse);
+    rpc FilecoinUpdateFile(FilecoinUpdFRequest) returns (FilecoinUpdFResponse);
+}
+
+//客户端发起的向存储节点放置数据分片的请求
+message FilecoinPutFRequest {
+    string clientId = 1;   //客户端ID
+    string filename = 2;   //待存储的文件名
+    int32 repno = 3;   //文件副本号
+    int32 version = 4;  //文件版本号
+    string content = 5; //文件内容
+}
+
+//存储节点对请求的回复
+message FilecoinPutFResponse {
+    string filename = 1;  //待存储的文件名
+    int32 repno = 2;   //文件副本号
+    string message = 3;  //是否已通过验证并存储等信息,存储完成返回OK,否则返回NO
+}
+
+//客户端发起的向存储节点获取数据分片的请求
+message FilecoinGetFRequest {
+    string clientId = 1;   //客户端ID
+    string filename = 2;   //待存储的文件名
+    string rep = 3;    //请求的副本号
+}
+
+//存储节点对请求的回复
+message FilecoinGetFResponse {
+    string filename = 1;  //文件名
+    int32 version = 2;    //文件版本号
+    string content = 3;   //文件内容
+}
+
+//客户端发起的向存储节点更新数据分片的请求
+message FilecoinUpdFRequest {
+    string clientId = 1;   //客户端ID
+    string filename = 2;   //待更新的文件名
+    int32 rep = 3;        //待更新的文件副本号
+    int32 originversion = 4;   //原始版本
+    string newcontent = 5;   //新的内容
+}
+
+//存储节点对请求的回复
+message FilecoinUpdFResponse {
+    string filename = 1;  //待存储的文件名
+    int32 repno = 2;   //文件副本号
+    string message = 3;  //是否已通过验证并存储等信息
+}

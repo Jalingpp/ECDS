@@ -1,4 +1,4 @@
-package storjnodes
+package baselines
 
 import (
 	"ECDS/encode"
