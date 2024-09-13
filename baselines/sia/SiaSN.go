@@ -62,7 +62,7 @@ func NewSiaSN(snid string, snaddr string) *SiaSN {
 }
 
 // 【供客户端使用的RPC】存储节点验证分片序号是否与审计方通知的一致，验签，存放数据分片，告知审计方已存储或存储失败，给客户端回复消息
-func (sn *SiaSN) SiaPutFile(ctx context.Context, preq *pb.SiaPutFRequest) (*pb.SiaPutFResponse, error) {
+func (sn *SiaSN) SiaPutFileDS(ctx context.Context, preq *pb.SiaPutFRequest) (*pb.SiaPutFResponse, error) {
 	clientId := preq.ClientId
 	filename := preq.Filename
 	dsno := preq.Dsno
@@ -87,7 +87,7 @@ func (sn *SiaSN) SiaPutFile(ctx context.Context, preq *pb.SiaPutFRequest) (*pb.S
 		return &pb.SiaPutFResponse{Filename: preq.Filename, Dsno: preq.Dsno, Message: message}, e
 	}
 	sn.FileShardsMap[cid_fn] = preq.DataShard
-	sn.FileVersionMap[cid_fn] = int(preq.Version)
+	sn.FileVersionMap[preq.ClientId+"-"+preq.Filename] = int(preq.Version)
 	sn.FSLRMMMutex.Unlock()
 	//2-3-放置客户端文件名列表
 	sn.CFMMutex.Lock()
@@ -142,4 +142,27 @@ func (sn *SiaSN) SiaPutFileNotice(ctx context.Context, preq *pb.SiaClientStorage
 	sn.ClientMerkleRootMap[preq.ClientId] = root
 	sn.CFMMutex.Unlock()
 	return &pb.SiaClientStorageResponse{ClientId: clientId, Filename: filename, Dsno: dsno, Version: 1, Merklepath: paths, Root: root, Index: int32(index)}, nil
+}
+
+// 【供客户端使用的RPC】
+func (sn *SiaSN) SiaGetFileDS(ctx context.Context, req *pb.SiaGetFRequest) (*pb.SiaGetFResponse, error) {
+	cid_fni := req.ClientId + "-" + req.Filename + "-" + req.Dsno
+	cid_fn := req.ClientId + "-" + req.Filename
+	sn.FSLRMMMutex.RLock()
+	if sn.FileShardsMap[cid_fni] == nil {
+		sn.FSLRMMMutex.RUnlock()
+		e := errors.New("datashard not exist")
+		return nil, e
+	} else {
+		seds := sn.FileShardsMap[cid_fni]
+		version := sn.FileVersionMap[cid_fn]
+		sn.FSLRMMMutex.RUnlock()
+		//构建数据分片的存储证明
+		sn.CFMMutex.RLock()
+		leafHashes := sn.ClientDSHashMap[req.ClientId]
+		index := sn.ClinetDSHashIndexMap[cid_fni]
+		_, paths := util.BuildMerkleTreeAndGeneratePath(leafHashes, index)
+		sn.CFMMutex.RUnlock()
+		return &pb.SiaGetFResponse{Filename: req.Filename, Version: int32(version), DataShard: seds, Merklepath: paths, Index: int32(index)}, nil
+	}
 }

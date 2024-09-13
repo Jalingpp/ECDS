@@ -19,18 +19,18 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	SiaSNService_SiaPutFile_FullMethodName    = "/proto.SiaSNService/SiaPutFile"
-	SiaSNService_SiaGetFile_FullMethodName    = "/proto.SiaSNService/SiaGetFile"
-	SiaSNService_SiaUpdateFile_FullMethodName = "/proto.SiaSNService/SiaUpdateFile"
+	SiaSNService_SiaPutFileDS_FullMethodName    = "/proto.SiaSNService/SiaPutFileDS"
+	SiaSNService_SiaGetFileDS_FullMethodName    = "/proto.SiaSNService/SiaGetFileDS"
+	SiaSNService_SiaUpdateFileDS_FullMethodName = "/proto.SiaSNService/SiaUpdateFileDS"
 )
 
 // SiaSNServiceClient is the client API for SiaSNService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type SiaSNServiceClient interface {
-	SiaPutFile(ctx context.Context, in *SiaPutFRequest, opts ...grpc.CallOption) (*SiaPutFResponse, error)
-	SiaGetFile(ctx context.Context, in *SiaGetFRequest, opts ...grpc.CallOption) (*SiaGetFResponse, error)
-	SiaUpdateFile(ctx context.Context, in *SiaUpdFRequest, opts ...grpc.CallOption) (*SiaUpdFResponse, error)
+	SiaPutFileDS(ctx context.Context, in *SiaPutFRequest, opts ...grpc.CallOption) (*SiaPutFResponse, error)
+	SiaGetFileDS(ctx context.Context, in *SiaGetFRequest, opts ...grpc.CallOption) (*SiaGetFResponse, error)
+	SiaUpdateFileDS(ctx context.Context, in *SiaUpdFRequest, opts ...grpc.CallOption) (*SiaUpdFResponse, error)
 }
 
 type siaSNServiceClient struct {
@@ -41,30 +41,30 @@ func NewSiaSNServiceClient(cc grpc.ClientConnInterface) SiaSNServiceClient {
 	return &siaSNServiceClient{cc}
 }
 
-func (c *siaSNServiceClient) SiaPutFile(ctx context.Context, in *SiaPutFRequest, opts ...grpc.CallOption) (*SiaPutFResponse, error) {
+func (c *siaSNServiceClient) SiaPutFileDS(ctx context.Context, in *SiaPutFRequest, opts ...grpc.CallOption) (*SiaPutFResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SiaPutFResponse)
-	err := c.cc.Invoke(ctx, SiaSNService_SiaPutFile_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, SiaSNService_SiaPutFileDS_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *siaSNServiceClient) SiaGetFile(ctx context.Context, in *SiaGetFRequest, opts ...grpc.CallOption) (*SiaGetFResponse, error) {
+func (c *siaSNServiceClient) SiaGetFileDS(ctx context.Context, in *SiaGetFRequest, opts ...grpc.CallOption) (*SiaGetFResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SiaGetFResponse)
-	err := c.cc.Invoke(ctx, SiaSNService_SiaGetFile_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, SiaSNService_SiaGetFileDS_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *siaSNServiceClient) SiaUpdateFile(ctx context.Context, in *SiaUpdFRequest, opts ...grpc.CallOption) (*SiaUpdFResponse, error) {
+func (c *siaSNServiceClient) SiaUpdateFileDS(ctx context.Context, in *SiaUpdFRequest, opts ...grpc.CallOption) (*SiaUpdFResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SiaUpdFResponse)
-	err := c.cc.Invoke(ctx, SiaSNService_SiaUpdateFile_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, SiaSNService_SiaUpdateFileDS_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -75,9 +75,9 @@ func (c *siaSNServiceClient) SiaUpdateFile(ctx context.Context, in *SiaUpdFReque
 // All implementations must embed UnimplementedSiaSNServiceServer
 // for forward compatibility.
 type SiaSNServiceServer interface {
-	SiaPutFile(context.Context, *SiaPutFRequest) (*SiaPutFResponse, error)
-	SiaGetFile(context.Context, *SiaGetFRequest) (*SiaGetFResponse, error)
-	SiaUpdateFile(context.Context, *SiaUpdFRequest) (*SiaUpdFResponse, error)
+	SiaPutFileDS(context.Context, *SiaPutFRequest) (*SiaPutFResponse, error)
+	SiaGetFileDS(context.Context, *SiaGetFRequest) (*SiaGetFResponse, error)
+	SiaUpdateFileDS(context.Context, *SiaUpdFRequest) (*SiaUpdFResponse, error)
 	mustEmbedUnimplementedSiaSNServiceServer()
 }
 
@@ -88,14 +88,14 @@ type SiaSNServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedSiaSNServiceServer struct{}
 
-func (UnimplementedSiaSNServiceServer) SiaPutFile(context.Context, *SiaPutFRequest) (*SiaPutFResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SiaPutFile not implemented")
+func (UnimplementedSiaSNServiceServer) SiaPutFileDS(context.Context, *SiaPutFRequest) (*SiaPutFResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SiaPutFileDS not implemented")
 }
-func (UnimplementedSiaSNServiceServer) SiaGetFile(context.Context, *SiaGetFRequest) (*SiaGetFResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SiaGetFile not implemented")
+func (UnimplementedSiaSNServiceServer) SiaGetFileDS(context.Context, *SiaGetFRequest) (*SiaGetFResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SiaGetFileDS not implemented")
 }
-func (UnimplementedSiaSNServiceServer) SiaUpdateFile(context.Context, *SiaUpdFRequest) (*SiaUpdFResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SiaUpdateFile not implemented")
+func (UnimplementedSiaSNServiceServer) SiaUpdateFileDS(context.Context, *SiaUpdFRequest) (*SiaUpdFResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SiaUpdateFileDS not implemented")
 }
 func (UnimplementedSiaSNServiceServer) mustEmbedUnimplementedSiaSNServiceServer() {}
 func (UnimplementedSiaSNServiceServer) testEmbeddedByValue()                      {}
@@ -118,56 +118,56 @@ func RegisterSiaSNServiceServer(s grpc.ServiceRegistrar, srv SiaSNServiceServer)
 	s.RegisterService(&SiaSNService_ServiceDesc, srv)
 }
 
-func _SiaSNService_SiaPutFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _SiaSNService_SiaPutFileDS_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SiaPutFRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SiaSNServiceServer).SiaPutFile(ctx, in)
+		return srv.(SiaSNServiceServer).SiaPutFileDS(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: SiaSNService_SiaPutFile_FullMethodName,
+		FullMethod: SiaSNService_SiaPutFileDS_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SiaSNServiceServer).SiaPutFile(ctx, req.(*SiaPutFRequest))
+		return srv.(SiaSNServiceServer).SiaPutFileDS(ctx, req.(*SiaPutFRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _SiaSNService_SiaGetFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _SiaSNService_SiaGetFileDS_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SiaGetFRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SiaSNServiceServer).SiaGetFile(ctx, in)
+		return srv.(SiaSNServiceServer).SiaGetFileDS(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: SiaSNService_SiaGetFile_FullMethodName,
+		FullMethod: SiaSNService_SiaGetFileDS_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SiaSNServiceServer).SiaGetFile(ctx, req.(*SiaGetFRequest))
+		return srv.(SiaSNServiceServer).SiaGetFileDS(ctx, req.(*SiaGetFRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _SiaSNService_SiaUpdateFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _SiaSNService_SiaUpdateFileDS_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SiaUpdFRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SiaSNServiceServer).SiaUpdateFile(ctx, in)
+		return srv.(SiaSNServiceServer).SiaUpdateFileDS(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: SiaSNService_SiaUpdateFile_FullMethodName,
+		FullMethod: SiaSNService_SiaUpdateFileDS_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SiaSNServiceServer).SiaUpdateFile(ctx, req.(*SiaUpdFRequest))
+		return srv.(SiaSNServiceServer).SiaUpdateFileDS(ctx, req.(*SiaUpdFRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -180,16 +180,16 @@ var SiaSNService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*SiaSNServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "SiaPutFile",
-			Handler:    _SiaSNService_SiaPutFile_Handler,
+			MethodName: "SiaPutFileDS",
+			Handler:    _SiaSNService_SiaPutFileDS_Handler,
 		},
 		{
-			MethodName: "SiaGetFile",
-			Handler:    _SiaSNService_SiaGetFile_Handler,
+			MethodName: "SiaGetFileDS",
+			Handler:    _SiaSNService_SiaGetFileDS_Handler,
 		},
 		{
-			MethodName: "SiaUpdateFile",
-			Handler:    _SiaSNService_SiaUpdateFile_Handler,
+			MethodName: "SiaUpdateFileDS",
+			Handler:    _SiaSNService_SiaUpdateFileDS_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

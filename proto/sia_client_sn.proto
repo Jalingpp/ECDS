@@ -5,9 +5,9 @@ package proto;
 option go_package = "./";
 
 service SiaSNService {
-    rpc SiaPutFile(SiaPutFRequest) returns (SiaPutFResponse);
-    rpc SiaGetFile(SiaGetFRequest) returns (SiaGetFResponse);
-    rpc SiaUpdateFile(SiaUpdFRequest) returns (SiaUpdFResponse);
+    rpc SiaPutFileDS(SiaPutFRequest) returns (SiaPutFResponse);
+    rpc SiaGetFileDS(SiaGetFRequest) returns (SiaGetFResponse);
+    rpc SiaUpdateFileDS(SiaUpdFRequest) returns (SiaUpdFResponse);
 }
 
 message Int32ArraySNSia {
@@ -34,16 +34,16 @@ message SiaPutFResponse {
 message SiaGetFRequest {
     string clientId = 1;   //客户端ID
     string filename = 2;   //待存储的文件名
-    string rep = 3;    //请求的副本号
-    int32 dsnum = 4;  //数据分片的数量
+    string dsno = 3;    //请求的分片号
 }
 
 //存储节点对请求的回复
 message SiaGetFResponse {
     string filename = 1;  //文件名
     int32 version = 2;    //文件版本号
-    repeated Int32ArraySNSia dataShards = 3; //数据分片
-    repeated bytes merkle_leaves = 4; //校验分片对应的叶节点
+    repeated int32 dataShard = 3; //序列化后的数据分片
+    repeated bytes merklepath = 4;   //数据分片的可验证存储路径
+    int32 index = 5;     //数据分片所在叶子列表中的索引
 }
 
 //客户端发起的向存储节点更新数据分片的请求

@@ -4,9 +4,11 @@ import (
 	"ECDS/encode"
 	pb "ECDS/proto" // 根据实际路径修改
 	"ECDS/util"
+	"bytes"
 	"context"
 	"log"
 	"strconv"
+	"sync"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -77,7 +79,7 @@ func (client *SiaClient) SiaPutFile(filepath string, filename string) {
 				Version:   int32(1),
 				DataShard: datashards[i],
 			}
-			_, err := client.SNRPCs[sn].SiaPutFile(context.Background(), pf_req)
+			_, err := client.SNRPCs[sn].SiaPutFileDS(context.Background(), pf_req)
 			if err != nil {
 				log.Println("storagenode could not process request error:", err)
 			}
@@ -98,7 +100,7 @@ func (client *SiaClient) SiaPutFile(filepath string, filename string) {
 				DataShard: datashards[i+len(sn4ds)],
 			}
 			// 3.3.2 - 发送分片存入请求给存储节点
-			_, err := client.SNRPCs[sn].SiaPutFile(context.Background(), pds_req)
+			_, err := client.SNRPCs[sn].SiaPutFileDS(context.Background(), pds_req)
 			if err != nil {
 				log.Fatalf("storagenode could not process request: %v", err)
 			}
@@ -159,4 +161,193 @@ func (client *SiaClient) SiaRSECFilestr(filestr string) [][]int32 {
 		panic(err)
 	}
 	return dataSlice
+}
+
+// 客户端获取文件:isorigin=true,则只返回原始dsnum个分片的文件，否则返回所有
+func (client *SiaClient) SiaGetFile(filename string, isorigin bool) string {
+	fileDSs := make(map[string][]int32)  //记录存储节点返回的文件分片，用于最后拼接完整文件,key:dsno
+	errdsnosn := make(map[string]string) //记录未正常返回分片的snid，key:dsno,value:snid
+	fdssMutex := sync.Mutex{}
+	//1-构建获取文件所在的SNs请求消息
+	gfsns_req := &pb.SiaGFACRequest{
+		ClientId: client.ClientID,
+		Filename: filename,
+	}
+
+	// 2-发送获取文件所在的SNs请求消息给审计方
+	gfsns_res, err := client.ACRPC.SiaGetFileSNs(context.Background(), gfsns_req)
+	if err != nil {
+		log.Fatalf("auditor could not process request: %v", err)
+	}
+
+	// 3-向SNs请求数据分片
+	dssnmap := gfsns_res.Snsds
+	snrootmap := gfsns_res.Roots
+	done := make(chan struct{})
+	for key, value := range dssnmap {
+		go func(dsno string, snid string) {
+			// 3.1-构造获取分片请求消息
+			gds_req := &pb.SiaGetFRequest{ClientId: client.ClientID, Filename: filename, Dsno: dsno}
+			// 3.2-向存储节点发送请求
+			gds_res, err := client.SNRPCs[snid].SiaGetFileDS(context.Background(), gds_req)
+			if err != nil {
+				log.Println("storagenode could not process request:", err)
+				errdsnosn[dsno] = snid
+			} else if gds_res.DataShard == nil {
+				log.Println("sn", snid, "return nil datashard", dsno)
+				errdsnosn[dsno] = snid
+			} else {
+				// 3.3-验证数据分片有效性
+				// 3.3.1-版本一致性检查
+				if gfsns_res.Version != gds_res.Version {
+					log.Println("sn", snid, "return outdated datashard", dsno, "versionAC:", gfsns_res.Version, "versionSN:", gds_res.Version)
+					errdsnosn[dsno] = snid
+				}
+				// 3.3.2-数据有效性检查
+				datashard := gds_res.DataShard
+				dsHash := util.Hash([]byte(util.Int32SliceToStr(datashard)))
+				rootAC := snrootmap[snid]
+				rootSN := util.GenerateRootByPaths(dsHash, int(gds_res.Index), gds_res.Merklepath)
+				if !bytes.Equal(rootAC, rootSN) {
+					log.Println("datashard ", dsno, "verification not pass.")
+					errdsnosn[dsno] = snid
+				}
+				// 3.3-将获取到的分片加入到列表中
+				fdssMutex.Lock()
+				fileDSs[dsno] = datashard
+				fdssMutex.Unlock()
+			}
+			// 通知主线程任务完成
+			done <- struct{}{}
+		}(key, value)
+	}
+	// 等待所有协程完成
+	for i := 0; i < len(dssnmap); i++ {
+		<-done
+	}
+	// 4-故障仲裁与校验块申请,如果故障一直存在则一直申请，直到系统中备用校验块不足而报错
+	// 4.0-设置sn黑名单
+	blacksns := make(map[string]string) //key:snid,vlaue:h-黑,白是分片序号
+	for {
+		// fmt.Println("errdsnosn:", errdsnosn)
+		if len(errdsnosn) == 0 {
+			break
+		} else {
+			// 4.0-将未返回分片的存储节点id加入黑名单
+			for _, value := range errdsnosn {
+				blacksns[value] = "h"
+			}
+			// 4.1-构造请求消息
+			er_req := &pb.SiaGDSERequest{ClientId: client.ClientID, Filename: filename, Errdssn: errdsnosn, Blacksns: blacksns}
+			// 4.2-向AC发出请求
+			er_res, err := client.ACRPC.SiaGetDSErrReport(context.Background(), er_req)
+			if err != nil {
+				log.Fatalf("auditor could not process request: %v", err)
+			}
+			// 4.3-判断AC是否返回足够数量的存储节点，不够时报错
+			if len(er_res.Snsds) < len(errdsnosn) {
+				log.Fatalf("honest sns for parity shard not enough")
+			} else {
+				errdsnosn = make(map[string]string) //置空错误名单，重利用
+			}
+			paritysnrootmap := er_res.Roots
+			// 4.4-向存储节点请求校验块
+			for key, value := range er_res.Snsds {
+				go func(dsno string, snid string) {
+					// 4.4.1-构造获取分片请求消息
+					gds_req := &pb.SiaGetFRequest{ClientId: client.ClientID, Filename: filename, Dsno: dsno}
+					// 4.4.2-向存储节点发送请求
+					// fmt.Println("ClientId:", client.ClientID, "filename:", filename, "Dsno:", dsno)
+					gds_res, err := client.SNRPCs[snid].SiaGetFileDS(context.Background(), gds_req)
+					if err != nil {
+						log.Println("storagenode could not process request:", err)
+						errdsnosn[dsno] = snid
+					} else if gds_res.DataShard == nil {
+						log.Println("sn", snid, "return nil parityshard", dsno)
+						errdsnosn[dsno] = snid
+					} else {
+						// 3.3-验证数据分片有效性
+						// 3.3.1-版本一致性检查
+						if gfsns_res.Version != gds_res.Version {
+							log.Println("sn", snid, "return outdated datashard", dsno, "version", gds_res.Version)
+							errdsnosn[dsno] = snid
+						}
+						// 3.3.2-数据有效性检查
+						datashard := gds_res.DataShard
+						dsHash := util.Hash([]byte(util.Int32SliceToStr(datashard)))
+						rootAC := paritysnrootmap[snid]
+						rootSN := util.GenerateRootByPaths(dsHash, int(gds_res.Index), gds_res.Merklepath)
+						if !bytes.Equal(rootAC, rootSN) {
+							log.Println("datashard ", dsno, "verification not pass.")
+							errdsnosn[dsno] = snid
+						}
+						// 3.3-将获取到的分片加入到列表中
+						fdssMutex.Lock()
+						fileDSs[dsno] = datashard
+						fdssMutex.Unlock()
+						// 4.4.5-将snid加入白名单
+						blacksns[snid] = dsno
+					}
+					// 通知主线程任务完成
+					done <- struct{}{}
+				}(key, value)
+			}
+			// 等待所有协程完成
+			for i := 0; i < len(er_res.Snsds); i++ {
+				<-done
+			}
+		}
+	}
+	// 5-恢复完整文件
+	// 5.1-恢复以"d-"和"p-"为前缀的文件分片
+	filestr := client.SiaRecoverFileDS(fileDSs, "d-", "p-")
+	if isorigin {
+		// log.Println("Get file", filename, ":", filestr)
+		return filestr
+	}
+	// 5.2-若添加过额外的数据分片，则也恢复这部分分片
+	turnnum := len(fileDSs)/client.Rsec.DataNum - 1
+	for i := 0; i < turnnum; i++ {
+		dPrefix := "d-" + strconv.Itoa(client.Rsec.DataNum+turnnum) + "-"
+		pPrefix := "p-" + strconv.Itoa(client.Rsec.DataNum+turnnum) + "-"
+		filestr = filestr + client.SiaRecoverFileDS(fileDSs, dPrefix, pPrefix)
+	}
+	// log.Println("Get file", filename, ":", filestr)
+	return filestr
+}
+
+// 恢复文件或数据块，在GetFile中被调用
+func (client *SiaClient) SiaRecoverFileDS(fileDSs map[string][]int32, dprefix string, pprefix string) string {
+	//遍历收到的文件分片，按需排放，判断是否需要纠删码解码
+	isneedencode := false
+	var orderedFileDSs [][]int32
+	var rows []int
+	for i := 0; i < client.Rsec.DataNum; i++ {
+		key := dprefix + strconv.Itoa(i)
+		if fileDSs[key] != nil {
+			orderedFileDSs = append(orderedFileDSs, fileDSs[key])
+			rows = append(rows, i)
+		} else {
+			isneedencode = true
+		}
+	}
+	for i := 0; i < client.Rsec.ParityNum; i++ {
+		key := pprefix + strconv.Itoa(i)
+		if fileDSs[key] != nil {
+			orderedFileDSs = append(orderedFileDSs, fileDSs[key])
+			rows = append(rows, client.Rsec.DataNum+i)
+		}
+	}
+	// 如果不需要解码，按序转换为字符串输出；如果需要解码，则纠删码解码后转换为字符串输出
+	filestr := ""
+	var orderedFile [][]int32
+	if isneedencode {
+		orderedFile = client.Rsec.Decode(orderedFileDSs, rows)
+	} else {
+		orderedFile = orderedFileDSs
+	}
+	for i := 0; i < len(orderedFile); i++ {
+		filestr = filestr + util.Int32SliceToStr(orderedFile[i])
+	}
+	return filestr
 }

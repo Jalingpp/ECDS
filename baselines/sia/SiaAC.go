@@ -11,6 +11,7 @@ import (
 	"math/rand"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -21,10 +22,11 @@ import (
 type SiaAC struct {
 	IpAddr                             string                             //审计方的IP地址
 	SNAddrMap                          map[string]string                  //存储节点的地址表，key:存储节点id，value:存储节点地址
-	ClientDSSNMap                      map[string]string                  //客户端文件每个分片所在的存储节点表，key:clientID-filename-i,value:snid
-	CDSSNMMutex                        sync.RWMutex                       //ClientFileShardsMap的读写锁
+	ClientDSSNMap                      map[string]map[string]string       //客户端文件每个分片所在的存储节点表，key:clientID-filename,subkey:dsno,subvalue:snid
+	CDSSNMMutex                        sync.RWMutex                       //ClientDSSNMap的读写锁
+	ClientSNRootMap                    map[string]map[string][]byte       //客户端所在存储节点上最新的Merkel根节点哈希，key:clientID,subkey:snid,subvalue:根节点哈希值
 	ClientDSVersionMap                 map[string]int                     //当前文件版本号,key:clientID-filename,value:版本号
-	FRRMMutex                          sync.RWMutex                       //FileRootMap和FileRandMap的读写锁
+	FRRMMutex                          sync.RWMutex                       //ClientDSVersionMap的读写锁
 	DataNum                            int                                //系统中用于文件编码的数据块数量
 	ParityNum                          int                                //系统中用于文件编码的校验块数量
 	pb.UnimplementedSiaACServiceServer                                    // 嵌入匿名字段
@@ -48,7 +50,8 @@ type SiaAC struct {
 // 新建一个审计方，持续监听消息
 func NewSiaAC(ipaddr string, snaddrfilename string, dn int, pn int) *SiaAC {
 	snaddrmap := util.ReadSNAddrFile(snaddrfilename)
-	cdssnmap := make(map[string]string)
+	cdssnmap := make(map[string]map[string]string)
+	csnrmap := make(map[string]map[string][]byte)
 	cdsvmap := make(map[string]int)
 	pcrmap := make(map[string][]byte)
 	pfsnmap := make(map[string]string)
@@ -68,7 +71,7 @@ func NewSiaAC(ipaddr string, snaddrfilename string, dn int, pn int) *SiaAC {
 		sc := pb.NewSiaSNACServiceClient(snconn)
 		snrpcs[key] = sc
 	}
-	auditor := &SiaAC{ipaddr, *snaddrmap, cdssnmap, sync.RWMutex{}, cdsvmap, sync.RWMutex{}, dn, pn, pb.UnimplementedSiaACServiceServer{}, snrpcs, sync.RWMutex{}, pcrmap, pfsnmap, pdsmpmap, pdsimap, sync.RWMutex{}, pufmap, pufvmap, sync.RWMutex{}, false, sync.RWMutex{}, mvfrtmap, mvfrdmap, sync.RWMutex{}}
+	auditor := &SiaAC{ipaddr, *snaddrmap, cdssnmap, sync.RWMutex{}, csnrmap, cdsvmap, sync.RWMutex{}, dn, pn, pb.UnimplementedSiaACServiceServer{}, snrpcs, sync.RWMutex{}, pcrmap, pfsnmap, pdsmpmap, pdsimap, sync.RWMutex{}, pufmap, pufvmap, sync.RWMutex{}, false, sync.RWMutex{}, mvfrtmap, mvfrdmap, sync.RWMutex{}}
 	//设置监听地址
 	lis, err := net.Listen("tcp", ipaddr)
 	if err != nil {
@@ -181,7 +184,9 @@ func (ac *SiaAC) SiaPutFileNoticeToSN(cid string, fn string, dssnids []string, p
 // 【供client使用的RPC】文件存放确认:确认文件已在存储节点上完成存放,确认元信息一致
 func (ac *SiaAC) SiaPutFileCommit(ctx context.Context, req *pb.SiaPFCRequest) (*pb.SiaPFCResponse, error) {
 	message := ""
+	cid := req.ClientId
 	fn := req.Filename
+	cid_fn := cid + "-" + fn
 	dshashMap := req.Dshashmap
 	isValid := true
 	// 遍历收到的每个分片的哈希值，验证Merkel路径是否正确
@@ -213,12 +218,22 @@ func (ac *SiaAC) SiaPutFileCommit(ctx context.Context, req *pb.SiaPFCRequest) (*
 			return nil, e
 		} else {
 			//验证有效，则将信息永久记录，并在pending列表中删除
+			//记录分片所在的存储节点
+			dsno := strings.TrimPrefix(key, cid_fn+"-")
 			ac.CDSSNMMutex.Lock()
-			ac.ClientDSSNMap[key] = snid
+			if ac.ClientDSSNMap[cid_fn] == nil {
+				ac.ClientDSSNMap[cid_fn] = make(map[string]string)
+			}
+			ac.ClientDSSNMap[cid_fn][dsno] = snid
 			ac.CDSSNMMutex.Unlock()
+			//记录最新的根节点哈希
 			ac.FRRMMutex.Lock()
-			ac.ClientDSVersionMap[key] = 1
+			if ac.ClientSNRootMap[cid] == nil {
+				ac.ClientSNRootMap[cid] = make(map[string][]byte)
+			}
+			ac.ClientSNRootMap[cid][snid] = pendingRoot
 			ac.FRRMMutex.Unlock()
+			//删除pending列表中的相关记录
 			ac.PFRMMutex.Lock()
 			delete(ac.PendingFileSNMap, key)
 			delete(ac.PendingDSMerklePathMap, key)
@@ -229,8 +244,79 @@ func (ac *SiaAC) SiaPutFileCommit(ctx context.Context, req *pb.SiaPFCRequest) (*
 		// fmt.Println(key, snid, "Merkle Path Verify:", isValid)
 	}
 	if isValid {
-		fmt.Println(req.ClientId, fn, "Merkle Path Verify:", isValid)
+		ac.FRRMMutex.Lock()
+		ac.ClientDSVersionMap[cid_fn] = 1
+		ac.FRRMMutex.Unlock()
+		fmt.Println(cid, fn, "Merkle Path Verify:", isValid)
 		message = "OK"
 	}
 	return &pb.SiaPFCResponse{Filename: fn, Message: message}, nil
+}
+
+// 【供client使用的RPC】获取文件数据分片所在的存储节点id
+func (ac *SiaAC) SiaGetFileSNs(ctx context.Context, req *pb.SiaGFACRequest) (*pb.SiaGFACResponse, error) {
+	cid_fn := req.ClientId + "-" + req.Filename
+	snsds := make(map[string]string)
+	snroots := make(map[string][]byte)
+	//为客户端找到文件的所有数据分片对应的存储节点
+	ac.CDSSNMMutex.RLock()
+	if ac.ClientDSSNMap[cid_fn] == nil {
+		ac.CDSSNMMutex.RUnlock()
+		e := errors.New("client filename not exist")
+		return nil, e
+	} else {
+		for key, value := range ac.ClientDSSNMap[cid_fn] {
+			if strings.HasPrefix(key, "d") {
+				snsds[key] = value
+				//为客户端找到该存储节点对应的Merkel根节点哈希值
+				ac.FRRMMutex.RLock()
+				snroots[value] = ac.ClientSNRootMap[req.ClientId][value]
+				ac.FRRMMutex.RUnlock()
+			}
+		}
+		ac.CDSSNMMutex.RUnlock()
+	}
+	ac.FRRMMutex.RLock()
+	version := ac.ClientDSVersionMap[cid_fn]
+	ac.FRRMMutex.RUnlock()
+	return &pb.SiaGFACResponse{Filename: req.Filename, Version: int32(version), Snsds: snsds, Roots: snroots}, nil
+}
+
+// 【供client使用的RPC】报告获取DS错误，并请求获取校验块所在的存储节点id
+func (ac *SiaAC) SiaGetDSErrReport(ctx context.Context, req *pb.SiaGDSERequest) (*pb.SiaGDSEResponse, error) {
+	cid_fn := req.ClientId + "-" + req.Filename
+	blacksns := req.Blacksns
+	dsnosnmap := make(map[string]string)
+	snroots := make(map[string][]byte)
+	for key, _ := range req.Errdssn {
+		//获取待请求校验块的前缀
+		targetPrefix := ""
+		if len(key) < 5 {
+			targetPrefix = "p-"
+		} else {
+			for i := 0; i < len(req.Errdssn); i++ {
+				if strings.HasPrefix(key, "d-"+strconv.Itoa(i+ac.DataNum)+"-") || strings.HasPrefix(key, "p-"+strconv.Itoa(i+ac.DataNum)+"-") {
+					targetPrefix = "p-" + strconv.Itoa(i+ac.DataNum) + "-"
+					break
+				}
+			}
+		}
+		//挑选带有相应前缀的校验块存储节点
+		for i := 0; i < ac.ParityNum; i++ {
+			psno := targetPrefix + strconv.Itoa(i)
+			_, exists := dsnosnmap[psno]
+			ac.CDSSNMMutex.RLock()
+			snid := ac.ClientDSSNMap[cid_fn][psno]
+			ac.CDSSNMMutex.RUnlock()
+			if !exists && blacksns[snid] != "h" && blacksns[snid] != psno {
+				dsnosnmap[psno] = snid
+				//获取客户端在该存储节点上的Merkel根节点哈希值
+				ac.FRRMMutex.RLock()
+				snroots[snid] = ac.ClientSNRootMap[cid_fn][snid]
+				ac.FRRMMutex.RUnlock()
+				break
+			}
+		}
+	}
+	return &pb.SiaGDSEResponse{Filename: req.Filename, Snsds: dsnosnmap}, nil
 }

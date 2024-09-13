@@ -13,8 +13,8 @@ func main() {
 	pn := 20
 	acAddr := "localhost:50051"
 	snAddrFilepath := "data/snaddr"
-	clientNum := 300
-	fileNum := 100
+	clientNum := 20
+	fileNum := 10
 	// logoutpath := "data/outlog"
 	//读存储节点地址表
 	snaddrmap := util.ReadSNAddrFile(snAddrFilepath)
@@ -69,33 +69,33 @@ func main() {
 	util.LogToFile("data/outlog", "\n")
 	log.Println("putfile executed in:", duration.Milliseconds())
 
-	// //GetFile
-	// start = time.Now()
-	// done = make(chan struct{})
-	// for i := 0; i < clientNum; i++ {
-	// 	clientId := "client" + strconv.Itoa(i)
-	// 	go func(clientId string) {
-	// 		// //创建一个客户端
-	// 		client1 := clientObject[clientId]
-	// 		for j := 0; j < fileNum; j++ {
-	// 			filename := "testData" + strconv.Itoa(j)
-	// 			//客户端GetFile
-	// 			client1.StorjGetFile(filename)
-	// 			log.Println(clientId, "get", filename, "complete")
-	// 		}
-	// 		done <- struct{}{}
-	// 	}(clientId)
-	// }
-	// // 等待所有协程完成
-	// for i := 0; i < clientNum; i++ {
-	// 	<-done
-	// }
-	// util.LogToFile("data/outlog", "getfile结束")
-	// // log.Println("putfile结束")
-	// duration = time.Since(start)
-	// util.LogToFile("data/outlog", strconv.Itoa(int(duration.Milliseconds())))
-	// util.LogToFile("data/outlog", "\n")
-	// log.Println("getfile executed in:", duration.Milliseconds())
+	//GetFile
+	start = time.Now()
+	done = make(chan struct{})
+	for i := 0; i < clientNum; i++ {
+		clientId := "client" + strconv.Itoa(i)
+		go func(clientId string) {
+			// //创建一个客户端
+			client1 := clientObject[clientId]
+			for j := 0; j < fileNum; j++ {
+				filename := "testData" + strconv.Itoa(j)
+				//客户端GetFile
+				client1.SiaGetFile(filename, true)
+				log.Println(clientId, "get", filename, "complete")
+			}
+			done <- struct{}{}
+		}(clientId)
+	}
+	// 等待所有协程完成
+	for i := 0; i < clientNum; i++ {
+		<-done
+	}
+	util.LogToFile("data/outlog", "getfile结束")
+	// log.Println("putfile结束")
+	duration = time.Since(start)
+	util.LogToFile("data/outlog", strconv.Itoa(int(duration.Milliseconds())))
+	util.LogToFile("data/outlog", "\n")
+	log.Println("getfile executed in:", duration.Milliseconds())
 
 	// // UpdateFile
 	// start = time.Now()

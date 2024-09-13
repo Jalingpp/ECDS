@@ -22,7 +22,7 @@ const (
 	SiaACService_SiaSelectSNs_FullMethodName        = "/proto.SiaACService/SiaSelectSNs"
 	SiaACService_SiaPutFileCommit_FullMethodName    = "/proto.SiaACService/SiaPutFileCommit"
 	SiaACService_SiaGetFileSNs_FullMethodName       = "/proto.SiaACService/SiaGetFileSNs"
-	SiaACService_SiaGetRandRoot_FullMethodName      = "/proto.SiaACService/SiaGetRandRoot"
+	SiaACService_SiaGetDSErrReport_FullMethodName   = "/proto.SiaACService/SiaGetDSErrReport"
 	SiaACService_SiaUpdateFileReq_FullMethodName    = "/proto.SiaACService/SiaUpdateFileReq"
 	SiaACService_SiaUpdateFileCommit_FullMethodName = "/proto.SiaACService/SiaUpdateFileCommit"
 )
@@ -34,7 +34,7 @@ type SiaACServiceClient interface {
 	SiaSelectSNs(ctx context.Context, in *SiaStorageRequest, opts ...grpc.CallOption) (*SiaStorageResponse, error)
 	SiaPutFileCommit(ctx context.Context, in *SiaPFCRequest, opts ...grpc.CallOption) (*SiaPFCResponse, error)
 	SiaGetFileSNs(ctx context.Context, in *SiaGFACRequest, opts ...grpc.CallOption) (*SiaGFACResponse, error)
-	SiaGetRandRoot(ctx context.Context, in *SiaGRRRequest, opts ...grpc.CallOption) (*SiaGRRResponse, error)
+	SiaGetDSErrReport(ctx context.Context, in *SiaGDSERequest, opts ...grpc.CallOption) (*SiaGDSEResponse, error)
 	SiaUpdateFileReq(ctx context.Context, in *SiaUFRequest, opts ...grpc.CallOption) (*SiaUFResponse, error)
 	SiaUpdateFileCommit(ctx context.Context, in *SiaUFCRequest, opts ...grpc.CallOption) (*SiaUFCResponse, error)
 }
@@ -77,10 +77,10 @@ func (c *siaACServiceClient) SiaGetFileSNs(ctx context.Context, in *SiaGFACReque
 	return out, nil
 }
 
-func (c *siaACServiceClient) SiaGetRandRoot(ctx context.Context, in *SiaGRRRequest, opts ...grpc.CallOption) (*SiaGRRResponse, error) {
+func (c *siaACServiceClient) SiaGetDSErrReport(ctx context.Context, in *SiaGDSERequest, opts ...grpc.CallOption) (*SiaGDSEResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(SiaGRRResponse)
-	err := c.cc.Invoke(ctx, SiaACService_SiaGetRandRoot_FullMethodName, in, out, cOpts...)
+	out := new(SiaGDSEResponse)
+	err := c.cc.Invoke(ctx, SiaACService_SiaGetDSErrReport_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +114,7 @@ type SiaACServiceServer interface {
 	SiaSelectSNs(context.Context, *SiaStorageRequest) (*SiaStorageResponse, error)
 	SiaPutFileCommit(context.Context, *SiaPFCRequest) (*SiaPFCResponse, error)
 	SiaGetFileSNs(context.Context, *SiaGFACRequest) (*SiaGFACResponse, error)
-	SiaGetRandRoot(context.Context, *SiaGRRRequest) (*SiaGRRResponse, error)
+	SiaGetDSErrReport(context.Context, *SiaGDSERequest) (*SiaGDSEResponse, error)
 	SiaUpdateFileReq(context.Context, *SiaUFRequest) (*SiaUFResponse, error)
 	SiaUpdateFileCommit(context.Context, *SiaUFCRequest) (*SiaUFCResponse, error)
 	mustEmbedUnimplementedSiaACServiceServer()
@@ -136,8 +136,8 @@ func (UnimplementedSiaACServiceServer) SiaPutFileCommit(context.Context, *SiaPFC
 func (UnimplementedSiaACServiceServer) SiaGetFileSNs(context.Context, *SiaGFACRequest) (*SiaGFACResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SiaGetFileSNs not implemented")
 }
-func (UnimplementedSiaACServiceServer) SiaGetRandRoot(context.Context, *SiaGRRRequest) (*SiaGRRResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SiaGetRandRoot not implemented")
+func (UnimplementedSiaACServiceServer) SiaGetDSErrReport(context.Context, *SiaGDSERequest) (*SiaGDSEResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SiaGetDSErrReport not implemented")
 }
 func (UnimplementedSiaACServiceServer) SiaUpdateFileReq(context.Context, *SiaUFRequest) (*SiaUFResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SiaUpdateFileReq not implemented")
@@ -220,20 +220,20 @@ func _SiaACService_SiaGetFileSNs_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
-func _SiaACService_SiaGetRandRoot_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SiaGRRRequest)
+func _SiaACService_SiaGetDSErrReport_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SiaGDSERequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SiaACServiceServer).SiaGetRandRoot(ctx, in)
+		return srv.(SiaACServiceServer).SiaGetDSErrReport(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: SiaACService_SiaGetRandRoot_FullMethodName,
+		FullMethod: SiaACService_SiaGetDSErrReport_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SiaACServiceServer).SiaGetRandRoot(ctx, req.(*SiaGRRRequest))
+		return srv.(SiaACServiceServer).SiaGetDSErrReport(ctx, req.(*SiaGDSERequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -294,8 +294,8 @@ var SiaACService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _SiaACService_SiaGetFileSNs_Handler,
 		},
 		{
-			MethodName: "SiaGetRandRoot",
-			Handler:    _SiaACService_SiaGetRandRoot_Handler,
+			MethodName: "SiaGetDSErrReport",
+			Handler:    _SiaACService_SiaGetDSErrReport_Handler,
 		},
 		{
 			MethodName: "SiaUpdateFileReq",
