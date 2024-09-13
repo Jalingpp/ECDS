@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = "./";
+
+//存储节点为服务器，审计方为客户端
+service SiaSNACService {
+    rpc SiaPutFileNotice(SiaClientStorageRequest) returns (SiaClientStorageResponse);
+    rpc SiaUpdateDataShardNotice(SiaClientUpdDSRequest) returns (SiaClientUpdDSResponse);
+    rpc SiaPreAuditSN(SiaPASNRequest) returns (SiaPASNResponse);
+    rpc SiaGetAggPosSN(SiaGAPSNRequest) returns (SiaGAPSNResponse);
+}
+
+//客户端发起的存储请求
+message SiaClientStorageRequest {
+    string clientId = 1;   //客户端ID
+    string filename = 2;   //待存储的文件名
+    string dsno = 3;    //该存储节点待存储的分片号
+}
+
+//存储节点对存储请求的回复
+message SiaClientStorageResponse {
+    string clientId = 1;   //客户端ID
+    string filename = 2;  //待存储的文件名
+    string dsno = 3;     //该存储节点已存储的分片号
+    int32 version = 4;   //分片对应的版本号
+    repeated bytes merklepath = 5;   //存储节点对存储分片的可验证存储路径
+    bytes root = 6;        //存储分片所在默克尔树的根节点哈希
+    int32 index = 7;     //存储分片所在叶子列表中的索引
+}
+
+//客户端发起的更新数据分片请求
+message SiaClientUpdDSRequest {
+    string clientId = 1;   //客户端ID
+    string filename = 2;   //待存储的文件名
+    string dsno = 3;    //该存储节点待更新的分片号
+}
+
+//存储节点对更新数据分片请求的回复
+message SiaClientUpdDSResponse {
+    string clientId = 1;   //客户端ID
+    string filename = 2;  //已更新的文件名
+    string dsno = 3;     //该存储节点已更新的分片号
+    int32 version = 4;   //分片更新后的版本号
+    string timestamp = 5; //分片更新后的时间戳
+    string message = 6;  //附加信息
+}
+
+//审计方发起的预审计请求
+message SiaPASNRequest{
+    string auditno = 1;  //审计代号:audit1,audit2...
+    string snid = 2;   //请求的存储节点id
+    map<string, int32> dsversion = 3;  //挑战的分片及其版本，key:clientId-filename-dsno,value:版本号
+}
+
+//存储节点对审计方预审计请求的回复
+message SiaPASNResponse{
+    bool isready = 1;   //是否准备好审计，即可以预留快照
+    map<string, int32> dsversion = 2;  //如果不能预留，告知审计方哪些分片的版本已过时，否则为空
+}
+
+//获取存储节点上所有存储分片的聚合存储证明的请求
+message SiaGAPSNRequest{
+    string auditno = 1;   //审计代号
+    int32 random = 2;  //挑战的随机数
+}
+
+//存储节点对所有存储分片的聚合存储证明请求的回复
+message SiaGAPSNResponse{
+    bytes aggpos = 1;   //聚合存储证明
+}

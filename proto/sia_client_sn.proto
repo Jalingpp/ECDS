@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = "./";
+
+service SiaSNService {
+    rpc SiaPutFile(SiaPutFRequest) returns (SiaPutFResponse);
+    rpc SiaGetFile(SiaGetFRequest) returns (SiaGetFResponse);
+    rpc SiaUpdateFile(SiaUpdFRequest) returns (SiaUpdFResponse);
+}
+
+message Int32ArraySNSia {
+    repeated int32 values = 1;
+}
+
+//客户端发起的向存储节点放置数据分片的请求
+message SiaPutFRequest {
+    string clientId = 1;   //客户端ID
+    string filename = 2;   //待存储的文件名
+    string dsno = 3;    //文件分片的序号，数据分片为d-0,d-1,...，校验分片为p-0,p-1,...
+    int32 version = 4;  //文件版本号
+    repeated int32 dataShard = 5; //序列化后的数据分片
+}
+
+//存储节点对请求的回复
+message SiaPutFResponse {
+    string filename = 1;  //待存储的文件名
+    string dsno = 2;    //文件分片的序号，数据分片为d-0,d-1,...，校验分片为p-0,p-1,...
+    string message = 3;  //是否已通过验证并存储等信息
+}
+
+//客户端发起的向存储节点获取数据分片的请求
+message SiaGetFRequest {
+    string clientId = 1;   //客户端ID
+    string filename = 2;   //待存储的文件名
+    string rep = 3;    //请求的副本号
+    int32 dsnum = 4;  //数据分片的数量
+}
+
+//存储节点对请求的回复
+message SiaGetFResponse {
+    string filename = 1;  //文件名
+    int32 version = 2;    //文件版本号
+    repeated Int32ArraySNSia dataShards = 3; //数据分片
+    repeated bytes merkle_leaves = 4; //校验分片对应的叶节点
+}
+
+//客户端发起的向存储节点更新数据分片的请求
+message SiaUpdFRequest {
+    string clientId = 1;   //客户端ID
+    string filename = 2;   //待更新的文件名
+    int32 rep = 3;        //待更新的文件副本号
+    repeated Int32ArraySNSia dataShards = 4; //序列化后的数据分片
+    repeated bytes merkle_leaves = 5;   //所有叶子节点
+}
+
+//存储节点对请求的回复
+message SiaUpdFResponse {
+    string filename = 1;  //待存储的文件名
+    int32 repno = 2;   //文件副本号
+    bytes root = 3;   //存储节点计算得到的根哈希
+    string message = 4;  //是否已通过验证并存储等信息
+}

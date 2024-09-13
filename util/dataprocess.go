@@ -183,7 +183,6 @@ func BuildMerkleTree(leafHashes [][]byte) []byte {
 	if len(leafHashes) == 1 {
 		return leafHashes[0]
 	}
-
 	var newLevel [][]byte
 	for i := 0; i < len(leafHashes); i += 2 {
 		if i+1 < len(leafHashes) {
@@ -195,7 +194,6 @@ func BuildMerkleTree(leafHashes [][]byte) []byte {
 			newLevel = append(newLevel, leafHashes[i])
 		}
 	}
-
 	return BuildMerkleTree(newLevel)
 }
 
@@ -244,4 +242,59 @@ func Int32SliceToInt32ArraySNSlice(int32slice [][]int32) []*pb.Int32ArraySN {
 		dataShardSlice = append(dataShardSlice, &pb.Int32ArraySN{Values: shard})
 	}
 	return dataShardSlice
+}
+
+// BuildMerkleTreeAndGeneratePath 构建默克尔树，并返回根哈希和指定叶子节点的验证路径
+func BuildMerkleTreeAndGeneratePath(leafHashes [][]byte, index int) ([]byte, [][]byte) {
+	if len(leafHashes) == 1 {
+		return leafHashes[0], nil // 只有一个叶子时，没有验证路径
+	}
+	var newLevel [][]byte
+	var paths [][]byte // 存储每个叶子节点的验证路径
+	for i := 0; i < len(leafHashes); i += 2 {
+		if i+1 < len(leafHashes) {
+			combined := append(leafHashes[i], leafHashes[i+1]...)
+			newHash := Hash(combined)
+			newLevel = append(newLevel, newHash)
+			if i == index {
+				// 如果当前叶子是目标叶子，记录兄弟节点的哈希
+				paths = append(paths, leafHashes[i+1])
+			} else if index == i+1 {
+				paths = append(paths, leafHashes[i])
+			}
+		} else {
+			// 如果是奇数个叶子节点，则复制自身
+			combined := append(leafHashes[i], leafHashes[i]...)
+			newHash := Hash(combined)
+			newLevel = append(newLevel, newHash)
+			if i == index {
+				paths = append(paths, leafHashes[i])
+			}
+		}
+
+	}
+	root, path := BuildMerkleTreeAndGeneratePath(newLevel, index/2) // 递归构建下一级
+	// 将当前层的路径与下一级的路径合并
+	paths = append(paths, path...)
+	return root, paths
+}
+
+// 根据路径生成根节点哈希值
+func GenerateRootByPaths(leaf []byte, index int, paths [][]byte) []byte {
+	if paths == nil && index == 0 {
+		return leaf
+	}
+	root := leaf
+	tempindex := index
+	for i := 0; i < len(paths); i++ {
+		if tempindex%2 == 0 {
+			combined := append(root, paths[i]...)
+			root = Hash(combined)
+		} else {
+			combined := append(paths[i], root...)
+			root = Hash(combined)
+		}
+		tempindex = tempindex / 2
+	}
+	return root
 }

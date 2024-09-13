@@ -10,3 +10,6 @@
 /root/pkg/protoc/bin/protoc --go_out=. --go-grpc_out=. filecoin_client_ac.proto
 /root/pkg/protoc/bin/protoc --go_out=. --go-grpc_out=. filecoin_client_sn.proto
 /root/pkg/protoc/bin/protoc --go_out=. --go-grpc_out=. filecoin_ac_sn.proto
+/root/pkg/protoc/bin/protoc --go_out=. --go-grpc_out=. sia_client_ac.proto
+/root/pkg/protoc/bin/protoc --go_out=. --go-grpc_out=. sia_client_sn.proto
+/root/pkg/protoc/bin/protoc --go_out=. --go-grpc_out=. sia_ac_sn.proto
