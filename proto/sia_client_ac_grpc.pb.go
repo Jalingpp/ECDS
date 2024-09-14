@@ -23,6 +23,7 @@ const (
 	SiaACService_SiaPutFileCommit_FullMethodName    = "/proto.SiaACService/SiaPutFileCommit"
 	SiaACService_SiaGetFileSNs_FullMethodName       = "/proto.SiaACService/SiaGetFileSNs"
 	SiaACService_SiaGetDSErrReport_FullMethodName   = "/proto.SiaACService/SiaGetDSErrReport"
+	SiaACService_SiaGetDSPSSNs_FullMethodName       = "/proto.SiaACService/SiaGetDSPSSNs"
 	SiaACService_SiaUpdateFileReq_FullMethodName    = "/proto.SiaACService/SiaUpdateFileReq"
 	SiaACService_SiaUpdateFileCommit_FullMethodName = "/proto.SiaACService/SiaUpdateFileCommit"
 )
@@ -35,6 +36,7 @@ type SiaACServiceClient interface {
 	SiaPutFileCommit(ctx context.Context, in *SiaPFCRequest, opts ...grpc.CallOption) (*SiaPFCResponse, error)
 	SiaGetFileSNs(ctx context.Context, in *SiaGFACRequest, opts ...grpc.CallOption) (*SiaGFACResponse, error)
 	SiaGetDSErrReport(ctx context.Context, in *SiaGDSERequest, opts ...grpc.CallOption) (*SiaGDSEResponse, error)
+	SiaGetDSPSSNs(ctx context.Context, in *SiaGDSPSSNRequest, opts ...grpc.CallOption) (*SiaGDSPSSNResponse, error)
 	SiaUpdateFileReq(ctx context.Context, in *SiaUFRequest, opts ...grpc.CallOption) (*SiaUFResponse, error)
 	SiaUpdateFileCommit(ctx context.Context, in *SiaUFCRequest, opts ...grpc.CallOption) (*SiaUFCResponse, error)
 }
@@ -87,6 +89,16 @@ func (c *siaACServiceClient) SiaGetDSErrReport(ctx context.Context, in *SiaGDSER
 	return out, nil
 }
 
+func (c *siaACServiceClient) SiaGetDSPSSNs(ctx context.Context, in *SiaGDSPSSNRequest, opts ...grpc.CallOption) (*SiaGDSPSSNResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SiaGDSPSSNResponse)
+	err := c.cc.Invoke(ctx, SiaACService_SiaGetDSPSSNs_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *siaACServiceClient) SiaUpdateFileReq(ctx context.Context, in *SiaUFRequest, opts ...grpc.CallOption) (*SiaUFResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SiaUFResponse)
@@ -115,6 +127,7 @@ type SiaACServiceServer interface {
 	SiaPutFileCommit(context.Context, *SiaPFCRequest) (*SiaPFCResponse, error)
 	SiaGetFileSNs(context.Context, *SiaGFACRequest) (*SiaGFACResponse, error)
 	SiaGetDSErrReport(context.Context, *SiaGDSERequest) (*SiaGDSEResponse, error)
+	SiaGetDSPSSNs(context.Context, *SiaGDSPSSNRequest) (*SiaGDSPSSNResponse, error)
 	SiaUpdateFileReq(context.Context, *SiaUFRequest) (*SiaUFResponse, error)
 	SiaUpdateFileCommit(context.Context, *SiaUFCRequest) (*SiaUFCResponse, error)
 	mustEmbedUnimplementedSiaACServiceServer()
@@ -138,6 +151,9 @@ func (UnimplementedSiaACServiceServer) SiaGetFileSNs(context.Context, *SiaGFACRe
 }
 func (UnimplementedSiaACServiceServer) SiaGetDSErrReport(context.Context, *SiaGDSERequest) (*SiaGDSEResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SiaGetDSErrReport not implemented")
+}
+func (UnimplementedSiaACServiceServer) SiaGetDSPSSNs(context.Context, *SiaGDSPSSNRequest) (*SiaGDSPSSNResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SiaGetDSPSSNs not implemented")
 }
 func (UnimplementedSiaACServiceServer) SiaUpdateFileReq(context.Context, *SiaUFRequest) (*SiaUFResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SiaUpdateFileReq not implemented")
@@ -238,6 +254,24 @@ func _SiaACService_SiaGetDSErrReport_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SiaACService_SiaGetDSPSSNs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SiaGDSPSSNRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SiaACServiceServer).SiaGetDSPSSNs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SiaACService_SiaGetDSPSSNs_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SiaACServiceServer).SiaGetDSPSSNs(ctx, req.(*SiaGDSPSSNRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _SiaACService_SiaUpdateFileReq_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SiaUFRequest)
 	if err := dec(in); err != nil {
@@ -296,6 +330,10 @@ var SiaACService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SiaGetDSErrReport",
 			Handler:    _SiaACService_SiaGetDSErrReport_Handler,
+		},
+		{
+			MethodName: "SiaGetDSPSSNs",
+			Handler:    _SiaACService_SiaGetDSPSSNs_Handler,
 		},
 		{
 			MethodName: "SiaUpdateFileReq",

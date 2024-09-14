@@ -97,31 +97,31 @@ func main() {
 	util.LogToFile("data/outlog", "\n")
 	log.Println("getfile executed in:", duration.Milliseconds())
 
-	// // UpdateFile
-	// start = time.Now()
-	// done = make(chan struct{})
-	// for i := 0; i < clientNum; i++ {
-	// 	clientId := "client" + strconv.Itoa(i)
-	// 	go func(clientId string) {
-	// 		// 创建一个客户端
-	// 		client1 := clientObject[clientId]
-	// 		for j := 0; j < fileNum; j++ {
-	// 			filename := "testData" + strconv.Itoa(j)
-	// 			//客户端UpdateDS
-	// 			client1.StorjUpdateDataShard(filename, "d-1", "12345")
-	// 			log.Println(clientId, "update", filename, "complete")
-	// 		}
-	// 		done <- struct{}{}
-	// 	}(clientId)
-	// }
-	// // 等待所有协程完成
-	// for i := 0; i < clientNum; i++ {
-	// 	<-done
-	// }
-	// util.LogToFile("data/outlog", "updatefile结束")
-	// // log.Println("putfile结束")
-	// duration = time.Since(start)
-	// util.LogToFile("data/outlog", strconv.Itoa(int(duration.Milliseconds())))
-	// util.LogToFile("data/outlog", "\n")
-	// log.Println("updatefile executed in:", duration.Milliseconds())
+	// UpdateFile
+	start = time.Now()
+	done = make(chan struct{})
+	for i := 0; i < clientNum; i++ {
+		clientId := "client" + strconv.Itoa(i)
+		go func(clientId string) {
+			// 创建一个客户端
+			client1 := clientObject[clientId]
+			for j := 0; j < fileNum; j++ {
+				filename := "testData" + strconv.Itoa(j)
+				//客户端UpdateDS
+				client1.SiaUpdateDS(filename, "d-1", "12345")
+				log.Println(clientId, "update", filename, "complete")
+			}
+			done <- struct{}{}
+		}(clientId)
+	}
+	// 等待所有协程完成
+	for i := 0; i < clientNum; i++ {
+		<-done
+	}
+	util.LogToFile("data/outlog", "updatefile结束")
+	// log.Println("putfile结束")
+	duration = time.Since(start)
+	util.LogToFile("data/outlog", strconv.Itoa(int(duration.Milliseconds())))
+	util.LogToFile("data/outlog", "\n")
+	log.Println("updatefile executed in:", duration.Milliseconds())
 }

@@ -26,8 +26,7 @@ type SiaSN struct {
 	pb.UnimplementedSiaSNACServiceServer                                            // 面向审计方的服务器嵌入匿名字段
 	PendingACPutFNotice                  map[string]int                             //用于暂存来自AC的文件存储通知，key:clientid-filename-i,value:1表示该文件在等待存储，2表示该文件完成存储
 	PACNMutex                            sync.RWMutex                               //用于限制PendingACPutDSNotice访问的锁
-	PendingACUpdFNotice                  map[string]int                             //用于暂存来自AC的文件更新通知，key:clientid-filename-i,value:1表示该文件在等待更新，2表示该文件完成更新
-	PendingACUpdFV                       map[string]int                             //用于暂存来自AC的文件更新版本号，key:clientID-filename-i,value:版本号
+	PendingACUpdFNotice                  map[string]int                             //用于暂存来自AC的文件更新通知，key:clientid-filename-i,value:1表示该分片在等待更新，2表示该分片完成更新
 	PACUFNMutex                          sync.RWMutex                               //用于限制PendingACUpdFNotice访问的锁
 	AuditorFileQueue                     map[string]map[string]map[string][][]int32 //待审计的文件分片，key:审计号，subkey:currpcno,subsubkey:cid-fn-i,subsubvalue:文件分片
 	AFQMutex                             sync.RWMutex                               //AuditorFileQueue的读写锁
@@ -42,9 +41,8 @@ func NewSiaSN(snid string, snaddr string) *SiaSN {
 	fileversionMap := make(map[string]int)
 	pacpfn := make(map[string]int)
 	pacufn := make(map[string]int)
-	pacufv := make(map[string]int)
 	afq := make(map[string]map[string]map[string][][]int32)
-	sn := &SiaSN{snid, snaddr, clientdshMap, clientdshiMap, clientmrMap, sync.RWMutex{}, fileShardsMap, fileversionMap, sync.RWMutex{}, pb.UnimplementedSiaSNServiceServer{}, pb.UnimplementedSiaSNACServiceServer{}, pacpfn, sync.RWMutex{}, pacufn, pacufv, sync.RWMutex{}, afq, sync.RWMutex{}} //设置监听地址
+	sn := &SiaSN{snid, snaddr, clientdshMap, clientdshiMap, clientmrMap, sync.RWMutex{}, fileShardsMap, fileversionMap, sync.RWMutex{}, pb.UnimplementedSiaSNServiceServer{}, pb.UnimplementedSiaSNACServiceServer{}, pacpfn, sync.RWMutex{}, pacufn, sync.RWMutex{}, afq, sync.RWMutex{}} //设置监听地址
 	lis, err := net.Listen("tcp", snaddr)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
@@ -87,7 +85,7 @@ func (sn *SiaSN) SiaPutFileDS(ctx context.Context, preq *pb.SiaPutFRequest) (*pb
 		return &pb.SiaPutFResponse{Filename: preq.Filename, Dsno: preq.Dsno, Message: message}, e
 	}
 	sn.FileShardsMap[cid_fn] = preq.DataShard
-	sn.FileVersionMap[preq.ClientId+"-"+preq.Filename] = int(preq.Version)
+	sn.FileVersionMap[cid_fn] = int(preq.Version)
 	sn.FSLRMMMutex.Unlock()
 	//2-3-放置客户端文件名列表
 	sn.CFMMutex.Lock()
@@ -147,7 +145,6 @@ func (sn *SiaSN) SiaPutFileNotice(ctx context.Context, preq *pb.SiaClientStorage
 // 【供客户端使用的RPC】
 func (sn *SiaSN) SiaGetFileDS(ctx context.Context, req *pb.SiaGetFRequest) (*pb.SiaGetFResponse, error) {
 	cid_fni := req.ClientId + "-" + req.Filename + "-" + req.Dsno
-	cid_fn := req.ClientId + "-" + req.Filename
 	sn.FSLRMMMutex.RLock()
 	if sn.FileShardsMap[cid_fni] == nil {
 		sn.FSLRMMMutex.RUnlock()
@@ -155,7 +152,7 @@ func (sn *SiaSN) SiaGetFileDS(ctx context.Context, req *pb.SiaGetFRequest) (*pb.
 		return nil, e
 	} else {
 		seds := sn.FileShardsMap[cid_fni]
-		version := sn.FileVersionMap[cid_fn]
+		version := sn.FileVersionMap[cid_fni]
 		sn.FSLRMMMutex.RUnlock()
 		//构建数据分片的存储证明
 		sn.CFMMutex.RLock()
@@ -165,4 +162,91 @@ func (sn *SiaSN) SiaGetFileDS(ctx context.Context, req *pb.SiaGetFRequest) (*pb.
 		sn.CFMMutex.RUnlock()
 		return &pb.SiaGetFResponse{Filename: req.Filename, Version: int32(version), DataShard: seds, Merklepath: paths, Index: int32(index)}, nil
 	}
+}
+
+func (sn *SiaSN) SiaUpdateFileDS(ctx context.Context, req *pb.SiaUpdDSRequest) (*pb.SiaUpdDSResponse, error) {
+	clientId := req.ClientId
+	filename := req.Filename
+	dsno := req.Dsno
+	message := ""
+	cid_fn := clientId + "-" + filename + "-" + dsno
+	//1-阻塞等待收到审计方通知
+	for {
+		sn.PACUFNMutex.RLock()
+		_, ok1 := sn.PendingACUpdFNotice[cid_fn]
+		if ok1 {
+			sn.PACUFNMutex.RUnlock()
+			break
+		}
+		sn.PACUFNMutex.RUnlock()
+	}
+	//2-更新数据分片
+	//2-1-提取数据分片对象
+	ds := req.Datashard
+	//2-2-更新文件到各个列表中
+	//2-存放数据分片
+	//2-2-放置文件分片和版本号
+	sn.FSLRMMMutex.Lock()
+	if sn.FileShardsMap[cid_fn] == nil {
+		message = "Filename Not Exist!"
+		e := errors.New("filename not exist")
+		return nil, e
+	}
+	sn.FileShardsMap[cid_fn] = ds
+	sn.FileVersionMap[cid_fn] = int(req.Newversion)
+	sn.FSLRMMMutex.Unlock()
+	//2-3-放置客户端文件名列表
+	sn.CFMMutex.Lock()
+	if sn.ClientDSHashMap[clientId] == nil {
+		sn.ClientDSHashMap[clientId] = make([][]byte, 0)
+	}
+	//对分片取哈希后更新至列表
+	dshash := util.Hash([]byte(util.Int32SliceToStr(ds)))
+	index := sn.ClinetDSHashIndexMap[cid_fn]
+	sn.ClientDSHashMap[clientId][index] = dshash
+	sn.CFMMutex.Unlock()
+	message = "Update DataShard Success!"
+	//3-修改PendingACUpdFNotice
+	sn.PACUFNMutex.Lock()
+	sn.PendingACUpdFNotice[cid_fn] = 2
+	sn.PACUFNMutex.Unlock()
+	// 4-告知审计方文件更新结果
+	return &pb.SiaUpdDSResponse{Filename: req.Filename, Dsno: dsno, Message: message}, nil
+}
+
+// 【供审计方使用的RPC】存储节点接收审计方文件存放通知，阻塞等待客户端存放文件，完成后回复审计方
+func (sn *SiaSN) SiaUpdateDataShardNotice(ctx context.Context, preq *pb.SiaClientUpdDSRequest) (*pb.SiaClientUpdDSResponse, error) {
+	clientId := preq.ClientId
+	filename := preq.Filename
+	dsno := preq.Dsno
+	cid_fn := clientId + "-" + filename + "-" + dsno
+	//写来自审计方的分片存储通知
+	sn.PACUFNMutex.Lock()
+	sn.PendingACUpdFNotice[cid_fn] = 1
+	sn.PACUFNMutex.Unlock()
+	//阻塞监测分片是否已完成存储
+	iscomplete := 1
+	for {
+		sn.PACUFNMutex.RLock()
+		iscomplete = sn.PendingACUpdFNotice[cid_fn]
+		sn.PACUFNMutex.RUnlock()
+		if iscomplete == 2 {
+			break
+		}
+	}
+	//文件完成存储，则删除pending元素，给审计方返回消息
+	sn.PACUFNMutex.Lock()
+	delete(sn.PendingACUpdFNotice, cid_fn)
+	sn.PACUFNMutex.Unlock()
+	//计算Merkel根节点哈希，并获取dsno分片对应的验证路径
+	sn.CFMMutex.Lock()
+	leafHashes := sn.ClientDSHashMap[preq.ClientId]
+	index := sn.ClinetDSHashIndexMap[cid_fn]
+	root, paths := util.BuildMerkleTreeAndGeneratePath(leafHashes, index)
+	sn.ClientMerkleRootMap[preq.ClientId] = root
+	sn.CFMMutex.Unlock()
+	sn.FSLRMMMutex.RLock()
+	version := sn.FileVersionMap[cid_fn]
+	sn.FSLRMMMutex.RUnlock()
+	return &pb.SiaClientUpdDSResponse{ClientId: clientId, Filename: filename, Dsno: dsno, Version: int32(version), Merklepath: paths, Root: root, Index: int32(index)}, nil
 }

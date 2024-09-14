@@ -40,11 +40,12 @@ message SiaClientUpdDSRequest {
 //存储节点对更新数据分片请求的回复
 message SiaClientUpdDSResponse {
     string clientId = 1;   //客户端ID
-    string filename = 2;  //已更新的文件名
+    string filename = 2;  //待存储的文件名
     string dsno = 3;     //该存储节点已更新的分片号
-    int32 version = 4;   //分片更新后的版本号
-    string timestamp = 5; //分片更新后的时间戳
-    string message = 6;  //附加信息
+    int32 version = 4;   //分片对应的版本号
+    repeated bytes merklepath = 5;   //存储节点对存储分片的可验证存储路径
+    bytes root = 6;        //存储分片所在默克尔树的根节点哈希
+    int32 index = 7;     //存储分片所在叶子列表中的索引
 }
 
 //审计方发起的预审计请求

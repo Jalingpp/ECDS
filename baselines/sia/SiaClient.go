@@ -6,8 +6,10 @@ import (
 	"ECDS/util"
 	"bytes"
 	"context"
+	"fmt"
 	"log"
 	"strconv"
+	"strings"
 	"sync"
 
 	"google.golang.org/grpc"
@@ -197,10 +199,11 @@ func (client *SiaClient) SiaGetFile(filename string, isorigin bool) string {
 				log.Println("sn", snid, "return nil datashard", dsno)
 				errdsnosn[dsno] = snid
 			} else {
+				cid_fn_dsno := client.ClientID + "-" + filename + "-" + dsno
 				// 3.3-验证数据分片有效性
 				// 3.3.1-版本一致性检查
-				if gfsns_res.Version != gds_res.Version {
-					log.Println("sn", snid, "return outdated datashard", dsno, "versionAC:", gfsns_res.Version, "versionSN:", gds_res.Version)
+				if gfsns_res.Versions[cid_fn_dsno] != gds_res.Version {
+					log.Println("sn", snid, "return outdated datashard", dsno, "versionAC:", gfsns_res.Versions[cid_fn_dsno], "versionSN:", gds_res.Version)
 					errdsnosn[dsno] = snid
 				}
 				// 3.3.2-数据有效性检查
@@ -266,9 +269,10 @@ func (client *SiaClient) SiaGetFile(filename string, isorigin bool) string {
 						log.Println("sn", snid, "return nil parityshard", dsno)
 						errdsnosn[dsno] = snid
 					} else {
+						cid_fn_dsno := client.ClientID + "-" + filename + "-" + dsno
 						// 3.3-验证数据分片有效性
 						// 3.3.1-版本一致性检查
-						if gfsns_res.Version != gds_res.Version {
+						if gfsns_res.Versions[cid_fn_dsno] != gds_res.Version {
 							log.Println("sn", snid, "return outdated datashard", dsno, "version", gds_res.Version)
 							errdsnosn[dsno] = snid
 						}
@@ -350,4 +354,126 @@ func (client *SiaClient) SiaRecoverFileDS(fileDSs map[string][]int32, dprefix st
 		filestr = filestr + util.Int32SliceToStr(orderedFile[i])
 	}
 	return filestr
+}
+
+// 客户端更新某个数据分片
+func (client *SiaClient) SiaUpdateDS(filename string, dsno string, newDSStr string) {
+	splitdsno := strings.Split(dsno, "-")
+	udpDataRow, _ := strconv.Atoi(splitdsno[1]) //由待更新的dsno导出的待更新分片序号
+	// 1-获取旧的数据文件以及待更新块与校验块所在的存储节点id
+	oldfilestr := client.SiaGetFile(filename, true)
+	dsnum := client.Rsec.DataNum + client.Rsec.ParityNum
+	//创建一个包含数据块和校验块的[]int32切片
+	dataSlice := make([][]int32, dsnum)
+	//对文件进行分块后放入切片中
+	dsStrings := util.SplitString(oldfilestr, client.Rsec.DataNum)
+	for i := 0; i < client.Rsec.DataNum; i++ {
+		dataSlice[i] = util.ByteSliceToInt32Slice([]byte(dsStrings[i]))
+	}
+	//用新数据替换相应分片
+	dataSlice[udpDataRow] = util.ByteSliceToInt32Slice([]byte(newDSStr))
+	//初始化切片中的校验块
+	for i := client.Rsec.DataNum; i < dsnum; i++ {
+		dataSlice[i] = make([]int32, len(dataSlice[0]))
+	}
+	//RS纠删码编码
+	err := client.Rsec.Encode(dataSlice)
+	if err != nil {
+		panic(err)
+	}
+	//向审计方发送更新请求，告知要更新的dsno，审计方返回所有要更新的分片新版本
+	//1-构建请求消息
+	uf_req := &pb.SiaUFRequest{
+		Clientid: client.ClientID,
+		Filename: filename,
+		Dsno:     dsno,
+	}
+	// 2-发送请求给审计方
+	uf_res, err := client.ACRPC.SiaUpdateFileReq(context.Background(), uf_req)
+	if err != nil {
+		log.Fatalf("auditor could not process request: %v", err)
+	}
+	//向dsno所在存储方执行文件更新
+	udssn_req := &pb.SiaUpdDSRequest{
+		ClientId:   client.ClientID,
+		Filename:   filename,
+		Dsno:       dsno,
+		Datashard:  dataSlice[udpDataRow],
+		Newversion: uf_res.Dsversion + 1,
+	}
+	udssn_res, err := client.SNRPCs[uf_res.Dssn].SiaUpdateFileDS(context.Background(), udssn_req)
+	if err != nil {
+		log.Println("storagenode could not process request error:", err)
+	}
+	fmt.Println(client.ClientID, filename, dsno, "updated:", udssn_res.Message)
+	//向所有校验块所在存储方执行文件更新
+	done := make(chan struct{})
+	pssns := uf_res.Paritysns
+	psvs := uf_res.Parityversions
+	// 3.3.2-并发分发校验分片
+	for key, value := range pssns {
+		psno := strings.TrimPrefix(key, client.ClientID+"-"+filename+"-")
+		go func(sn string, psno string, cid_fni string) {
+			psno_int, _ := strconv.Atoi(strings.TrimPrefix(psno, "p-"))
+			// 3.3.1 - 构建分片存入请求消息
+			upssn_req := &pb.SiaUpdDSRequest{
+				ClientId:   client.ClientID,
+				Filename:   filename,
+				Dsno:       psno,
+				Datashard:  dataSlice[psno_int+client.Rsec.DataNum],
+				Newversion: psvs[cid_fni],
+			}
+			// 3.3.2 - 发送分片存入请求给存储节点
+			_, err := client.SNRPCs[sn].SiaUpdateFileDS(context.Background(), upssn_req)
+			if err != nil {
+				log.Fatalf("storagenode could not process request: %v", err)
+			}
+			// log.Println(sn, pf_res.Filename, pf_res.Dsno, "message:", pf_res.Message)
+			// 通知主线程任务完成
+			done <- struct{}{}
+		}(value, psno, key)
+	}
+	// 等待所有协程完成
+	for i := 0; i < len(pssns); i++ {
+		<-done
+	}
+	//4-确认文件存放完成且发送随机数集和默克尔树根给审计方
+	//4.1-构造确认请求
+	//获取所有分片的哈希值
+	dsHashMap := make(map[string][]byte)
+	dskey := client.ClientID + "-" + filename + "-" + dsno
+	dsHashMap[dskey] = util.Hash([]byte(util.Int32SliceToStr(dataSlice[udpDataRow])))
+	for i := client.Rsec.DataNum; i < dsnum; i++ {
+		dsbytes := []byte(util.Int32SliceToStr(dataSlice[i]))
+		key := client.ClientID + "-" + filename + "-p-" + strconv.Itoa(i-client.Rsec.DataNum)
+		dsHashMap[key] = util.Hash(dsbytes)
+	}
+	ufc_req := &pb.SiaUFCRequest{
+		ClientId:  client.ClientID,
+		Filename:  filename,
+		Dshashmap: dsHashMap,
+	}
+	// 4.2-发送确认请求给审计方
+	_, err = client.ACRPC.SiaUpdateFileCommit(context.Background(), ufc_req)
+	if err != nil {
+		log.Fatalf("auditor could not process request: %v", err)
+	}
+}
+
+// 给定一个文件名和待修改的分片号，返回完整的数据字符串、分片所在的存储节点、所有校验块所在的存储节点
+func (client *SiaClient) SiaGetFileAndParitySNs(filename string, dsno string) (string, string, map[string]string) {
+	filestr := client.SiaGetFile(filename, true)
+	//获取dsno和所有校验块所在的存储节点号
+	//1-构建请求消息
+	gsns_req := &pb.SiaGDSPSSNRequest{
+		Clientid: client.ClientID,
+		Filename: filename,
+		Dsno:     dsno,
+	}
+	// 2-发送请求给审计方
+	gsns_res, err := client.ACRPC.SiaGetDSPSSNs(context.Background(), gsns_req)
+	if err != nil {
+		log.Fatalf("auditor could not process request: %v", err)
+	}
+	return filestr, gsns_res.Dssn, gsns_res.Paritysns
 }

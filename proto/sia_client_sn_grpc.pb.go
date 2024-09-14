@@ -30,7 +30,7 @@ const (
 type SiaSNServiceClient interface {
 	SiaPutFileDS(ctx context.Context, in *SiaPutFRequest, opts ...grpc.CallOption) (*SiaPutFResponse, error)
 	SiaGetFileDS(ctx context.Context, in *SiaGetFRequest, opts ...grpc.CallOption) (*SiaGetFResponse, error)
-	SiaUpdateFileDS(ctx context.Context, in *SiaUpdFRequest, opts ...grpc.CallOption) (*SiaUpdFResponse, error)
+	SiaUpdateFileDS(ctx context.Context, in *SiaUpdDSRequest, opts ...grpc.CallOption) (*SiaUpdDSResponse, error)
 }
 
 type siaSNServiceClient struct {
@@ -61,9 +61,9 @@ func (c *siaSNServiceClient) SiaGetFileDS(ctx context.Context, in *SiaGetFReques
 	return out, nil
 }
 
-func (c *siaSNServiceClient) SiaUpdateFileDS(ctx context.Context, in *SiaUpdFRequest, opts ...grpc.CallOption) (*SiaUpdFResponse, error) {
+func (c *siaSNServiceClient) SiaUpdateFileDS(ctx context.Context, in *SiaUpdDSRequest, opts ...grpc.CallOption) (*SiaUpdDSResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(SiaUpdFResponse)
+	out := new(SiaUpdDSResponse)
 	err := c.cc.Invoke(ctx, SiaSNService_SiaUpdateFileDS_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -77,7 +77,7 @@ func (c *siaSNServiceClient) SiaUpdateFileDS(ctx context.Context, in *SiaUpdFReq
 type SiaSNServiceServer interface {
 	SiaPutFileDS(context.Context, *SiaPutFRequest) (*SiaPutFResponse, error)
 	SiaGetFileDS(context.Context, *SiaGetFRequest) (*SiaGetFResponse, error)
-	SiaUpdateFileDS(context.Context, *SiaUpdFRequest) (*SiaUpdFResponse, error)
+	SiaUpdateFileDS(context.Context, *SiaUpdDSRequest) (*SiaUpdDSResponse, error)
 	mustEmbedUnimplementedSiaSNServiceServer()
 }
 
@@ -94,7 +94,7 @@ func (UnimplementedSiaSNServiceServer) SiaPutFileDS(context.Context, *SiaPutFReq
 func (UnimplementedSiaSNServiceServer) SiaGetFileDS(context.Context, *SiaGetFRequest) (*SiaGetFResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SiaGetFileDS not implemented")
 }
-func (UnimplementedSiaSNServiceServer) SiaUpdateFileDS(context.Context, *SiaUpdFRequest) (*SiaUpdFResponse, error) {
+func (UnimplementedSiaSNServiceServer) SiaUpdateFileDS(context.Context, *SiaUpdDSRequest) (*SiaUpdDSResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SiaUpdateFileDS not implemented")
 }
 func (UnimplementedSiaSNServiceServer) mustEmbedUnimplementedSiaSNServiceServer() {}
@@ -155,7 +155,7 @@ func _SiaSNService_SiaGetFileDS_Handler(srv interface{}, ctx context.Context, de
 }
 
 func _SiaSNService_SiaUpdateFileDS_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SiaUpdFRequest)
+	in := new(SiaUpdDSRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -167,7 +167,7 @@ func _SiaSNService_SiaUpdateFileDS_Handler(srv interface{}, ctx context.Context,
 		FullMethod: SiaSNService_SiaUpdateFileDS_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SiaSNServiceServer).SiaUpdateFileDS(ctx, req.(*SiaUpdFRequest))
+		return srv.(SiaSNServiceServer).SiaUpdateFileDS(ctx, req.(*SiaUpdDSRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
