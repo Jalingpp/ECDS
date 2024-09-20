@@ -421,7 +421,7 @@ func (client *SiaClient) SiaUpdateDS(filename string, dsno string, newDSStr stri
 				Filename:   filename,
 				Dsno:       psno,
 				Datashard:  dataSlice[psno_int+client.Rsec.DataNum],
-				Newversion: psvs[cid_fni],
+				Newversion: psvs[cid_fni] + 1,
 			}
 			// 3.3.2 - 发送分片存入请求给存储节点
 			_, err := client.SNRPCs[sn].SiaUpdateFileDS(context.Background(), upssn_req)

@@ -9,7 +9,7 @@ service SiaSNACService {
     rpc SiaPutFileNotice(SiaClientStorageRequest) returns (SiaClientStorageResponse);
     rpc SiaUpdateDataShardNotice(SiaClientUpdDSRequest) returns (SiaClientUpdDSResponse);
     rpc SiaPreAuditSN(SiaPASNRequest) returns (SiaPASNResponse);
-    rpc SiaGetAggPosSN(SiaGAPSNRequest) returns (SiaGAPSNResponse);
+    rpc SiaGetPosSN(SiaGAPSNRequest) returns (SiaGAPSNResponse);
 }
 
 //客户端发起的存储请求
@@ -28,6 +28,7 @@ message SiaClientStorageResponse {
     repeated bytes merklepath = 5;   //存储节点对存储分片的可验证存储路径
     bytes root = 6;        //存储分片所在默克尔树的根节点哈希
     int32 index = 7;     //存储分片所在叶子列表中的索引
+    int32 timestamp = 8;   //生成根节点哈希值的时间戳
 }
 
 //客户端发起的更新数据分片请求
@@ -46,6 +47,7 @@ message SiaClientUpdDSResponse {
     repeated bytes merklepath = 5;   //存储节点对存储分片的可验证存储路径
     bytes root = 6;        //存储分片所在默克尔树的根节点哈希
     int32 index = 7;     //存储分片所在叶子列表中的索引
+    int32 timestamp = 8;   //生成根节点哈希值的时间戳
 }
 
 //审计方发起的预审计请求
@@ -64,10 +66,16 @@ message SiaPASNResponse{
 //获取存储节点上所有存储分片的聚合存储证明的请求
 message SiaGAPSNRequest{
     string auditno = 1;   //审计代号
-    int32 random = 2;  //挑战的随机数
+    string cidfni = 2;    //审计分片
 }
 
 //存储节点对所有存储分片的聚合存储证明请求的回复
 message SiaGAPSNResponse{
-    bytes aggpos = 1;   //聚合存储证明
+    string cidfni = 1;  //分片id
+    repeated int32 data = 2;   //分片数据
+    int32 version = 3;  //分片对应的版本号
+    bytes roothash = 4;  //根节点哈希
+    int32 roottimestamp = 5;  //根节点哈希时间戳
+    repeated bytes path = 6;   //验证路径
+    int32 index = 7;  //分片哈希索引号
 }

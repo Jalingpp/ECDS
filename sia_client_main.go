@@ -13,8 +13,8 @@ func main() {
 	pn := 20
 	acAddr := "localhost:50051"
 	snAddrFilepath := "data/snaddr"
-	clientNum := 20
-	fileNum := 10
+	clientNum := 50
+	fileNum := 100
 	// logoutpath := "data/outlog"
 	//读存储节点地址表
 	snaddrmap := util.ReadSNAddrFile(snAddrFilepath)

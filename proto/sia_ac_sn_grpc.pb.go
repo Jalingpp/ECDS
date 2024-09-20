@@ -22,7 +22,7 @@ const (
 	SiaSNACService_SiaPutFileNotice_FullMethodName         = "/proto.SiaSNACService/SiaPutFileNotice"
 	SiaSNACService_SiaUpdateDataShardNotice_FullMethodName = "/proto.SiaSNACService/SiaUpdateDataShardNotice"
 	SiaSNACService_SiaPreAuditSN_FullMethodName            = "/proto.SiaSNACService/SiaPreAuditSN"
-	SiaSNACService_SiaGetAggPosSN_FullMethodName           = "/proto.SiaSNACService/SiaGetAggPosSN"
+	SiaSNACService_SiaGetPosSN_FullMethodName              = "/proto.SiaSNACService/SiaGetPosSN"
 )
 
 // SiaSNACServiceClient is the client API for SiaSNACService service.
@@ -34,7 +34,7 @@ type SiaSNACServiceClient interface {
 	SiaPutFileNotice(ctx context.Context, in *SiaClientStorageRequest, opts ...grpc.CallOption) (*SiaClientStorageResponse, error)
 	SiaUpdateDataShardNotice(ctx context.Context, in *SiaClientUpdDSRequest, opts ...grpc.CallOption) (*SiaClientUpdDSResponse, error)
 	SiaPreAuditSN(ctx context.Context, in *SiaPASNRequest, opts ...grpc.CallOption) (*SiaPASNResponse, error)
-	SiaGetAggPosSN(ctx context.Context, in *SiaGAPSNRequest, opts ...grpc.CallOption) (*SiaGAPSNResponse, error)
+	SiaGetPosSN(ctx context.Context, in *SiaGAPSNRequest, opts ...grpc.CallOption) (*SiaGAPSNResponse, error)
 }
 
 type siaSNACServiceClient struct {
@@ -75,10 +75,10 @@ func (c *siaSNACServiceClient) SiaPreAuditSN(ctx context.Context, in *SiaPASNReq
 	return out, nil
 }
 
-func (c *siaSNACServiceClient) SiaGetAggPosSN(ctx context.Context, in *SiaGAPSNRequest, opts ...grpc.CallOption) (*SiaGAPSNResponse, error) {
+func (c *siaSNACServiceClient) SiaGetPosSN(ctx context.Context, in *SiaGAPSNRequest, opts ...grpc.CallOption) (*SiaGAPSNResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SiaGAPSNResponse)
-	err := c.cc.Invoke(ctx, SiaSNACService_SiaGetAggPosSN_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, SiaSNACService_SiaGetPosSN_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +94,7 @@ type SiaSNACServiceServer interface {
 	SiaPutFileNotice(context.Context, *SiaClientStorageRequest) (*SiaClientStorageResponse, error)
 	SiaUpdateDataShardNotice(context.Context, *SiaClientUpdDSRequest) (*SiaClientUpdDSResponse, error)
 	SiaPreAuditSN(context.Context, *SiaPASNRequest) (*SiaPASNResponse, error)
-	SiaGetAggPosSN(context.Context, *SiaGAPSNRequest) (*SiaGAPSNResponse, error)
+	SiaGetPosSN(context.Context, *SiaGAPSNRequest) (*SiaGAPSNResponse, error)
 	mustEmbedUnimplementedSiaSNACServiceServer()
 }
 
@@ -114,8 +114,8 @@ func (UnimplementedSiaSNACServiceServer) SiaUpdateDataShardNotice(context.Contex
 func (UnimplementedSiaSNACServiceServer) SiaPreAuditSN(context.Context, *SiaPASNRequest) (*SiaPASNResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SiaPreAuditSN not implemented")
 }
-func (UnimplementedSiaSNACServiceServer) SiaGetAggPosSN(context.Context, *SiaGAPSNRequest) (*SiaGAPSNResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SiaGetAggPosSN not implemented")
+func (UnimplementedSiaSNACServiceServer) SiaGetPosSN(context.Context, *SiaGAPSNRequest) (*SiaGAPSNResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SiaGetPosSN not implemented")
 }
 func (UnimplementedSiaSNACServiceServer) mustEmbedUnimplementedSiaSNACServiceServer() {}
 func (UnimplementedSiaSNACServiceServer) testEmbeddedByValue()                        {}
@@ -192,20 +192,20 @@ func _SiaSNACService_SiaPreAuditSN_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
-func _SiaSNACService_SiaGetAggPosSN_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _SiaSNACService_SiaGetPosSN_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SiaGAPSNRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SiaSNACServiceServer).SiaGetAggPosSN(ctx, in)
+		return srv.(SiaSNACServiceServer).SiaGetPosSN(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: SiaSNACService_SiaGetAggPosSN_FullMethodName,
+		FullMethod: SiaSNACService_SiaGetPosSN_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SiaSNACServiceServer).SiaGetAggPosSN(ctx, req.(*SiaGAPSNRequest))
+		return srv.(SiaSNACServiceServer).SiaGetPosSN(ctx, req.(*SiaGAPSNRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -230,8 +230,8 @@ var SiaSNACService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _SiaSNACService_SiaPreAuditSN_Handler,
 		},
 		{
-			MethodName: "SiaGetAggPosSN",
-			Handler:    _SiaSNACService_SiaGetAggPosSN_Handler,
+			MethodName: "SiaGetPosSN",
+			Handler:    _SiaSNACService_SiaGetPosSN_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

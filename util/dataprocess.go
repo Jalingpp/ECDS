@@ -298,3 +298,27 @@ func GenerateRootByPaths(leaf []byte, index int, paths [][]byte) []byte {
 	}
 	return root
 }
+
+// 比较时间a是否在b之后：a在b之后则返回1，a在b之前则返回2，相同则返回0
+func IsTimeAfter(a string, b string) int {
+	// 将字符串解析为 time.Time 类型
+	time1, err := time.Parse("2006-01-02 15:04:05", a)
+	if err != nil {
+		fmt.Println("Error parsing time:", err)
+		return -1
+	}
+	time2, err := time.Parse("2006-01-02 15:04:05", b)
+	if err != nil {
+		fmt.Println("Error parsing time:", err)
+		return -1
+	}
+
+	// 比较两个时间
+	if time1.After(time2) {
+		return 1
+	} else if time1.Before(time2) {
+		return 2
+	} else {
+		return 0
+	}
+}
