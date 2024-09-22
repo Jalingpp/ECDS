@@ -9,9 +9,9 @@ import (
 )
 
 func main() {
-	// acAddr := "localhost:50051"
-	acAddr := "10.0.4.29:50051"
-	snAddrFilepath := "data/snaddr2"
+	acAddr := "localhost:50051"
+	// acAddr := "10.0.4.29:50051"
+	snAddrFilepath := "data/snaddr"
 	clientNum := 1
 	fileNum := 1
 	// logoutpath := "data/outlog"

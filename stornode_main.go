@@ -7,7 +7,7 @@ import (
 
 func main() {
 	//1-读文件创建所有存储节点
-	snaddrfilename := "data/snaddr2"
+	snaddrfilename := "data/snaddr"
 	storagenodes := make(map[string]*nodes.StorageNode) //key:snid
 	//读取存储节点地址
 	snaddrmap := util.ReadSNAddrFile(snaddrfilename)

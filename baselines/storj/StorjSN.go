@@ -153,7 +153,7 @@ func (sn *StorjSN) StorjPutFileNotice(ctx context.Context, preq *pb.StorjClientS
 	sn.FSLRMMMutex.RLock()
 	root := sn.FileRootMap[cid_fn]
 	sn.FSLRMMMutex.RUnlock()
-	log.Println(sn.SNId, "已接收通知", cid_fn)
+	// log.Println(sn.SNId, "已接收通知", cid_fn)
 	return &pb.StorjClientStorageResponse{ClientId: clientId, Filename: filename, Repno: repno, Root: root, Snid: sn.SNId, Message: sn.SNId + " completes the storage of " + cid_fn + "."}, nil
 }
 
