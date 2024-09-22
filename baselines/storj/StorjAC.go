@@ -408,7 +408,7 @@ func (ac *StorjAC) StorjUpdateFileCommit(ctx context.Context, req *pb.StorjUFCRe
 
 // 【在生成Auditor对象时启动】审计方每隔sleepSeconds秒对每个文件的副本进行审计
 func (ac *StorjAC) KeepAuditing(sleepSeconds int) {
-	time.Sleep(50 * time.Second)
+	time.Sleep(time.Duration(sleepSeconds) * time.Second)
 	auditNo := 0
 	for {
 		// 构建每个存储节点上的审计文件表

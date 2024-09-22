@@ -163,7 +163,7 @@ func (sn *StorageNode) PutDataShard(ctx context.Context, preq *pb.PutDSRequest) 
 	sn.PendingACPutDSNotice[cid_fn][dsno] = 2
 	sn.PACNMutex.Unlock()
 	// 4-告知审计方分片放置结果
-	log.Println("Completed record datashard ", dsno, " of file ", filename, ".")
+	// log.Println("Completed record datashard ", dsno, " of file ", filename, ".")
 	return &pb.PutDSResponse{Filename: preq.Filename, Dsno: dsno, Message: message}, nil
 }
 

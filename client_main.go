@@ -12,6 +12,7 @@ func main() {
 	dn := 11
 	pn := 20
 	acAddr := "10.0.4.29:50051"
+	// acAddr := "localhost:50051"
 	snAddrFilepath := "data/snaddr2"
 	clientNum := 50
 	fileNum := 100

@@ -8,6 +8,7 @@ func main() {
 	snaddrfilename := "data/snaddr2"
 	//创建一个审计员
 	auditor := nodes.NewAuditor("10.0.4.29:50051", snaddrfilename, dn, pn)
+	// auditor := nodes.NewAuditor("localhost:50051", snaddrfilename, dn, pn)
 	auditor.PrintAuditor()
 	select {}
 }

@@ -573,7 +573,7 @@ func (ac *SiaAC) SiaUpdateFileCommit(ctx context.Context, req *pb.SiaUFCRequest)
 
 // 【在生成Auditor对象时启动】审计方每隔sleepSeconds秒随机选择dsnum个存储节点进行存储审计
 func (ac *SiaAC) KeepAuditing(sleepSeconds int) {
-	time.Sleep(20 * time.Second)
+	time.Sleep(time.Duration(sleepSeconds) * time.Second)
 	auditNo := 0
 	seed := time.Now().UnixNano()
 	randor := rand.New(rand.NewSource(seed))
