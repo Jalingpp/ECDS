@@ -1,6 +1,7 @@
 package util
 
 import (
+	"ECDS/util"
 	"bytes"
 	"encoding/gob"
 	"encoding/json"
@@ -15,6 +16,10 @@ type DataShard struct {
 	Sig       []byte
 	Version   int32
 	Timestamp string
+}
+
+func (ds *DataShard) Sizeof() int {
+	return len([]byte(util.Int32SliceToStr(ds.Data)))
 }
 
 func NewDataShard(dsno string, data []int32, sig []byte, v int32, t string) *DataShard {
@@ -77,6 +82,17 @@ type Meta4File struct {
 	//用于记录一个文件所有分片的信息
 	LatestVersionSlice   map[string]int32  //key:dsno
 	LatestTimestampSlice map[string]string //key:dsno
+}
+
+func (m4f *Meta4File) Sizeof() int {
+	dsnosize := 0
+	for key, _ := range m4f.LatestVersionSlice {
+		dsnosize = len([]byte(key))
+		if dsnosize > 0 {
+			break
+		}
+	}
+	return len(m4f.LatestTimestampSlice) * (2*dsnosize + 8 + 19)
 }
 
 // 【客户端执行】创建文件元数据记录器

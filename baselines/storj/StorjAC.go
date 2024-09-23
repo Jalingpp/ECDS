@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net"
 	"strconv"
@@ -410,7 +411,10 @@ func (ac *StorjAC) StorjUpdateFileCommit(ctx context.Context, req *pb.StorjUFCRe
 func (ac *StorjAC) KeepAuditing(sleepSeconds int) {
 	time.Sleep(time.Duration(sleepSeconds) * time.Second)
 	auditNo := 0
+	avgDuration := int64(0)
+	totalVOSizeMap := make(map[string]int, len(ac.SNAddrMap))
 	for {
+		st := time.Now()
 		// 构建每个存储节点上的审计文件表
 		snfnimap := make(map[string][]string)          //key:snid,value:cid-fn-i
 		snfnivmap := make(map[string]map[string]int32) //key:snid,subkey:cid-fn-i,subvalue:version
@@ -570,6 +574,8 @@ func (ac *StorjAC) KeepAuditing(sleepSeconds int) {
 					if err != nil {
 						log.Fatalf("storagenode could not process request: %v", err)
 					}
+					//记录存储证明大小
+					totalVOSizeMap[snId] = totalVOSizeMap[snId] + SizeofStorjProofs(gapos_res.Preleafs)
 					//验证存储证明
 					for cidfni, preleafsArray := range gapos_res.Preleafs {
 						preleafs := make([][]byte, 0)
@@ -604,6 +610,42 @@ func (ac *StorjAC) KeepAuditing(sleepSeconds int) {
 		ac.MulVFileRandMap = make(map[string]map[string][]int32)
 		ac.MulVFileRootMap = make(map[string]map[string][]byte)
 		ac.MFRRMutex.Unlock()
+		duration := time.Since(st)
+		//计算平均延迟
+		avgDuration = (avgDuration*int64(auditNo-1) + (duration.Milliseconds())) / int64(auditNo)
+		//计算平均VO大小
+		totalVOSize := 0
+		for snid, _ := range totalVOSizeMap {
+			totalVOSize = totalVOSize + totalVOSizeMap[snid]
+		}
+		avgVOSize := totalVOSize / auditNo
+		//计算辅助信息所占字节数
+		auditInfoSize := 0
+		ac.FRRMMutex.RLock()
+		frmap := ac.FileRootMap
+		frdmap := ac.FileRandMap
+		fvmap := ac.FileVersionMap
+		ac.FRRMMutex.RUnlock()
+		for key, value := range frmap {
+			auditInfoSize = auditInfoSize + len([]byte(key))
+			for subkey, subvalue := range value {
+				auditInfoSize = auditInfoSize + len([]byte(subkey)) + len(subvalue)
+			}
+		}
+		for key, value := range frdmap {
+			auditInfoSize = auditInfoSize + len([]byte(key))
+			for subkey, subvalue := range value {
+				auditInfoSize = auditInfoSize + len([]byte(subkey)) + len(subvalue)*4
+			}
+		}
+		for key, value := range fvmap {
+			auditInfoSize = auditInfoSize + len([]byte(key))
+			for subkey, _ := range value {
+				auditInfoSize = auditInfoSize + len([]byte(subkey)) + 4
+			}
+		}
+		util.LogToFile("data/outlog_ac", "audit-"+strconv.Itoa(auditNo)+" latency="+strconv.Itoa(int(duration.Milliseconds()))+" ms, avgLatency="+strconv.Itoa(int(avgDuration))+" ms, avgVOSize="+strconv.Itoa(avgVOSize)+", auditInforSize="+strconv.Itoa(auditInfoSize)+" B")
+		fmt.Println("audit-" + strconv.Itoa(auditNo) + " latency=" + strconv.Itoa(int(duration.Milliseconds())) + " ms, avgLatency=" + strconv.Itoa(int(avgDuration)) + " ms, avgVOSize=" + strconv.Itoa(avgVOSize) + ", auditInforSize=" + strconv.Itoa(auditInfoSize) + " B")
 		time.Sleep(time.Duration(sleepSeconds) * time.Second)
 	}
 }
@@ -624,4 +666,15 @@ func (ac *StorjAC) PrintStorjAuditor() {
 	}
 	str = str + "},DataNum:" + strconv.Itoa(ac.DataNum) + ",ParityNum:" + strconv.Itoa(ac.ParityNum) + "}"
 	log.Println(str)
+}
+
+func SizeofStorjProofs(Preleafs map[string]*pb.BytesArray) int {
+	size := 0
+	for key, value := range Preleafs {
+		size = size + len([]byte(key))
+		for i := 0; i < len(value.Values); i++ {
+			size = size + len(value.Values[i])
+		}
+	}
+	return size
 }

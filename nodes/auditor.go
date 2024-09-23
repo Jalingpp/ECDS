@@ -6,6 +6,7 @@ import (
 	"ECDS/util"
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"math/rand"
 	"net"
@@ -648,7 +649,10 @@ func (ac *Auditor) KeepAuditing(sleepSeconds int) {
 	auditNo := 0
 	seed := time.Now().UnixNano()
 	randor := rand.New(rand.NewSource(seed))
+	avgDuration := int64(0)
+	totalVOSizeMap := make(map[string]int, len(ac.SNAddrMap))
 	for {
+		st := time.Now()
 		ac.SNDSVMutex.RLock()
 		sndsvNum := len(ac.SNDSVMap)
 		ac.SNDSVMutex.RUnlock()
@@ -752,6 +756,7 @@ func (ac *Auditor) KeepAuditing(sleepSeconds int) {
 					if deseerr != nil {
 						log.Fatalf("aggpos deserialize error: %v", err)
 					}
+					totalVOSizeMap[snId] = totalVOSizeMap[snId] + len(gapos_res.Aggpos)
 					//验证存储证明
 					// pdp.VerifyAggPos(aggpos, ac.Params, ac.G, ac.ClientPK, mfmap, random)
 					if pdp.VerifyAggPos(aggpos, ac.Params, ac.G, ac.ClientPK, mfmap, random) {
@@ -776,6 +781,25 @@ func (ac *Auditor) KeepAuditing(sleepSeconds int) {
 			ac.MVMFMMutex.Lock()
 			ac.MulVMetaFileMap = make(map[string]map[string]*util.Meta4File)
 			ac.MVMFMMutex.Unlock()
+			duration := time.Since(st)
+			//计算平均延迟
+			avgDuration = (avgDuration*int64(auditNo-1) + (duration.Milliseconds())) / int64(auditNo)
+			//计算平均VO大小
+			totalVOSize := 0
+			for snid, _ := range totalVOSizeMap {
+				totalVOSize = totalVOSize + totalVOSizeMap[snid]
+			}
+			avgVOSize := totalVOSize / auditNo
+			//计算辅助信息所占字节数
+			auditInfoSize := 0
+			ac.MFMutex.RLock()
+			mfmap := ac.MetaFileMap
+			ac.MFMutex.RUnlock()
+			for key, value := range mfmap {
+				auditInfoSize = auditInfoSize + len([]byte(key)) + value.Sizeof()
+			}
+			util.LogToFile("data/outlog_ac", "audit-"+strconv.Itoa(auditNo)+" latency="+strconv.Itoa(int(duration.Milliseconds()))+" ms, avgLatency="+strconv.Itoa(int(avgDuration))+" ms, avgVOSize="+strconv.Itoa(avgVOSize)+", auditInforSize="+strconv.Itoa(auditInfoSize)+" B")
+			fmt.Println("audit-" + strconv.Itoa(auditNo) + " latency=" + strconv.Itoa(int(duration.Milliseconds())) + " ms, avgLatency=" + strconv.Itoa(int(avgDuration)) + " ms, avgVOSize=" + strconv.Itoa(avgVOSize) + ", auditInforSize=" + strconv.Itoa(auditInfoSize) + " B")
 			time.Sleep(time.Duration(sleepSeconds) * time.Second)
 		}
 	}

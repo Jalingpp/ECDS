@@ -485,8 +485,14 @@ func (sn *StorageNode) GetDSSTNoLessV(cid string, fn string, dsno string, versio
 		return nil, nil
 	}
 	ds := sn.FileShardsMap[cid_fn][dsno]
+	data := make([]int32, len(ds.Data))
+	copy(data, ds.Data)
+	sig := make([]byte, len(ds.Sig))
+	copy(sig, ds.Sig)
+	v := ds.Version
+	t := ds.Timestamp
 	sn.FSMMMutex.RUnlock()
-	return util.NewDataShard(dsno, ds.Data, ds.Sig, ds.Version, ds.Timestamp), nil
+	return util.NewDataShard(dsno, data, sig, v, t), nil
 }
 
 // 【供审计方使用的RPC】获取存储节点上所有存储分片的聚合存储证明

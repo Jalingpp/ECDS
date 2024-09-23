@@ -383,7 +383,10 @@ func (ac *FilecoinAC) FilecoinUpdateFileCommit(ctx context.Context, req *pb.File
 func (ac *FilecoinAC) KeepAuditing(sleepSeconds int) {
 	time.Sleep(time.Duration(sleepSeconds) * time.Second)
 	auditNo := 0
+	avgDuration := int64(0)
+	totalVOSizeMap := make(map[string]int, len(ac.SNAddrMap))
 	for {
+		st := time.Now()
 		// 构建每个存储节点上的审计文件表
 		snfnimap := make(map[string][]string)          //key:snid,value:cid-fn-i
 		snfnivmap := make(map[string]map[string]int32) //key:snid,subkey:cid-fn-i,subvalue:version
@@ -536,6 +539,8 @@ func (ac *FilecoinAC) KeepAuditing(sleepSeconds int) {
 					}
 					//验证存储证明
 					for cidfnisen, proofsmess := range gapos_res.Proofs {
+						//记录证明大小
+						totalVOSizeMap[snId] = totalVOSizeMap[snId] + SizeofProofs(proofsmess)
 						cidfnisen_split := strings.Split(cidfnisen, "-")
 						cid_fn_i := cidfnisen_split[0] + "-" + cidfnisen_split[1] + "-" + cidfnisen_split[2]
 						snint, _ := strconv.Atoi(cidfnisen_split[3])
@@ -590,6 +595,28 @@ func (ac *FilecoinAC) KeepAuditing(sleepSeconds int) {
 		ac.MFRRMutex.Lock()
 		ac.MulVFileSectorInforMap = make(map[string]map[int]map[int]*SectorSealedInfor)
 		ac.MFRRMutex.Unlock()
+		duration := time.Since(st)
+		//计算平均延迟
+		avgDuration = (avgDuration*int64(auditNo-1) + (duration.Milliseconds())) / int64(auditNo)
+		//计算平均VO大小
+		totalVOSize := 0
+		for snid, _ := range totalVOSizeMap {
+			totalVOSize = totalVOSize + totalVOSizeMap[snid]
+		}
+		avgVOSize := totalVOSize / auditNo
+		//计算辅助信息所占字节数
+		auditInfoSize := 0
+		ac.CFRMMutex.RLock()
+		mfmap := ac.ClientFileRepSectorInforMap
+		ac.CFRMMutex.RUnlock()
+		for key, value := range mfmap {
+			auditInfoSize = auditInfoSize + len([]byte(key))
+			for _, subvalue := range value {
+				auditInfoSize = auditInfoSize + 4 + subvalue.Sizeof()
+			}
+		}
+		util.LogToFile("data/outlog_ac", "audit-"+strconv.Itoa(auditNo)+" latency="+strconv.Itoa(int(duration.Milliseconds()))+" ms, avgLatency="+strconv.Itoa(int(avgDuration))+" ms, avgVOSize="+strconv.Itoa(avgVOSize)+", auditInforSize="+strconv.Itoa(auditInfoSize)+" B")
+		fmt.Println("audit-" + strconv.Itoa(auditNo) + " latency=" + strconv.Itoa(int(duration.Milliseconds())) + " ms, avgLatency=" + strconv.Itoa(int(avgDuration)) + " ms, avgVOSize=" + strconv.Itoa(avgVOSize) + ", auditInforSize=" + strconv.Itoa(auditInfoSize) + " B")
 		time.Sleep(time.Duration(sleepSeconds) * time.Second)
 	}
 }
@@ -610,4 +637,12 @@ func MessageToProofs(proofsmess *pb.FilecoinBytesArray) []prooftypes.PoStProof {
 		proofs = append(proofs, postProof)
 	}
 	return proofs
+}
+
+func SizeofProofs(proofsmess *pb.FilecoinBytesArray) int {
+	size := 0
+	for i := 0; i < len(proofsmess.Values); i++ {
+		size = size + len(proofsmess.Values[i])
+	}
+	return size
 }

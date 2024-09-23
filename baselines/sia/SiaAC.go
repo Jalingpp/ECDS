@@ -577,7 +577,10 @@ func (ac *SiaAC) KeepAuditing(sleepSeconds int) {
 	auditNo := 0
 	seed := time.Now().UnixNano()
 	randor := rand.New(rand.NewSource(seed))
+	avgDuration := int64(0)
+	totalVOSizeMap := make(map[string]map[string]int, len(ac.SNAddrMap))
 	for {
+		st := time.Now()
 		ac.CDSSNMMutex.RLock()
 		sndsvNum := len(ac.ClientDSSNMap)
 		ac.CDSSNMMutex.RUnlock()
@@ -655,6 +658,11 @@ func (ac *SiaAC) KeepAuditing(sleepSeconds int) {
 							if err != nil {
 								log.Fatalf("storagenode could not process request: %v", err)
 							}
+							//记录存储证明大小
+							totalVOSizeMap[snId][cidfndsno] = totalVOSizeMap[snId][cidfndsno] + len([]byte(util.Int32SliceToStr(gapos_res.Data))) + len(gapos_res.Roothash)
+							for k := 0; k < len(gapos_res.Path); k++ {
+								totalVOSizeMap[snId][cidfndsno] = totalVOSizeMap[snId][cidfndsno] + len(gapos_res.Path[k])
+							}
 							//验证存储证明
 							//验证数据版本是否正确
 							if versi != gapos_res.Version {
@@ -727,6 +735,41 @@ func (ac *SiaAC) KeepAuditing(sleepSeconds int) {
 			ac.MFRRMutex.Lock()
 			ac.MulVFileRootMap = make(map[string]map[string]map[int][]byte)
 			ac.MFRRMutex.Unlock()
+			duration := time.Since(st)
+			//计算平均延迟
+			avgDuration = (avgDuration*int64(auditNo-1) + (duration.Milliseconds())) / int64(auditNo)
+			//计算平均VO大小
+			totalVOSize := 0
+			for _, value := range totalVOSizeMap {
+				for _, subvalue := range value {
+					totalVOSize = totalVOSize + subvalue
+				}
+			}
+			avgVOSize := totalVOSize / auditNo
+			//计算辅助信息所占字节数
+			auditInfoSize := 0
+			ac.FRRMMutex.RLock()
+			snrmap := ac.ClientSNRootMap
+			snrtmap := ac.ClientSNRootTimeMap
+			dsvmap := ac.ClientDSVersionMap
+			ac.FRRMMutex.RUnlock()
+			for key, value := range snrmap {
+				auditInfoSize = auditInfoSize + len([]byte(key))
+				for subkey, subvalue := range value {
+					auditInfoSize = auditInfoSize + len([]byte(subkey)) + len(subvalue)
+				}
+			}
+			for key, value := range snrtmap {
+				auditInfoSize = auditInfoSize + len([]byte(key))
+				for subkey, _ := range value {
+					auditInfoSize = auditInfoSize + len([]byte(subkey)) + 4
+				}
+			}
+			for key, _ := range dsvmap {
+				auditInfoSize = auditInfoSize + len([]byte(key)) + 4
+			}
+			util.LogToFile("data/outlog_ac", "audit-"+strconv.Itoa(auditNo)+" latency="+strconv.Itoa(int(duration.Milliseconds()))+" ms, avgLatency="+strconv.Itoa(int(avgDuration))+" ms, avgVOSize="+strconv.Itoa(avgVOSize)+", auditInforSize="+strconv.Itoa(auditInfoSize)+" B")
+			fmt.Println("audit-" + strconv.Itoa(auditNo) + " latency=" + strconv.Itoa(int(duration.Milliseconds())) + " ms, avgLatency=" + strconv.Itoa(int(avgDuration)) + " ms, avgVOSize=" + strconv.Itoa(avgVOSize) + ", auditInforSize=" + strconv.Itoa(auditInfoSize) + " B")
 			time.Sleep(time.Duration(sleepSeconds) * time.Second)
 		}
 	}

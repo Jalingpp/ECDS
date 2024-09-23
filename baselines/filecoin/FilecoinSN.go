@@ -28,6 +28,10 @@ type SectorSealedInfor struct {
 	Proof       []byte
 }
 
+func (ssi *SectorSealedInfor) Sizeof() int {
+	return 8 + ssi.SealedCID.ByteLen() + ssi.UnsealedCID.ByteLen() + len(ssi.Proof)
+}
+
 type FilecoinSN struct {
 	SNId                                      string                                                      //存储节点id
 	SNAddr                                    string                                                      //存储节点ip地址

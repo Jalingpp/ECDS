@@ -2,6 +2,7 @@ package util
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -121,4 +122,19 @@ func CreateTempFile(filename string) *os.File {
 	}
 
 	return file
+}
+
+// 读文件中一行地址
+func ReadOneAddr(filepath string) (string, error) {
+	// 打开文件
+	//读取存储节点地址
+	reader := BufIOReader(filepath)
+	// 逐行读取文件内容
+	// 读取一行数据
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		e := errors.New("read addr error")
+		return "", e // 文件读取结束或者发生错误时退出循环
+	}
+	return line, nil
 }
