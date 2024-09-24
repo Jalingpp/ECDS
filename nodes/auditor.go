@@ -645,7 +645,7 @@ func (ac *Auditor) UpdateDSCommit(ctx context.Context, req *pb.UDSCRequest) (*pb
 
 // 【在生成Auditor对象时启动】审计方每隔sleepSeconds秒随机选择dsnum个存储节点进行存储审计
 func (ac *Auditor) KeepAuditing(sleepSeconds int) {
-	time.Sleep(time.Duration(sleepSeconds) * time.Second)
+	time.Sleep(20 * time.Second)
 	auditNo := 0
 	seed := time.Now().UnixNano()
 	randor := rand.New(rand.NewSource(seed))
@@ -752,6 +752,9 @@ func (ac *Auditor) KeepAuditing(sleepSeconds int) {
 					}
 					//验证存储证明
 					// log.Println("verifying", snId, "pos")
+					if gapos_res.Aggpos == nil {
+						log.Fatalln("gapos_res.Aggpos==nil")
+					}
 					aggpos, deseerr := pdp.DeserializeAggPOS(gapos_res.Aggpos)
 					if deseerr != nil {
 						log.Fatalf("aggpos deserialize error: %v", err)
@@ -798,8 +801,8 @@ func (ac *Auditor) KeepAuditing(sleepSeconds int) {
 			for key, value := range mfmap {
 				auditInfoSize = auditInfoSize + len([]byte(key)) + value.Sizeof()
 			}
-			util.LogToFile("data/outlog_ac", "audit-"+strconv.Itoa(auditNo)+" latency="+strconv.Itoa(int(duration.Milliseconds()))+" ms, avgLatency="+strconv.Itoa(int(avgDuration))+" ms, avgVOSize="+strconv.Itoa(avgVOSize)+", auditInforSize="+strconv.Itoa(auditInfoSize)+" B")
-			fmt.Println("audit-" + strconv.Itoa(auditNo) + " latency=" + strconv.Itoa(int(duration.Milliseconds())) + " ms, avgLatency=" + strconv.Itoa(int(avgDuration)) + " ms, avgVOSize=" + strconv.Itoa(avgVOSize) + ", auditInforSize=" + strconv.Itoa(auditInfoSize) + " B")
+			util.LogToFile("/root/DSN/ECDS/data/outlog_ac", "audit-"+strconv.Itoa(auditNo)+" latency="+strconv.Itoa(int(duration.Milliseconds()))+" ms, avgLatency="+strconv.Itoa(int(avgDuration))+" ms, avgVOSize="+strconv.Itoa(avgVOSize/1024)+" KB, auditInforSize="+strconv.Itoa(auditInfoSize/1024)+" KB\n")
+			fmt.Println("audit-" + strconv.Itoa(auditNo) + " latency=" + strconv.Itoa(int(duration.Milliseconds())) + " ms, avgLatency=" + strconv.Itoa(int(avgDuration)) + " ms, avgVOSize=" + strconv.Itoa(avgVOSize/1024) + " KB, auditInforSize=" + strconv.Itoa(auditInfoSize/1024) + " KB")
 			time.Sleep(time.Duration(sleepSeconds) * time.Second)
 		}
 	}

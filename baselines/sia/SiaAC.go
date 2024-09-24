@@ -573,13 +573,21 @@ func (ac *SiaAC) SiaUpdateFileCommit(ctx context.Context, req *pb.SiaUFCRequest)
 
 // 【在生成Auditor对象时启动】审计方每隔sleepSeconds秒随机选择dsnum个存储节点进行存储审计
 func (ac *SiaAC) KeepAuditing(sleepSeconds int) {
-	time.Sleep(time.Duration(sleepSeconds) * time.Second)
+	time.Sleep(20 * time.Second)
 	auditNo := 0
 	seed := time.Now().UnixNano()
 	randor := rand.New(rand.NewSource(seed))
 	avgDuration := int64(0)
-	totalVOSizeMap := make(map[string]map[string]int, len(ac.SNAddrMap))
+	// totalVOSizeMap := make(map[string]map[string]int, len(ac.SNAddrMap))
+	totalVOSize := 0
+	var tlvosMutex sync.RWMutex
 	for {
+		ac.FRRMMutex.RLock()
+		if len(ac.ClientDSVersionMap) == 0 {
+			ac.FRRMMutex.RUnlock()
+			continue
+		}
+		ac.FRRMMutex.RUnlock()
 		st := time.Now()
 		ac.CDSSNMMutex.RLock()
 		sndsvNum := len(ac.ClientDSSNMap)
@@ -649,20 +657,29 @@ func (ac *SiaAC) KeepAuditing(sleepSeconds int) {
 					//分别对每个ds进行审计
 					doneds := make(chan struct{})
 					// fmt.Println(snId, "len(ldsvmap):", len(ldsvmap))
+					// if totalVOSizeMap[snId] == nil {
+					// 	totalVOSizeMap[snId] = make(map[string]int)
+					// }
 					for cidfni, vers := range ldsvmap {
 						go func(cidfndsno string, versi int32) {
 							//构造审计请求消息
 							gapos_req := &pb.SiaGAPSNRequest{Auditno: auditNostr, Cidfni: cidfndsno}
 							//RPC获取聚合存储证明
-							gapos_res, err := ac.SNRPCs[snid].SiaGetPosSN(context.Background(), gapos_req)
+							gapos_res, err := ac.SNRPCs[snId].SiaGetPosSN(context.Background(), gapos_req)
 							if err != nil {
 								log.Fatalf("storagenode could not process request: %v", err)
 							}
 							//记录存储证明大小
-							totalVOSizeMap[snId][cidfndsno] = totalVOSizeMap[snId][cidfndsno] + len([]byte(util.Int32SliceToStr(gapos_res.Data))) + len(gapos_res.Roothash)
+							tlvosMutex.Lock()
+							totalVOSize = totalVOSize + len([]byte(util.Int32SliceToStr(gapos_res.Data))) + len(gapos_res.Roothash)
 							for k := 0; k < len(gapos_res.Path); k++ {
-								totalVOSizeMap[snId][cidfndsno] = totalVOSizeMap[snId][cidfndsno] + len(gapos_res.Path[k])
+								totalVOSize = totalVOSize + len(gapos_res.Path[k])
 							}
+							tlvosMutex.Unlock()
+							// totalVOSizeMap[snId][cidfndsno] = totalVOSizeMap[snId][cidfndsno] + len([]byte(util.Int32SliceToStr(gapos_res.Data))) + len(gapos_res.Roothash)
+							// for k := 0; k < len(gapos_res.Path); k++ {
+							// 	totalVOSizeMap[snId][cidfndsno] = totalVOSizeMap[snId][cidfndsno] + len(gapos_res.Path[k])
+							// }
 							//验证存储证明
 							//验证数据版本是否正确
 							if versi != gapos_res.Version {
@@ -738,13 +755,13 @@ func (ac *SiaAC) KeepAuditing(sleepSeconds int) {
 			duration := time.Since(st)
 			//计算平均延迟
 			avgDuration = (avgDuration*int64(auditNo-1) + (duration.Milliseconds())) / int64(auditNo)
-			//计算平均VO大小
-			totalVOSize := 0
-			for _, value := range totalVOSizeMap {
-				for _, subvalue := range value {
-					totalVOSize = totalVOSize + subvalue
-				}
-			}
+			// //计算平均VO大小
+			// totalVOSize := 0
+			// for _, value := range totalVOSizeMap {
+			// 	for _, subvalue := range value {
+			// 		totalVOSize = totalVOSize + subvalue
+			// 	}
+			// }
 			avgVOSize := totalVOSize / auditNo
 			//计算辅助信息所占字节数
 			auditInfoSize := 0
@@ -752,7 +769,6 @@ func (ac *SiaAC) KeepAuditing(sleepSeconds int) {
 			snrmap := ac.ClientSNRootMap
 			snrtmap := ac.ClientSNRootTimeMap
 			dsvmap := ac.ClientDSVersionMap
-			ac.FRRMMutex.RUnlock()
 			for key, value := range snrmap {
 				auditInfoSize = auditInfoSize + len([]byte(key))
 				for subkey, subvalue := range value {
@@ -768,8 +784,9 @@ func (ac *SiaAC) KeepAuditing(sleepSeconds int) {
 			for key, _ := range dsvmap {
 				auditInfoSize = auditInfoSize + len([]byte(key)) + 4
 			}
-			util.LogToFile("data/outlog_ac", "audit-"+strconv.Itoa(auditNo)+" latency="+strconv.Itoa(int(duration.Milliseconds()))+" ms, avgLatency="+strconv.Itoa(int(avgDuration))+" ms, avgVOSize="+strconv.Itoa(avgVOSize)+", auditInforSize="+strconv.Itoa(auditInfoSize)+" B")
-			fmt.Println("audit-" + strconv.Itoa(auditNo) + " latency=" + strconv.Itoa(int(duration.Milliseconds())) + " ms, avgLatency=" + strconv.Itoa(int(avgDuration)) + " ms, avgVOSize=" + strconv.Itoa(avgVOSize) + ", auditInforSize=" + strconv.Itoa(auditInfoSize) + " B")
+			ac.FRRMMutex.RUnlock()
+			util.LogToFile("/root/DSN/ECDS/data/outlog_ac", "audit-"+strconv.Itoa(auditNo)+" latency="+strconv.Itoa(int(duration.Milliseconds()))+" ms, avgLatency="+strconv.Itoa(int(avgDuration))+" ms, avgVOSize="+strconv.Itoa(avgVOSize/1024)+" KB, auditInforSize="+strconv.Itoa(auditInfoSize/1024)+" KB\n")
+			fmt.Println("audit-" + strconv.Itoa(auditNo) + " latency=" + strconv.Itoa(int(duration.Milliseconds())) + " ms, avgLatency=" + strconv.Itoa(int(avgDuration)) + " ms, avgVOSize=" + strconv.Itoa(avgVOSize/1024) + " KB, auditInforSize=" + strconv.Itoa(auditInfoSize/1024) + " KB")
 			time.Sleep(time.Duration(sleepSeconds) * time.Second)
 		}
 	}

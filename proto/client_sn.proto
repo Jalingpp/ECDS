@@ -10,6 +10,7 @@ service SNService {
     rpc GetDataShard(GetDSRequest) returns (GetDSResponse);
     rpc UpdateDataShards(UpdDSsRequest) returns (UpdDSsResponse);
     rpc PutIncParityShards(PutIPSRequest) returns (PutIPSResponse);
+    rpc GetSNStorageCost(GSNSCRequest) returns (GSNSCResponse);
 }
 
 //客户端发起的注册请求
@@ -81,4 +82,14 @@ message PutIPSResponse {
     string filename = 1;  //文件名
     string psno = 2;      //已更新的校验分片序号
     bytes pos_serialized = 3; //序列化后的校验块存储证明
+}
+
+message GSNSCRequest{
+    string clientId = 1;   //客户端ID
+}
+
+message GSNSCResponse{
+    string clientId = 1;
+    string snId = 2;
+    int32 storagecost = 3;   
 }

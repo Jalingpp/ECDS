@@ -9,6 +9,7 @@ import (
 	"log"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 
 	"google.golang.org/grpc"
@@ -364,4 +365,22 @@ func GetPreleafs(dss [][]int32, rands []int32) [][]byte {
 		preleafs = append(preleafs, pf)
 	}
 	return preleafs
+}
+
+// 【供客户端使用的RPC】获取当前节点上对clientID相关文件的存储空间代价
+func (sn *StorjSN) StorjGetSNStorageCost(ctx context.Context, req *pb.StorjGSNSCRequest) (*pb.StorjGSNSCResponse, error) {
+	cid := req.ClientId
+	totalSize := 0
+	//统计所占存储空间大小
+	sn.FSLRMMMutex.RLock()
+	clientFSMap := sn.FileShardsMap
+	sn.FSLRMMMutex.RUnlock()
+	for key, dslist := range clientFSMap {
+		if strings.HasPrefix(key, cid) {
+			for i := 0; i < len(dslist); i++ {
+				totalSize = totalSize + len([]byte(util.Int32SliceToStr(dslist[i])))
+			}
+		}
+	}
+	return &pb.StorjGSNSCResponse{ClientId: cid, SnId: sn.SNId, Storagecost: int32(totalSize)}, nil
 }

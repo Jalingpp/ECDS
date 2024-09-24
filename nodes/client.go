@@ -102,8 +102,8 @@ func (client *Client) Register() {
 	}
 }
 
-// 客户端存放文件
-func (client *Client) PutFile(filepath string, filename string) {
+// 客户端存放文件,返回原始文件大小（单位：字节）
+func (client *Client) PutFile(filepath string, filename string) int {
 	//1-构建存储请求消息
 	stor_req := &pb.StorageRequest{
 		ClientId: client.ClientID,
@@ -120,6 +120,7 @@ func (client *Client) PutFile(filepath string, filename string) {
 	// log.Printf("Received response from Auditor: %s", StorageResponseToString(stor_res))
 	//3.1-读取文件为字符串
 	filestr := util.ReadStringFromFile(filepath)
+	filesize := len([]byte(filestr))
 	//3.2-纠删码编码出所有分片
 	datashards := client.Filecoder.Setup(filename, filestr)
 	//3.3-将分片存入相应存储节点
@@ -195,6 +196,7 @@ func (client *Client) PutFile(filepath string, filename string) {
 	if err != nil {
 		log.Fatalf("auditor could not process request: %v", err)
 	}
+	return filesize
 	//4.3-输出确认回复
 	// log.Println("received auditor put file ", pfc_res.Filename, " commit respond:", pfc_res.Message)
 }
@@ -796,4 +798,33 @@ func StorageResponseToString(sres *pb.StorageResponse) string {
 	}
 	str = str + "}}"
 	return str
+}
+
+// 客户端向所有存储节点请求获取存储空间代价（单位：字节）
+func (client *Client) GetSNsStorageCosts() int {
+	totalSize := 0
+	var tsMutex sync.RWMutex
+	done := make(chan struct{})
+	for key, _ := range client.SNRPCs {
+		go func(snid string) {
+			// 3.1-构造获取存储空间代价请求消息
+			gsnsc_req := &pb.GSNSCRequest{ClientId: client.ClientID}
+			// 3.2-向存储节点发送请求
+			gsnsc_res, err := client.SNRPCs[snid].GetSNStorageCost(context.Background(), gsnsc_req)
+			if err != nil {
+				log.Fatalln("storagenode could not process request:", err)
+				return
+			}
+			tsMutex.Lock()
+			totalSize = totalSize + int(gsnsc_res.Storagecost)
+			tsMutex.Unlock()
+			// 通知主线程任务完成
+			done <- struct{}{}
+		}(key)
+	}
+	// 等待所有协程完成
+	for i := 0; i < len(client.SNRPCs); i++ {
+		<-done
+	}
+	return totalSize
 }

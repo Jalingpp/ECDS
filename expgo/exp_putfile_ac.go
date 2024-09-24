@@ -17,15 +17,15 @@ func main() {
 	dn := 11
 	pn := 20
 	f := 10
-	acAddr, _ := util.ReadOneAddr("data/acaddr")
-	snAddrFilepath := "data/snaddrs"
+	acAddr, _ := util.ReadOneAddr("/root/DSN/ECDS/data/acaddr")
+	snAddrFilepath := "/root/DSN/ECDS/data/snaddrs"
 
 	//传入参数
 	args := os.Args
 	dsnMode := args[1]                    //dsn模式
 	clientNum, _ := strconv.Atoi(args[2]) //客户端数量
 
-	util.LogToFile("data/outlog_ac", "[putfile-w1-"+dsnMode+"-clientNum"+strconv.Itoa(clientNum)+"]")
+	util.LogToFile("/root/DSN/ECDS/data/outlog_ac", "[putfile-w1-"+dsnMode+"-clientNum"+strconv.Itoa(clientNum)+"]\n")
 	fmt.Println("[putfile-w1-" + dsnMode + "-clientNum" + strconv.Itoa(clientNum) + "]")
 	ecac, filecoinac, storjac, siaac := CreateAuditorByMode(dsnMode, acAddr, snAddrFilepath, dn, pn, f)
 	if dsnMode == "ec" {

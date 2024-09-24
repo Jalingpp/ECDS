@@ -46,8 +46,8 @@ func NewSiaClient(id string, dn int, pn int, ac_addr string, snaddrmap map[strin
 	return &SiaClient{id, rsec, acrpc, snrpcs}
 }
 
-// 客户端存放文件
-func (client *SiaClient) SiaPutFile(filepath string, filename string) {
+// 客户端存放文件,返回文件大小
+func (client *SiaClient) SiaPutFile(filepath string, filename string) int {
 	//1-构建存储请求消息
 	stor_req := &pb.SiaStorageRequest{
 		ClientId: client.ClientID,
@@ -64,6 +64,7 @@ func (client *SiaClient) SiaPutFile(filepath string, filename string) {
 	//3-从审计方的回复消息中提取存储节点，构建并分发文件分片
 	//3.1-读取文件为字符串
 	filestr := util.ReadStringFromFile(filepath)
+	filesize := len([]byte(filestr))
 	//3.2-纠删码编码出所有分片
 	datashards := client.SiaRSECFilestr(filestr)
 	//3.3-将分片存入相应存储节点
@@ -139,6 +140,7 @@ func (client *SiaClient) SiaPutFile(filepath string, filename string) {
 	if err != nil {
 		log.Fatalf("auditor could not process request: %v", err)
 	}
+	return filesize
 	// 4.3-输出确认回复
 	// log.Println("received auditor put file ", pfc_res.Filename, " commit respond:", pfc_res.Message)
 }
@@ -476,4 +478,33 @@ func (client *SiaClient) SiaGetFileAndParitySNs(filename string, dsno string) (s
 		log.Fatalf("auditor could not process request: %v", err)
 	}
 	return filestr, gsns_res.Dssn, gsns_res.Paritysns
+}
+
+// 客户端向所有存储节点请求获取存储空间代价（单位：字节）
+func (client *SiaClient) SiaGetSNsStorageCosts() int {
+	totalSize := 0
+	var tsMutex sync.RWMutex
+	done := make(chan struct{})
+	for key, _ := range client.SNRPCs {
+		go func(snid string) {
+			// 3.1-构造获取存储空间代价请求消息
+			gsnsc_req := &pb.SiaGSNSCRequest{ClientId: client.ClientID}
+			// 3.2-向存储节点发送请求
+			gsnsc_res, err := client.SNRPCs[snid].SiaGetSNStorageCost(context.Background(), gsnsc_req)
+			if err != nil {
+				log.Fatalln("storagenode could not process request:", err)
+				return
+			}
+			tsMutex.Lock()
+			totalSize = totalSize + int(gsnsc_res.Storagecost)
+			tsMutex.Unlock()
+			// 通知主线程任务完成
+			done <- struct{}{}
+		}(key)
+	}
+	// 等待所有协程完成
+	for i := 0; i < len(client.SNRPCs); i++ {
+		<-done
+	}
+	return totalSize
 }

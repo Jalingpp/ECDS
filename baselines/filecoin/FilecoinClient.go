@@ -8,6 +8,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"sync"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -42,8 +43,8 @@ func NewFilecoinClient(id string, ac_addr string, snaddrmap map[string]string) *
 	return &FilecoinClient{id, acrpc, snrpcs}
 }
 
-// 客户端存放文件
-func (client *FilecoinClient) FilecoinPutFile(filepath string, filename string) {
+// 客户端存放文件,返回原始文件大小（单位：字节）
+func (client *FilecoinClient) FilecoinPutFile(filepath string, filename string) int {
 	//1-构建存储请求消息
 	stor_req := &pb.FilecoinStorageRequest{
 		ClientId: client.ClientID,
@@ -61,6 +62,7 @@ func (client *FilecoinClient) FilecoinPutFile(filepath string, filename string) 
 	//3-从审计方的回复消息中提取存储节点，构建并分发文件分片
 	//3.1-读取文件为字符串
 	filestr := util.ReadStringFromFile(filepath)
+	filesize := len([]byte(filestr))
 	//3.3-将文件复制2f+1次，分别存入2f+1个存储节点(2f+1是AC返回的存储节点数目)
 	sn4fd := stor_res.SnsForFd
 	done := make(chan struct{})
@@ -100,12 +102,13 @@ func (client *FilecoinClient) FilecoinPutFile(filepath string, filename string) 
 		Filename: filename,
 	}
 	// 4.2-发送确认请求给审计方
-	pfc_res, err := client.ACRPC.FilecoinPutFileCommit(context.Background(), pfc_req)
+	_, err = client.ACRPC.FilecoinPutFileCommit(context.Background(), pfc_req)
 	if err != nil {
 		log.Fatalf("auditor could not process request: %v", err)
 	}
+	return filesize
 	// 4.3-输出确认回复
-	log.Println("received auditor put file ", pfc_res.Filename, " commit respond:", pfc_res.Message)
+	// log.Println("received auditor put file ", pfc_res.Filename, " commit respond:", pfc_res.Message)
 }
 
 // 客户端获取文件已提交的最新版本，返回文件数据和版本号
@@ -206,4 +209,33 @@ func (client *FilecoinClient) FilecoinUpdateFile(filename string, newfilepath st
 	}
 	// 4.3-输出确认回复
 	log.Println("received auditor update file ", ufc_res.Filename, " commit respond:", ufc_res.Message)
+}
+
+// 客户端向所有存储节点请求获取存储空间代价（单位：字节）
+func (client *FilecoinClient) FilecoinGetSNsStorageCosts() int {
+	totalSize := 0
+	var tsMutex sync.RWMutex
+	done := make(chan struct{})
+	for key, _ := range client.SNRPCs {
+		go func(snid string) {
+			// 3.1-构造获取存储空间代价请求消息
+			gsnsc_req := &pb.FilecoinGSNSCRequest{ClientId: client.ClientID}
+			// 3.2-向存储节点发送请求
+			gsnsc_res, err := client.SNRPCs[snid].FilecoinGetSNStorageCost(context.Background(), gsnsc_req)
+			if err != nil {
+				log.Fatalln("storagenode could not process request:", err)
+				return
+			}
+			tsMutex.Lock()
+			totalSize = totalSize + int(gsnsc_res.Storagecost)
+			tsMutex.Unlock()
+			// 通知主线程任务完成
+			done <- struct{}{}
+		}(key)
+	}
+	// 等待所有协程完成
+	for i := 0; i < len(client.SNRPCs); i++ {
+		<-done
+	}
+	return totalSize
 }

@@ -390,3 +390,19 @@ func (sn *SiaSN) SiaGetPosSN(ctx context.Context, req *pb.SiaGAPSNRequest) (*pb.
 	//返回验证信息
 	return &pb.SiaGAPSNResponse{Cidfni: dssmap[cid_fn_dsno].Key, Data: dssmap[cid_fn_dsno].Data, Version: dssmap[cid_fn_dsno].Version, Roothash: dssmap[cid_fn_dsno].RootHash, Roottimestamp: int32(dssmap[cid_fn_dsno].RootTimestamp), Path: dssmap[cid_fn_dsno].Path, Index: int32(dssmap[cid_fn_dsno].Index)}, nil
 }
+
+// 【供客户端使用的RPC】获取当前节点上对clientID相关文件的存储空间代价
+func (sn *SiaSN) SiaGetSNStorageCost(ctx context.Context, req *pb.SiaGSNSCRequest) (*pb.SiaGSNSCResponse, error) {
+	cid := req.ClientId
+	totalSize := 0
+	//统计所占存储空间大小
+	sn.CFMMutex.RLock()
+	clientFSMap := sn.FileShardsMap
+	sn.CFMMutex.RUnlock()
+	for key, ds := range clientFSMap {
+		if strings.HasPrefix(key, cid) {
+			totalSize = totalSize + len([]byte(util.Int32SliceToStr(ds)))
+		}
+	}
+	return &pb.SiaGSNSCResponse{ClientId: cid, SnId: sn.SNId, Storagecost: int32(totalSize)}, nil
+}

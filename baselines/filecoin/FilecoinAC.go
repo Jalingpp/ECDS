@@ -381,11 +381,17 @@ func (ac *FilecoinAC) FilecoinUpdateFileCommit(ctx context.Context, req *pb.File
 
 // 【在生成Auditor对象时启动】审计方每隔sleepSeconds秒对每个文件的副本进行审计
 func (ac *FilecoinAC) KeepAuditing(sleepSeconds int) {
-	time.Sleep(time.Duration(sleepSeconds) * time.Second)
+	time.Sleep(20 * time.Second)
 	auditNo := 0
 	avgDuration := int64(0)
 	totalVOSizeMap := make(map[string]int, len(ac.SNAddrMap))
 	for {
+		ac.CFRMMutex.RLock()
+		if len(ac.ClientFileVersionMap) == 0 {
+			ac.CFRMMutex.RUnlock()
+			continue
+		}
+		ac.CFRMMutex.RUnlock()
 		st := time.Now()
 		// 构建每个存储节点上的审计文件表
 		snfnimap := make(map[string][]string)          //key:snid,value:cid-fn-i
@@ -608,15 +614,15 @@ func (ac *FilecoinAC) KeepAuditing(sleepSeconds int) {
 		auditInfoSize := 0
 		ac.CFRMMutex.RLock()
 		mfmap := ac.ClientFileRepSectorInforMap
-		ac.CFRMMutex.RUnlock()
 		for key, value := range mfmap {
 			auditInfoSize = auditInfoSize + len([]byte(key))
 			for _, subvalue := range value {
 				auditInfoSize = auditInfoSize + 4 + subvalue.Sizeof()
 			}
 		}
-		util.LogToFile("data/outlog_ac", "audit-"+strconv.Itoa(auditNo)+" latency="+strconv.Itoa(int(duration.Milliseconds()))+" ms, avgLatency="+strconv.Itoa(int(avgDuration))+" ms, avgVOSize="+strconv.Itoa(avgVOSize)+", auditInforSize="+strconv.Itoa(auditInfoSize)+" B")
-		fmt.Println("audit-" + strconv.Itoa(auditNo) + " latency=" + strconv.Itoa(int(duration.Milliseconds())) + " ms, avgLatency=" + strconv.Itoa(int(avgDuration)) + " ms, avgVOSize=" + strconv.Itoa(avgVOSize) + ", auditInforSize=" + strconv.Itoa(auditInfoSize) + " B")
+		ac.CFRMMutex.RUnlock()
+		util.LogToFile("/root/DSN/ECDS/data/outlog_ac", "audit-"+strconv.Itoa(auditNo)+" latency="+strconv.Itoa(int(duration.Milliseconds()))+" ms, avgLatency="+strconv.Itoa(int(avgDuration))+" ms, avgVOSize="+strconv.Itoa(avgVOSize/1024)+" KB, auditInforSize="+strconv.Itoa(auditInfoSize/1024)+" KB\n")
+		fmt.Println("audit-" + strconv.Itoa(auditNo) + " latency=" + strconv.Itoa(int(duration.Milliseconds())) + " ms, avgLatency=" + strconv.Itoa(int(avgDuration)) + " ms, avgVOSize=" + strconv.Itoa(avgVOSize/1024) + " KB, auditInforSize=" + strconv.Itoa(auditInfoSize/1024) + " KB")
 		time.Sleep(time.Duration(sleepSeconds) * time.Second)
 	}
 }

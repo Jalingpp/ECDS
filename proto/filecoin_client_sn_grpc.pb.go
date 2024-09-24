@@ -19,9 +19,10 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	FilecoinSNService_FilecoinPutFile_FullMethodName    = "/proto.FilecoinSNService/FilecoinPutFile"
-	FilecoinSNService_FilecoinGetFile_FullMethodName    = "/proto.FilecoinSNService/FilecoinGetFile"
-	FilecoinSNService_FilecoinUpdateFile_FullMethodName = "/proto.FilecoinSNService/FilecoinUpdateFile"
+	FilecoinSNService_FilecoinPutFile_FullMethodName          = "/proto.FilecoinSNService/FilecoinPutFile"
+	FilecoinSNService_FilecoinGetFile_FullMethodName          = "/proto.FilecoinSNService/FilecoinGetFile"
+	FilecoinSNService_FilecoinUpdateFile_FullMethodName       = "/proto.FilecoinSNService/FilecoinUpdateFile"
+	FilecoinSNService_FilecoinGetSNStorageCost_FullMethodName = "/proto.FilecoinSNService/FilecoinGetSNStorageCost"
 )
 
 // FilecoinSNServiceClient is the client API for FilecoinSNService service.
@@ -31,6 +32,7 @@ type FilecoinSNServiceClient interface {
 	FilecoinPutFile(ctx context.Context, in *FilecoinPutFRequest, opts ...grpc.CallOption) (*FilecoinPutFResponse, error)
 	FilecoinGetFile(ctx context.Context, in *FilecoinGetFRequest, opts ...grpc.CallOption) (*FilecoinGetFResponse, error)
 	FilecoinUpdateFile(ctx context.Context, in *FilecoinUpdFRequest, opts ...grpc.CallOption) (*FilecoinUpdFResponse, error)
+	FilecoinGetSNStorageCost(ctx context.Context, in *FilecoinGSNSCRequest, opts ...grpc.CallOption) (*FilecoinGSNSCResponse, error)
 }
 
 type filecoinSNServiceClient struct {
@@ -71,6 +73,16 @@ func (c *filecoinSNServiceClient) FilecoinUpdateFile(ctx context.Context, in *Fi
 	return out, nil
 }
 
+func (c *filecoinSNServiceClient) FilecoinGetSNStorageCost(ctx context.Context, in *FilecoinGSNSCRequest, opts ...grpc.CallOption) (*FilecoinGSNSCResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(FilecoinGSNSCResponse)
+	err := c.cc.Invoke(ctx, FilecoinSNService_FilecoinGetSNStorageCost_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // FilecoinSNServiceServer is the server API for FilecoinSNService service.
 // All implementations must embed UnimplementedFilecoinSNServiceServer
 // for forward compatibility.
@@ -78,6 +90,7 @@ type FilecoinSNServiceServer interface {
 	FilecoinPutFile(context.Context, *FilecoinPutFRequest) (*FilecoinPutFResponse, error)
 	FilecoinGetFile(context.Context, *FilecoinGetFRequest) (*FilecoinGetFResponse, error)
 	FilecoinUpdateFile(context.Context, *FilecoinUpdFRequest) (*FilecoinUpdFResponse, error)
+	FilecoinGetSNStorageCost(context.Context, *FilecoinGSNSCRequest) (*FilecoinGSNSCResponse, error)
 	mustEmbedUnimplementedFilecoinSNServiceServer()
 }
 
@@ -96,6 +109,9 @@ func (UnimplementedFilecoinSNServiceServer) FilecoinGetFile(context.Context, *Fi
 }
 func (UnimplementedFilecoinSNServiceServer) FilecoinUpdateFile(context.Context, *FilecoinUpdFRequest) (*FilecoinUpdFResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method FilecoinUpdateFile not implemented")
+}
+func (UnimplementedFilecoinSNServiceServer) FilecoinGetSNStorageCost(context.Context, *FilecoinGSNSCRequest) (*FilecoinGSNSCResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FilecoinGetSNStorageCost not implemented")
 }
 func (UnimplementedFilecoinSNServiceServer) mustEmbedUnimplementedFilecoinSNServiceServer() {}
 func (UnimplementedFilecoinSNServiceServer) testEmbeddedByValue()                           {}
@@ -172,6 +188,24 @@ func _FilecoinSNService_FilecoinUpdateFile_Handler(srv interface{}, ctx context.
 	return interceptor(ctx, in, info, handler)
 }
 
+func _FilecoinSNService_FilecoinGetSNStorageCost_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FilecoinGSNSCRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FilecoinSNServiceServer).FilecoinGetSNStorageCost(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FilecoinSNService_FilecoinGetSNStorageCost_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FilecoinSNServiceServer).FilecoinGetSNStorageCost(ctx, req.(*FilecoinGSNSCRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // FilecoinSNService_ServiceDesc is the grpc.ServiceDesc for FilecoinSNService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -190,6 +224,10 @@ var FilecoinSNService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "FilecoinUpdateFile",
 			Handler:    _FilecoinSNService_FilecoinUpdateFile_Handler,
+		},
+		{
+			MethodName: "FilecoinGetSNStorageCost",
+			Handler:    _FilecoinSNService_FilecoinGetSNStorageCost_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

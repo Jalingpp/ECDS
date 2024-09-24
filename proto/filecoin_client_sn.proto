@@ -8,6 +8,7 @@ service FilecoinSNService {
     rpc FilecoinPutFile(FilecoinPutFRequest) returns (FilecoinPutFResponse);
     rpc FilecoinGetFile(FilecoinGetFRequest) returns (FilecoinGetFResponse);
     rpc FilecoinUpdateFile(FilecoinUpdFRequest) returns (FilecoinUpdFResponse);
+    rpc FilecoinGetSNStorageCost(FilecoinGSNSCRequest) returns (FilecoinGSNSCResponse);
 }
 
 //客户端发起的向存储节点放置数据分片的请求
@@ -54,4 +55,14 @@ message FilecoinUpdFResponse {
     string filename = 1;  //待存储的文件名
     int32 repno = 2;   //文件副本号
     string message = 3;  //是否已通过验证并存储等信息
+}
+
+message FilecoinGSNSCRequest{
+    string clientId = 1;   //客户端ID
+}
+
+message FilecoinGSNSCResponse{
+    string clientId = 1;
+    string snId = 2;
+    int32 storagecost = 3;   
 }

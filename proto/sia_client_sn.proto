@@ -8,6 +8,7 @@ service SiaSNService {
     rpc SiaPutFileDS(SiaPutFRequest) returns (SiaPutFResponse);
     rpc SiaGetFileDS(SiaGetFRequest) returns (SiaGetFResponse);
     rpc SiaUpdateFileDS(SiaUpdDSRequest) returns (SiaUpdDSResponse);
+    rpc SiaGetSNStorageCost(SiaGSNSCRequest) returns (SiaGSNSCResponse);
 }
 
 //客户端发起的向存储节点放置数据分片的请求
@@ -56,4 +57,14 @@ message SiaUpdDSResponse {
     string filename = 1;  //待存储的文件名
     string dsno = 2;   //文件分片号
     string message = 3;  //是否已通过验证并存储等信息
+}
+
+message SiaGSNSCRequest{
+    string clientId = 1;   //客户端ID
+}
+
+message SiaGSNSCResponse{
+    string clientId = 1;
+    string snId = 2;
+    int32 storagecost = 3;   
 }

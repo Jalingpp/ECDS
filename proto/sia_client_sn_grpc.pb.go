@@ -19,9 +19,10 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	SiaSNService_SiaPutFileDS_FullMethodName    = "/proto.SiaSNService/SiaPutFileDS"
-	SiaSNService_SiaGetFileDS_FullMethodName    = "/proto.SiaSNService/SiaGetFileDS"
-	SiaSNService_SiaUpdateFileDS_FullMethodName = "/proto.SiaSNService/SiaUpdateFileDS"
+	SiaSNService_SiaPutFileDS_FullMethodName        = "/proto.SiaSNService/SiaPutFileDS"
+	SiaSNService_SiaGetFileDS_FullMethodName        = "/proto.SiaSNService/SiaGetFileDS"
+	SiaSNService_SiaUpdateFileDS_FullMethodName     = "/proto.SiaSNService/SiaUpdateFileDS"
+	SiaSNService_SiaGetSNStorageCost_FullMethodName = "/proto.SiaSNService/SiaGetSNStorageCost"
 )
 
 // SiaSNServiceClient is the client API for SiaSNService service.
@@ -31,6 +32,7 @@ type SiaSNServiceClient interface {
 	SiaPutFileDS(ctx context.Context, in *SiaPutFRequest, opts ...grpc.CallOption) (*SiaPutFResponse, error)
 	SiaGetFileDS(ctx context.Context, in *SiaGetFRequest, opts ...grpc.CallOption) (*SiaGetFResponse, error)
 	SiaUpdateFileDS(ctx context.Context, in *SiaUpdDSRequest, opts ...grpc.CallOption) (*SiaUpdDSResponse, error)
+	SiaGetSNStorageCost(ctx context.Context, in *SiaGSNSCRequest, opts ...grpc.CallOption) (*SiaGSNSCResponse, error)
 }
 
 type siaSNServiceClient struct {
@@ -71,6 +73,16 @@ func (c *siaSNServiceClient) SiaUpdateFileDS(ctx context.Context, in *SiaUpdDSRe
 	return out, nil
 }
 
+func (c *siaSNServiceClient) SiaGetSNStorageCost(ctx context.Context, in *SiaGSNSCRequest, opts ...grpc.CallOption) (*SiaGSNSCResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SiaGSNSCResponse)
+	err := c.cc.Invoke(ctx, SiaSNService_SiaGetSNStorageCost_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SiaSNServiceServer is the server API for SiaSNService service.
 // All implementations must embed UnimplementedSiaSNServiceServer
 // for forward compatibility.
@@ -78,6 +90,7 @@ type SiaSNServiceServer interface {
 	SiaPutFileDS(context.Context, *SiaPutFRequest) (*SiaPutFResponse, error)
 	SiaGetFileDS(context.Context, *SiaGetFRequest) (*SiaGetFResponse, error)
 	SiaUpdateFileDS(context.Context, *SiaUpdDSRequest) (*SiaUpdDSResponse, error)
+	SiaGetSNStorageCost(context.Context, *SiaGSNSCRequest) (*SiaGSNSCResponse, error)
 	mustEmbedUnimplementedSiaSNServiceServer()
 }
 
@@ -96,6 +109,9 @@ func (UnimplementedSiaSNServiceServer) SiaGetFileDS(context.Context, *SiaGetFReq
 }
 func (UnimplementedSiaSNServiceServer) SiaUpdateFileDS(context.Context, *SiaUpdDSRequest) (*SiaUpdDSResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SiaUpdateFileDS not implemented")
+}
+func (UnimplementedSiaSNServiceServer) SiaGetSNStorageCost(context.Context, *SiaGSNSCRequest) (*SiaGSNSCResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SiaGetSNStorageCost not implemented")
 }
 func (UnimplementedSiaSNServiceServer) mustEmbedUnimplementedSiaSNServiceServer() {}
 func (UnimplementedSiaSNServiceServer) testEmbeddedByValue()                      {}
@@ -172,6 +188,24 @@ func _SiaSNService_SiaUpdateFileDS_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SiaSNService_SiaGetSNStorageCost_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SiaGSNSCRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SiaSNServiceServer).SiaGetSNStorageCost(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SiaSNService_SiaGetSNStorageCost_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SiaSNServiceServer).SiaGetSNStorageCost(ctx, req.(*SiaGSNSCRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SiaSNService_ServiceDesc is the grpc.ServiceDesc for SiaSNService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -190,6 +224,10 @@ var SiaSNService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SiaUpdateFileDS",
 			Handler:    _SiaSNService_SiaUpdateFileDS_Handler,
+		},
+		{
+			MethodName: "SiaGetSNStorageCost",
+			Handler:    _SiaSNService_SiaGetSNStorageCost_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

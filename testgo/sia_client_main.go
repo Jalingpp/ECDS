@@ -13,7 +13,7 @@ func main() {
 	pn := 20
 	// acAddr := "10.0.4.29:50051"
 	acAddr := "localhost:50051"
-	snAddrFilepath := "data/snaddr"
+	snAddrFilepath := "/root/DSN/ECDS/data/snaddrs"
 	clientNum := 50
 	fileNum := 100
 	// logoutpath := "data/outlog"
@@ -37,7 +37,7 @@ func main() {
 		go func(clientId string) {
 			//创建一个客户端
 			client1 := clientObject[clientId]
-			filepath := "data/testData2"
+			filepath := "/root/DSN/ECDS/data/testData2"
 			for j := 0; j < fileNum; j++ {
 				//客户端PutFile
 				filename := "testData" + strconv.Itoa(j)

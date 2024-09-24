@@ -8,6 +8,7 @@ import (
 	"math"
 	"math/rand"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -25,6 +26,11 @@ func SplitString(str string, n int) []string {
 			end = length
 		}
 		parts[i] = str[start:end]
+
+		// 如果当前部分不是最后一部分，并且长度小于partLength，则用0填充
+		if i == n-1 && len(parts[i]) < partLength {
+			parts[i] = strings.Repeat("0", partLength-len(parts[i])) + parts[i]
+		}
 	}
 
 	return parts

@@ -1,7 +1,6 @@
 package util
 
 import (
-	"ECDS/util"
 	"bytes"
 	"encoding/gob"
 	"encoding/json"
@@ -19,7 +18,7 @@ type DataShard struct {
 }
 
 func (ds *DataShard) Sizeof() int {
-	return len([]byte(util.Int32SliceToStr(ds.Data)))
+	return len([]byte(Int32SliceToStr(ds.Data)))
 }
 
 func NewDataShard(dsno string, data []int32, sig []byte, v int32, t string) *DataShard {

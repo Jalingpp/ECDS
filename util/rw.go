@@ -136,5 +136,6 @@ func ReadOneAddr(filepath string) (string, error) {
 		e := errors.New("read addr error")
 		return "", e // 文件读取结束或者发生错误时退出循环
 	}
+	line = strings.TrimRight(line, "\n")
 	return line, nil
 }

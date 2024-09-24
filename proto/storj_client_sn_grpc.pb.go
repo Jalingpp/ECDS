@@ -19,9 +19,10 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	StorjSNService_StorjPutFile_FullMethodName    = "/proto.StorjSNService/StorjPutFile"
-	StorjSNService_StorjGetFile_FullMethodName    = "/proto.StorjSNService/StorjGetFile"
-	StorjSNService_StorjUpdateFile_FullMethodName = "/proto.StorjSNService/StorjUpdateFile"
+	StorjSNService_StorjPutFile_FullMethodName          = "/proto.StorjSNService/StorjPutFile"
+	StorjSNService_StorjGetFile_FullMethodName          = "/proto.StorjSNService/StorjGetFile"
+	StorjSNService_StorjUpdateFile_FullMethodName       = "/proto.StorjSNService/StorjUpdateFile"
+	StorjSNService_StorjGetSNStorageCost_FullMethodName = "/proto.StorjSNService/StorjGetSNStorageCost"
 )
 
 // StorjSNServiceClient is the client API for StorjSNService service.
@@ -31,6 +32,7 @@ type StorjSNServiceClient interface {
 	StorjPutFile(ctx context.Context, in *StorjPutFRequest, opts ...grpc.CallOption) (*StorjPutFResponse, error)
 	StorjGetFile(ctx context.Context, in *StorjGetFRequest, opts ...grpc.CallOption) (*StorjGetFResponse, error)
 	StorjUpdateFile(ctx context.Context, in *StorjUpdFRequest, opts ...grpc.CallOption) (*StorjUpdFResponse, error)
+	StorjGetSNStorageCost(ctx context.Context, in *StorjGSNSCRequest, opts ...grpc.CallOption) (*StorjGSNSCResponse, error)
 }
 
 type storjSNServiceClient struct {
@@ -71,6 +73,16 @@ func (c *storjSNServiceClient) StorjUpdateFile(ctx context.Context, in *StorjUpd
 	return out, nil
 }
 
+func (c *storjSNServiceClient) StorjGetSNStorageCost(ctx context.Context, in *StorjGSNSCRequest, opts ...grpc.CallOption) (*StorjGSNSCResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(StorjGSNSCResponse)
+	err := c.cc.Invoke(ctx, StorjSNService_StorjGetSNStorageCost_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // StorjSNServiceServer is the server API for StorjSNService service.
 // All implementations must embed UnimplementedStorjSNServiceServer
 // for forward compatibility.
@@ -78,6 +90,7 @@ type StorjSNServiceServer interface {
 	StorjPutFile(context.Context, *StorjPutFRequest) (*StorjPutFResponse, error)
 	StorjGetFile(context.Context, *StorjGetFRequest) (*StorjGetFResponse, error)
 	StorjUpdateFile(context.Context, *StorjUpdFRequest) (*StorjUpdFResponse, error)
+	StorjGetSNStorageCost(context.Context, *StorjGSNSCRequest) (*StorjGSNSCResponse, error)
 	mustEmbedUnimplementedStorjSNServiceServer()
 }
 
@@ -96,6 +109,9 @@ func (UnimplementedStorjSNServiceServer) StorjGetFile(context.Context, *StorjGet
 }
 func (UnimplementedStorjSNServiceServer) StorjUpdateFile(context.Context, *StorjUpdFRequest) (*StorjUpdFResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method StorjUpdateFile not implemented")
+}
+func (UnimplementedStorjSNServiceServer) StorjGetSNStorageCost(context.Context, *StorjGSNSCRequest) (*StorjGSNSCResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StorjGetSNStorageCost not implemented")
 }
 func (UnimplementedStorjSNServiceServer) mustEmbedUnimplementedStorjSNServiceServer() {}
 func (UnimplementedStorjSNServiceServer) testEmbeddedByValue()                        {}
@@ -172,6 +188,24 @@ func _StorjSNService_StorjUpdateFile_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _StorjSNService_StorjGetSNStorageCost_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StorjGSNSCRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StorjSNServiceServer).StorjGetSNStorageCost(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: StorjSNService_StorjGetSNStorageCost_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StorjSNServiceServer).StorjGetSNStorageCost(ctx, req.(*StorjGSNSCRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // StorjSNService_ServiceDesc is the grpc.ServiceDesc for StorjSNService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -190,6 +224,10 @@ var StorjSNService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "StorjUpdateFile",
 			Handler:    _StorjSNService_StorjUpdateFile_Handler,
+		},
+		{
+			MethodName: "StorjGetSNStorageCost",
+			Handler:    _StorjSNService_StorjGetSNStorageCost_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -65,7 +65,7 @@ func NewStorageNode(snid string, snaddr string) *StorageNode {
 
 // 【供client使用的RPC】客户端注册，存储方记录客户端公开信息
 func (sn *StorageNode) ClientRegisterSN(ctx context.Context, req *pb.CRegistSNRequest) (*pb.CRegistSNResponse, error) {
-	log.Printf("Received regist message from client: %s\n", req.ClientId)
+	// log.Printf("Received regist message from client: %s\n", req.ClientId)
 	message := ""
 	var e error
 	sn.CPKMutex.Lock()
@@ -83,7 +83,7 @@ func (sn *StorageNode) ClientRegisterSN(ctx context.Context, req *pb.CRegistSNRe
 
 // 【供auditor使用的RPC】审计方注册，存储方记录审计方的公开信息，包括构建pairing的参数和公钥
 func (sn *StorageNode) ACRegisterSN(ctx context.Context, req *pb.ACRegistSNRequest) (*pb.ACRegistSNResponse, error) {
-	log.Printf("Received regist message from auditor.\n")
+	// log.Printf("Received regist message from auditor.\n")
 	sn.Params = req.Params
 	sn.G = req.G
 	message := sn.SNId + " params and g already written"
@@ -531,4 +531,22 @@ func (sn *StorageNode) PrintSN() {
 	}
 	str = str + "}}"
 	log.Println(str)
+}
+
+// 【供客户端使用的RPC】获取当前节点上对clientID相关文件的存储空间代价
+func (sn *StorageNode) GetSNStorageCost(ctx context.Context, req *pb.GSNSCRequest) (*pb.GSNSCResponse, error) {
+	cid := req.ClientId
+	totalSize := 0
+	//统计所占存储空间大小
+	sn.FSMMMutex.RLock()
+	clientFSMap := sn.FileShardsMap
+	sn.FSMMMutex.RUnlock()
+	for key, dslist := range clientFSMap {
+		if strings.HasPrefix(key, cid) {
+			for _, ds := range dslist {
+				totalSize = totalSize + ds.Sizeof()
+			}
+		}
+	}
+	return &pb.GSNSCResponse{ClientId: cid, SnId: sn.SNId, Storagecost: int32(totalSize)}, nil
 }

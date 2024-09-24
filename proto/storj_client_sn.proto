@@ -8,6 +8,7 @@ service StorjSNService {
     rpc StorjPutFile(StorjPutFRequest) returns (StorjPutFResponse);
     rpc StorjGetFile(StorjGetFRequest) returns (StorjGetFResponse);
     rpc StorjUpdateFile(StorjUpdFRequest) returns (StorjUpdFResponse);
+    rpc StorjGetSNStorageCost(StorjGSNSCRequest) returns (StorjGSNSCResponse);
 }
 
 message Int32ArraySN {
@@ -63,4 +64,14 @@ message StorjUpdFResponse {
     int32 repno = 2;   //文件副本号
     bytes root = 3;   //存储节点计算得到的根哈希
     string message = 4;  //是否已通过验证并存储等信息
+}
+
+message StorjGSNSCRequest{
+    string clientId = 1;   //客户端ID
+}
+
+message StorjGSNSCResponse{
+    string clientId = 1;
+    string snId = 2;
+    int32 storagecost = 3;   
 }

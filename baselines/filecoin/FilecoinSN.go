@@ -575,3 +575,19 @@ func ProofsToMessage(cidfni_sector_proofs map[string]map[int][]prooftypes.PoStPr
 	}
 	return messages
 }
+
+// 【供客户端使用的RPC】获取当前节点上对clientID相关文件的存储空间代价
+func (sn *FilecoinSN) FilecoinGetSNStorageCost(ctx context.Context, req *pb.FilecoinGSNSCRequest) (*pb.FilecoinGSNSCResponse, error) {
+	cid := req.ClientId
+	totalSize := 0
+	//统计所占存储空间大小
+	sn.CFRMMutex.RLock()
+	clientFSMap := sn.ClientFileRepMap
+	sn.CFRMMutex.RUnlock()
+	for key, file := range clientFSMap {
+		if strings.HasPrefix(key, cid) {
+			totalSize = totalSize + len([]byte(file))
+		}
+	}
+	return &pb.FilecoinGSNSCResponse{ClientId: cid, SnId: sn.SNId, Storagecost: int32(totalSize)}, nil
+}

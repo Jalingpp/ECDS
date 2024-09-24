@@ -24,6 +24,7 @@ const (
 	SNService_GetDataShard_FullMethodName       = "/proto.SNService/GetDataShard"
 	SNService_UpdateDataShards_FullMethodName   = "/proto.SNService/UpdateDataShards"
 	SNService_PutIncParityShards_FullMethodName = "/proto.SNService/PutIncParityShards"
+	SNService_GetSNStorageCost_FullMethodName   = "/proto.SNService/GetSNStorageCost"
 )
 
 // SNServiceClient is the client API for SNService service.
@@ -35,6 +36,7 @@ type SNServiceClient interface {
 	GetDataShard(ctx context.Context, in *GetDSRequest, opts ...grpc.CallOption) (*GetDSResponse, error)
 	UpdateDataShards(ctx context.Context, in *UpdDSsRequest, opts ...grpc.CallOption) (*UpdDSsResponse, error)
 	PutIncParityShards(ctx context.Context, in *PutIPSRequest, opts ...grpc.CallOption) (*PutIPSResponse, error)
+	GetSNStorageCost(ctx context.Context, in *GSNSCRequest, opts ...grpc.CallOption) (*GSNSCResponse, error)
 }
 
 type sNServiceClient struct {
@@ -95,6 +97,16 @@ func (c *sNServiceClient) PutIncParityShards(ctx context.Context, in *PutIPSRequ
 	return out, nil
 }
 
+func (c *sNServiceClient) GetSNStorageCost(ctx context.Context, in *GSNSCRequest, opts ...grpc.CallOption) (*GSNSCResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GSNSCResponse)
+	err := c.cc.Invoke(ctx, SNService_GetSNStorageCost_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SNServiceServer is the server API for SNService service.
 // All implementations must embed UnimplementedSNServiceServer
 // for forward compatibility.
@@ -104,6 +116,7 @@ type SNServiceServer interface {
 	GetDataShard(context.Context, *GetDSRequest) (*GetDSResponse, error)
 	UpdateDataShards(context.Context, *UpdDSsRequest) (*UpdDSsResponse, error)
 	PutIncParityShards(context.Context, *PutIPSRequest) (*PutIPSResponse, error)
+	GetSNStorageCost(context.Context, *GSNSCRequest) (*GSNSCResponse, error)
 	mustEmbedUnimplementedSNServiceServer()
 }
 
@@ -128,6 +141,9 @@ func (UnimplementedSNServiceServer) UpdateDataShards(context.Context, *UpdDSsReq
 }
 func (UnimplementedSNServiceServer) PutIncParityShards(context.Context, *PutIPSRequest) (*PutIPSResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PutIncParityShards not implemented")
+}
+func (UnimplementedSNServiceServer) GetSNStorageCost(context.Context, *GSNSCRequest) (*GSNSCResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetSNStorageCost not implemented")
 }
 func (UnimplementedSNServiceServer) mustEmbedUnimplementedSNServiceServer() {}
 func (UnimplementedSNServiceServer) testEmbeddedByValue()                   {}
@@ -240,6 +256,24 @@ func _SNService_PutIncParityShards_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SNService_GetSNStorageCost_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GSNSCRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SNServiceServer).GetSNStorageCost(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SNService_GetSNStorageCost_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SNServiceServer).GetSNStorageCost(ctx, req.(*GSNSCRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SNService_ServiceDesc is the grpc.ServiceDesc for SNService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -266,6 +300,10 @@ var SNService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PutIncParityShards",
 			Handler:    _SNService_PutIncParityShards_Handler,
+		},
+		{
+			MethodName: "GetSNStorageCost",
+			Handler:    _SNService_GetSNStorageCost_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
