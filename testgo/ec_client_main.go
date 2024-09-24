@@ -45,18 +45,6 @@ func main() {
 				filename := "testData" + strconv.Itoa(j)
 				client1.PutFile(filepath, filename)
 				log.Println(clientId, "put", filename, "complete")
-				// message := clientId + "put" + filename + "completed\n"
-				// util.LogToFile(logoutpath, message)
-				//客户端GetFile
-				// client1.GetFile(filename, false)
-				// log.Println(clientId, "get", filename, "complete")
-				// message = clientId + "get" + filename + "completed\n"
-				// util.LogToFile(logoutpath, message)
-				//客户端UpdateDS
-				// client1.UpdateDS(filename, "d-1", "12345")
-				// log.Println(clientId, "update", filename, "complete")
-				// message = clientId + "update" + filename + "completed\n"
-				// util.LogToFile(logoutpath, message)
 			}
 			done <- struct{}{}
 		}(clientId)

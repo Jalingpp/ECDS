@@ -10,8 +10,11 @@ if [ ! -d "data" ]; then
     mkdir data
 fi
 
-# 将IP地址写入data目录下的snaddr文件中
-echo $ip_address > data/snaddr
+# 定义端口号
+port=50061
+
+# 将IP地址和端口号写入data目录下的snaddr文件中
+echo -e "$ip_address:$port" > data/snaddr
 
 # 打印一条消息表示操作完成
 echo "IP地址已写入data/snaddr文件中。"

@@ -7,7 +7,7 @@ import (
 
 func main() {
 	//1-读文件创建所有存储节点
-	snaddrfilename := "data/snaddr"
+	snaddrfilename := "/root/DSN/ECDS/data/snaddrs"
 	storagenodes := make(map[string]*baselines.FilecoinSN) //key:snid
 	//读取存储节点地址
 	snaddrmap := util.ReadSNAddrFile(snaddrfilename)
