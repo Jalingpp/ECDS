@@ -13,14 +13,14 @@ import (
 
 func main() {
 	//固定参数
-	snAddrFilepath := "/root/DSN/ECDS/data/snaddrs"
 
 	//传入参数
 	args := os.Args
 	dsnMode := args[1] //dsn模式
+	datadir := args[2]
+	snAddrFilepath := datadir + "snaddrs"
 
 	ecsns, filecoinsns, storjsns, siasns := CreateSNByMode(dsnMode, snAddrFilepath)
-	// for {
 	if dsnMode == "ec" {
 		fmt.Println("已创建", len(ecsns), "个ECSN")
 	} else if dsnMode == "filecoin" {
@@ -29,24 +29,9 @@ func main() {
 		fmt.Println("已创建", len(storjsns), "个StorjSN")
 	} else if dsnMode == "sia" {
 		fmt.Println("已创建", len(siasns), "个SiaSN")
-		// //统计所占存储空间大小
-		// SizeList := make(map[string]int, len(siasns))
-		// for key, value := range siasns {
-		// 	fdsmap := value.FileShardsMap
-		// 	for _, ds := range fdsmap {
-		// 		SizeList[key] = SizeList[key] + len([]byte(util.Int32SliceToStr(ds)))
-		// 	}
-		// }
-		// totalSize := 0
-		// for _, size := range SizeList {
-		// 	totalSize = totalSize + size
-		// }
-		// util.LogToFile("data/outlog_sn", "total size="+strconv.Itoa(totalSize))
 	} else {
 		log.Fatalln("dsnMode error")
 	}
-	// time.Sleep(time.Duration(20) * time.Second)
-	// }
 	select {}
 }
 

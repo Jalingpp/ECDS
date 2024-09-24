@@ -48,7 +48,7 @@ type Auditor struct {
 }
 
 // 新建一个审计方，持续监听消息
-func NewAuditor(ipaddr string, snaddrfilename string, dn int, pn int) *Auditor {
+func NewAuditor(ipaddr string, snaddrfilename string, dn int, pn int, datadir string) *Auditor {
 	params := pbc.GenerateA(160, 512).String()
 	pairing, _ := pbc.NewPairingFromString(params)
 	g := pairing.NewG2().Rand().Bytes()
@@ -96,7 +96,7 @@ func NewAuditor(ipaddr string, snaddrfilename string, dn int, pn int) *Auditor {
 		// log.Println(pg_res.Message)
 	}
 	//启动持续审计
-	go auditor.KeepAuditing(20)
+	go auditor.KeepAuditing(20, datadir)
 	return auditor
 }
 
@@ -644,8 +644,8 @@ func (ac *Auditor) UpdateDSCommit(ctx context.Context, req *pb.UDSCRequest) (*pb
 }
 
 // 【在生成Auditor对象时启动】审计方每隔sleepSeconds秒随机选择dsnum个存储节点进行存储审计
-func (ac *Auditor) KeepAuditing(sleepSeconds int) {
-	time.Sleep(20 * time.Second)
+func (ac *Auditor) KeepAuditing(sleepSeconds int, datadir string) {
+	time.Sleep(50 * time.Second)
 	auditNo := 0
 	seed := time.Now().UnixNano()
 	randor := rand.New(rand.NewSource(seed))
@@ -801,7 +801,7 @@ func (ac *Auditor) KeepAuditing(sleepSeconds int) {
 			for key, value := range mfmap {
 				auditInfoSize = auditInfoSize + len([]byte(key)) + value.Sizeof()
 			}
-			util.LogToFile("/root/DSN/ECDS/data/outlog_ac", "audit-"+strconv.Itoa(auditNo)+" latency="+strconv.Itoa(int(duration.Milliseconds()))+" ms, avgLatency="+strconv.Itoa(int(avgDuration))+" ms, avgVOSize="+strconv.Itoa(avgVOSize/1024)+" KB, auditInforSize="+strconv.Itoa(auditInfoSize/1024)+" KB\n")
+			util.LogToFile(datadir+"outlog_ac", "audit-"+strconv.Itoa(auditNo)+" latency="+strconv.Itoa(int(duration.Milliseconds()))+" ms, avgLatency="+strconv.Itoa(int(avgDuration))+" ms, avgVOSize="+strconv.Itoa(avgVOSize/1024)+" KB, auditInforSize="+strconv.Itoa(auditInfoSize/1024)+" KB\n")
 			fmt.Println("audit-" + strconv.Itoa(auditNo) + " latency=" + strconv.Itoa(int(duration.Milliseconds())) + " ms, avgLatency=" + strconv.Itoa(int(avgDuration)) + " ms, avgVOSize=" + strconv.Itoa(avgVOSize/1024) + " KB, auditInforSize=" + strconv.Itoa(auditInfoSize/1024) + " KB")
 			time.Sleep(time.Duration(sleepSeconds) * time.Second)
 		}

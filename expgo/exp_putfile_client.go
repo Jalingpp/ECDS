@@ -17,9 +17,6 @@ func main() {
 	//固定参数
 	dn := 11
 	pn := 20
-	acAddr, _ := util.ReadOneAddr("/root/DSN/ECDS/data/acaddr")
-	snAddrFilepath := "/root/DSN/ECDS/data/snaddrs"
-	snaddrmap := util.ReadSNAddrFile(snAddrFilepath)
 
 	//传入参数
 	args := os.Args
@@ -27,6 +24,10 @@ func main() {
 	filedir := args[2]                    //数据集目录
 	clientNum, _ := strconv.Atoi(args[3]) //客户端数量
 	fileNum, _ := strconv.Atoi(args[4])   //文件数量
+	datadir := args[5]
+	acAddr, _ := util.ReadOneAddr(datadir + "acaddr")
+	snAddrFilepath := datadir + "snaddrs"
+	snaddrmap := util.ReadSNAddrFile(snAddrFilepath)
 
 	//创建客户端并完成注册
 	ecco, filecoinco, storjco, siaco := CreateClient(dsnMode, clientNum, dn, pn, acAddr, *snaddrmap)
@@ -61,7 +62,7 @@ func main() {
 	// 获取文件在DSN中的存储空间代价
 	totalSize := GetSNStorageCost(dsnMode, ecco, filecoinco, storjco, siaco)
 	storagecostratio := float64(totalSize) / float64(totalOriginFileSize)
-	util.LogToFile("/root/DSN/ECDS/data/outlog_client", "[putfile-w1-"+dsnMode+"-clientNum"+strconv.Itoa(clientNum)+"] throughput="+throughput+", avglatency="+strconv.Itoa(int(avglatency))+" ms, snstoragecost="+strconv.Itoa(totalSize/1024)+" KB, storageratio="+strconv.FormatFloat(storagecostratio, 'f', -1, 64)+"\n")
+	util.LogToFile(datadir+"outlog_client", "[putfile-w1-"+dsnMode+"-clientNum"+strconv.Itoa(clientNum)+"] throughput="+throughput+", avglatency="+strconv.Itoa(int(avglatency))+" ms, snstoragecost="+strconv.Itoa(totalSize/1024)+" KB, storageratio="+strconv.FormatFloat(storagecostratio, 'f', -1, 64)+"\n")
 	log.Println("[putfile-w1-" + dsnMode + "-clientNum" + strconv.Itoa(clientNum) + "] throughput=" + throughput + ", avglatency=" + strconv.Itoa(int(avglatency)) + " ms, snstoragecost=" + strconv.Itoa(totalSize/1024) + " KB, storageratio=" + strconv.FormatFloat(storagecostratio, 'f', -1, 64))
 }
 

@@ -49,7 +49,7 @@ type StorjAC struct {
 }
 
 // 新建一个审计方，持续监听消息
-func NewStorjAC(ipaddr string, snaddrfilename string, dn int, pn int) *StorjAC {
+func NewStorjAC(ipaddr string, snaddrfilename string, dn int, pn int, datadir string) *StorjAC {
 	snaddrmap := util.ReadSNAddrFile(snaddrfilename)
 	cfrmap := make(map[string]map[string]string)
 	fromap := make(map[string]map[string][]byte)
@@ -87,7 +87,7 @@ func NewStorjAC(ipaddr string, snaddrfilename string, dn int, pn int) *StorjAC {
 		}
 	}()
 	//启动持续审计
-	go auditor.KeepAuditing(20)
+	go auditor.KeepAuditing(20, datadir)
 	return auditor
 }
 
@@ -408,8 +408,8 @@ func (ac *StorjAC) StorjUpdateFileCommit(ctx context.Context, req *pb.StorjUFCRe
 }
 
 // 【在生成Auditor对象时启动】审计方每隔sleepSeconds秒对每个文件的副本进行审计
-func (ac *StorjAC) KeepAuditing(sleepSeconds int) {
-	time.Sleep(20 * time.Second)
+func (ac *StorjAC) KeepAuditing(sleepSeconds int, datadir string) {
+	time.Sleep(50 * time.Second)
 	auditNo := 0
 	avgDuration := int64(0)
 	totalVOSizeMap := make(map[string]int, len(ac.SNAddrMap))
@@ -650,7 +650,7 @@ func (ac *StorjAC) KeepAuditing(sleepSeconds int) {
 			}
 		}
 		ac.FRRMMutex.RUnlock()
-		util.LogToFile("/root/DSN/ECDS/data/outlog_ac", "audit-"+strconv.Itoa(auditNo)+" latency="+strconv.Itoa(int(duration.Milliseconds()))+" ms, avgLatency="+strconv.Itoa(int(avgDuration))+" ms, avgVOSize="+strconv.Itoa(avgVOSize/1024)+" KB, auditInforSize="+strconv.Itoa(auditInfoSize/1024)+" KB\n")
+		util.LogToFile(datadir+"outlog_ac", "audit-"+strconv.Itoa(auditNo)+" latency="+strconv.Itoa(int(duration.Milliseconds()))+" ms, avgLatency="+strconv.Itoa(int(avgDuration))+" ms, avgVOSize="+strconv.Itoa(avgVOSize/1024)+" KB, auditInforSize="+strconv.Itoa(auditInfoSize/1024)+" KB\n")
 		fmt.Println("audit-" + strconv.Itoa(auditNo) + " latency=" + strconv.Itoa(int(duration.Milliseconds())) + " ms, avgLatency=" + strconv.Itoa(int(avgDuration)) + " ms, avgVOSize=" + strconv.Itoa(avgVOSize/1024) + " KB, auditInforSize=" + strconv.Itoa(auditInfoSize/1024) + " KB")
 		time.Sleep(time.Duration(sleepSeconds) * time.Second)
 	}

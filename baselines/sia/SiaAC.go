@@ -54,7 +54,7 @@ type SiaAC struct {
 }
 
 // 新建一个审计方，持续监听消息
-func NewSiaAC(ipaddr string, snaddrfilename string, dn int, pn int) *SiaAC {
+func NewSiaAC(ipaddr string, snaddrfilename string, dn int, pn int, datadir string) *SiaAC {
 	snaddrmap := util.ReadSNAddrFile(snaddrfilename)
 	cdssnmap := make(map[string]map[string]string)
 	csnrmap := make(map[string]map[string][]byte)
@@ -97,7 +97,7 @@ func NewSiaAC(ipaddr string, snaddrfilename string, dn int, pn int) *SiaAC {
 		}
 	}()
 	//启动持续审计
-	go auditor.KeepAuditing(20)
+	go auditor.KeepAuditing(20, datadir)
 	return auditor
 }
 
@@ -572,8 +572,8 @@ func (ac *SiaAC) SiaUpdateFileCommit(ctx context.Context, req *pb.SiaUFCRequest)
 }
 
 // 【在生成Auditor对象时启动】审计方每隔sleepSeconds秒随机选择dsnum个存储节点进行存储审计
-func (ac *SiaAC) KeepAuditing(sleepSeconds int) {
-	time.Sleep(20 * time.Second)
+func (ac *SiaAC) KeepAuditing(sleepSeconds int, datadir string) {
+	time.Sleep(50 * time.Second)
 	auditNo := 0
 	seed := time.Now().UnixNano()
 	randor := rand.New(rand.NewSource(seed))
@@ -785,7 +785,7 @@ func (ac *SiaAC) KeepAuditing(sleepSeconds int) {
 				auditInfoSize = auditInfoSize + len([]byte(key)) + 4
 			}
 			ac.FRRMMutex.RUnlock()
-			util.LogToFile("/root/DSN/ECDS/data/outlog_ac", "audit-"+strconv.Itoa(auditNo)+" latency="+strconv.Itoa(int(duration.Milliseconds()))+" ms, avgLatency="+strconv.Itoa(int(avgDuration))+" ms, avgVOSize="+strconv.Itoa(avgVOSize/1024)+" KB, auditInforSize="+strconv.Itoa(auditInfoSize/1024)+" KB\n")
+			util.LogToFile(datadir+"outlog_ac", "audit-"+strconv.Itoa(auditNo)+" latency="+strconv.Itoa(int(duration.Milliseconds()))+" ms, avgLatency="+strconv.Itoa(int(avgDuration))+" ms, avgVOSize="+strconv.Itoa(avgVOSize/1024)+" KB, auditInforSize="+strconv.Itoa(auditInfoSize/1024)+" KB\n")
 			fmt.Println("audit-" + strconv.Itoa(auditNo) + " latency=" + strconv.Itoa(int(duration.Milliseconds())) + " ms, avgLatency=" + strconv.Itoa(int(avgDuration)) + " ms, avgVOSize=" + strconv.Itoa(avgVOSize/1024) + " KB, auditInforSize=" + strconv.Itoa(auditInfoSize/1024) + " KB")
 			time.Sleep(time.Duration(sleepSeconds) * time.Second)
 		}
