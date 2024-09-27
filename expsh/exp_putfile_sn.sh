@@ -1,11 +1,14 @@
 if [ -z $1 ]; then
-    round=1
+    dsnMode="ec"
 else
-    round=$1
+    dsnMode=$1
 fi
-dsnModes=(ec storj sia filecoin)
-dsnMode=${dsnModes[2]}
-putfile_sn="/root/DSN/ECDS/expgo/exp_putfile_sn.go"
-datadir="/root/DSN/ECDS/data/"
 
-go run $putfile_sn $dsnMode $datadir
+GOPath="/home/ubuntu/ECDS/expgo/"
+GOFile="exp_putfile_sn.go"
+datadir="/home/ubuntu/ECDS/data/"
+
+cd $GOPath
+
+nohup /usr/local/go/bin/go run $GOFile $dsnMode $datadir > "$datadir/output_sn.log" 2>&1 &
+sleep 1
