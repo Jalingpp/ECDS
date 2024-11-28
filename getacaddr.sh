@@ -17,4 +17,4 @@ port=50051
 echo -e "$ip_address:$port" > data/acaddr
 
 # 打印一条消息表示操作完成
-echo "IP地址已写入data/snaddr文件中。"
+echo "IP地址已写入data/acaddr文件中。"
