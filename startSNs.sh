@@ -25,7 +25,7 @@ fi
 SCRIPT_PATH="/home/ubuntu/ECDS/expsh/"
 
 # 定义snips文件的路径
-SNIPS_FILE="/home/ubuntu/ECDS/data/snips"
+SNIPS_FILE="/home/ubuntu/ECDS/data/snaddrs"
 
 # 定义SSH密码
 SSH_PASSWORD="jjp918JJP"
@@ -42,33 +42,38 @@ bash syncSNLog.sh "$snNum"
 # 遍历 snaddrs 文件中的每一行 IP 地址
 for (( i=1; i<=$snNum; i++ ))
 do
-    # 读取每个 IP 地址
-    ip_addr=$(sed -n "${i}p" $SNIPS_FILE)
+    # 使用awk命令提取第i行的IP地址和端口号
+    # 假设IP地址和端口号是每行的第二和第三部分，以逗号分隔
+    IP_PORT=$(awk -v line=$i 'NR==line {print $2}' $SNIPS_FILE)
+
+    # 将IP地址和端口号分解为两个变量
+    IP=$(echo $IP_PORT | cut -d ':' -f1)
+    PORT=$(echo $IP_PORT | cut -d ':' -f2)
 
     # 检查 IP 地址是否有效
-    if [[ $ip_addr =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        echo "Valid IP address: $ip_addr"
+    if [[ $IP =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "Valid IP address: $IP"
 
         # 使用sshpass复制文件到目标主机
-        if ! sshpass -p "$SSH_PASSWORD" scp "$SCRIPT_PATH$SCRIPT_NAME" ubuntu@$ip_addr:"$SCRIPT_PATH"; then
-          echo "Failed to copy script to $ip_addr"
+        if ! sshpass -p "$SSH_PASSWORD" scp "$SCRIPT_PATH$SCRIPT_NAME" ubuntu@$IP:"$SCRIPT_PATH"; then
+          echo "Failed to copy script to $IP"
           continue
         fi
 
         # 使用sshpass在目标主机上给予脚本执行权限
-        if ! sshpass -p "$SSH_PASSWORD" ssh -tt ubuntu@$ip_addr "chmod +x $SCRIPT_PATH$SCRIPT_NAME"; then
-          echo "Failed to set execute permission on $ip_addr"
+        if ! sshpass -p "$SSH_PASSWORD" ssh -tt ubuntu@$IP "chmod +x $SCRIPT_PATH$SCRIPT_NAME"; then
+          echo "Failed to set execute permission on $IP"
           continue
         fi
 
         # 使用sshpass在目标主机上执行脚本
-        if ! sshpass -p "$SSH_PASSWORD" ssh -tt ubuntu@$ip_addr "$SCRIPT_PATH$SCRIPT_NAME" $dsnMode; then
-          echo "Failed to execute script on $ip_addr"
+        if ! sshpass -p "$SSH_PASSWORD" ssh -tt ubuntu@$IP "$SCRIPT_PATH$SCRIPT_NAME" $dsnMode $PORT; then
+          echo "Failed to execute script on $IP"
         else
-          echo "Script executed successfully on $ip_addr"
+          echo "Script executed successfully on $IP"
         fi
     else
-        echo "Invalid IP address: $ip_addr"
+        echo "Invalid IP address: $IP"
     fi
 done
 

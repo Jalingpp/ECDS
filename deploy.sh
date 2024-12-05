@@ -1,14 +1,14 @@
 #!/bin/bash
-# 该脚本实现：1.根据snips写所有SN的snaddrs文件；2.写AC本地snaadrs文件；3.复制AC的snaddrs文件到Client。
+# 该脚本实现：1.根据snips写所有SN的snaddrs文件(同一个ip对应一个port)；2.写AC本地snaadrs文件；3.复制AC的snaddrs文件到Client。
 
 # AC 的 IP 地址
-AC_IP="10.24.15.127"
+AC_IP="10.0.4.10"
 
 # Client 的 IP 地址
-Client_IP="10.24.15.34"
+Client_IP="10.0.4.10"
 
 # snNum 的数量（假设已经定义）
-snNum=2
+snNum=31
 
 # 包含 IP 地址的文件
 SN_ADDRS_FILE="/home/ubuntu/ECDS/data/snips"

@@ -18,7 +18,7 @@ func main() {
 	args := os.Args
 	dsnMode := args[1] //dsn模式
 	datadir := args[2]
-	snAddrFilepath := datadir + "snaddrs"
+	snAddrFilepath := datadir
 
 	ecsns, filecoinsns, storjsns, siasns := CreateSNByMode(dsnMode, snAddrFilepath)
 	if dsnMode == "ec" {
