@@ -4,9 +4,10 @@ else
     round=$1
 fi
 
-CLIENT_IP="10.24.15.34"
+CLIENT_IP="10.24.0.62"
 
-snNum=2
+snNum=31
+snmNum=3
 
 SCRIPT_NAME_AC=(exp_putfile_ac.sh)
 SCRIPT_NAME_Client=(exp_putfile_client.sh)
@@ -29,6 +30,9 @@ do
     SCRIPT_AC=${SCRIPT_NAME_AC[$i]}
     SCRIPT_Client=${SCRIPT_NAME_Client[$i]}
     SCRIPT_SN=${SCRIPT_NAME_SN[$i]}
+    EndKW_AC=${EndKeyword_AC[$i]}
+    EndKW_Client=${EndKeyword_Client[$i]}
+    EndKW_SN=${EndKeyword_SN[$i]}
     # 遍历每个方法
     for dsnMode in ${dsnModes[*]};
     do
@@ -43,7 +47,7 @@ do
 
                 # 启动SNs
                 bash startSNs.sh $snNum $SCRIPT_SN $dsnMode
-                sleep $((snNum * 5))
+                sleep 1
                 echo "********SNs already started*********"
 
                 # 启动AC
@@ -55,13 +59,13 @@ do
                 bash startClient.sh $CLIENT_IP $SCRIPT_Client $dsnMode $clientnum $datafiledir $datafilenum
                 sleep 1
 
-                bash endClient.sh
+                bash endClient.sh $CLIENT_IP $EndKeyword_Client
                 sleep 1
 
-                bash endAC.sh
+                bash endAC.sh $EndKW_AC $EndKW_SN $EndKW_Client
                 sleep 1
 
-                bash endSNs.sh
+                bash endSNs.sh $snmNum $EndKW_SN
                 sleep 1
 
             done

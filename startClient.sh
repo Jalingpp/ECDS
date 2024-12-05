@@ -1,7 +1,7 @@
 
 # 检查第一个参数是否为空
 if [ -z "$1" ]; then
-    CLIENT_IP="10.24.15.34"
+    CLIENT_IP="10.24.0.62"
 else
     CLIENT_IP=$1
 fi
@@ -47,8 +47,8 @@ SCRIPT_PATH="/home/ubuntu/ECDS/expsh/"
 # 定义SSH密码
 SSH_PASSWORD="jjp918JJP"
 
-# 启动clientlog同步脚本
-bash syncClientLog.sh "$CLIENT_IP"
+# # 启动clientlog同步脚本
+# bash syncClientLog.sh "$CLIENT_IP"
 
 # 使用sshpass复制文件到目标主机
 if ! sshpass -p "$SSH_PASSWORD" scp "$SCRIPT_PATH$SCRIPT_NAME" ubuntu@$CLIENT_IP:"$SCRIPT_PATH"; then
@@ -69,5 +69,5 @@ else
   echo "Script executed successfully on $CLIENT_IP"
 fi
 
-# 启动clientlog同步脚本
-bash syncClientLog.sh "$CLIENT_IP"
+# # 启动clientlog同步脚本
+# bash syncClientLog.sh "$CLIENT_IP"

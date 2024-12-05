@@ -2,9 +2,9 @@
 
 # 检查第一个参数是否为空
 if [ -z "$1" ]; then
-    snNum=2
+    snmNum=31
 else
-    snNum=$1
+    snmNum=$1
 fi
 
 # 检查第二个参数是否为空
@@ -28,7 +28,7 @@ if [ ! -f "$SNIPS_FILE" ]; then
 fi
 
 # 遍历 snaddrs 文件中的每一行 IP 地址
-for (( i=1; i<=$snNum; i++ ))
+for (( i=1; i<=$snmNum; i++ ))
 do
     # 读取每个 IP 地址
     ip_addr=$(sed -n "${i}p" $SNIPS_FILE)

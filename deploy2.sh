@@ -2,18 +2,18 @@
 # 该脚本实现：1.根据snips写所有SN的snaddrs文件(同一个ip对应多个port)；2.写AC本地snaadrs文件；3.复制AC的snaddrs文件到Client。
 
 # AC 的 IP 地址
-AC_IP="10.0.4.10"
+AC_IP="10.24.0.191"
 
 # Client 的 IP 地址
-Client_IP="10.0.4.11"
+Client_IP="10.24.0.62"
 
 # snNum 的数量（假设已经定义）
 snNum=31
 
 # 运行存储服务节点的机器数量（即snips中ip个数）
-ipNum=1
+ipNum=3
 # 每个ip对应的要生成ip:port的数量
-portNums=(31)
+portNums=(11 10 10)
 
 # 包含 IP 地址的文件
 SN_ADDRS_FILE="/home/ubuntu/ECDS/data/snips"
@@ -52,6 +52,8 @@ do
         # 构建要写入的字符串
         data="${prefix}${snid},${ip_addr}:${port}"
         echo "将要写入的数据: $data"
+
+        ssh-keyscan -H $ip_addr >> ~/.ssh/known_hosts
 
         # 使用 sshpass 连接到每个 IP 地址并写入文件
         sshpass -p "$PASSWORD" ssh ubuntu@$ip_addr "echo '$data' > /home/ubuntu/ECDS/data/snaddrfile/${port}"

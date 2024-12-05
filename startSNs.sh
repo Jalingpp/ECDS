@@ -36,15 +36,15 @@ if [ ! -f "$SNIPS_FILE" ]; then
   exit 1
 fi
 
-# 启动snlog同步脚本
-bash syncSNLog.sh "$snNum"
+# # 启动snlog同步脚本
+# bash syncSNLog.sh "$snNum"
 
 # 遍历 snaddrs 文件中的每一行 IP 地址
 for (( i=1; i<=$snNum; i++ ))
 do
     # 使用awk命令提取第i行的IP地址和端口号
-    # 假设IP地址和端口号是每行的第二和第三部分，以逗号分隔
-    IP_PORT=$(awk -v line=$i 'NR==line {print $2}' $SNIPS_FILE)
+    dataline=$(head -n $i $SNIPS_FILE | tail -n 1)
+    IP_PORT=$(echo $dataline | cut -d ',' -f2)
 
     # 将IP地址和端口号分解为两个变量
     IP=$(echo $IP_PORT | cut -d ':' -f1)
@@ -79,6 +79,6 @@ done
 
 sleep $((snNum * 5))
 
-bash syncSNLog.sh "$snNum"
+# bash syncSNLog.sh "$snNum"
 
 echo "All tasks completed."

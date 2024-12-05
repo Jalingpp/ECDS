@@ -20,5 +20,5 @@ datadir="${datadir}${snPort}"
 
 cd $GOPath
 
-nohup /usr/local/go/bin/go run $GOFile $dsnMode $datadir > "$datadir/output_sn.log" 2>&1 &
+nohup /usr/local/go/bin/go run $GOFile $dsnMode $datadir > "/home/ubuntu/ECDS/data/snlog/output_sn${snPort}.log" 2>&1 &
 sleep 1

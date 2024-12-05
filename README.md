@@ -95,6 +95,6 @@ Step 3. Create a Client machine and 31 SN machines with the mirror image.
 
 Step 4. Manually copy the intranet IPs of SNs from the webpage to `/home/ubuntu/ECDS/data/snips` in AC. Note that the `snips` cannot have empty lines at the end of the file.
 
-Step 5. Modify the Client IP in `deploy.sh` of AC and Client, and then `./deploy.sh`. VSCode check: There is a `snaddrs` file on the Client containing the ip-ports for SNs, and there is a `snaddrs` file on each SN containing its own ip-port.
+Step 5. Modify the AC_IP, Client_IP, ipNum, and portNums in `deploy2.sh` of AC, and then `./deploy2.sh`. VSCode check: There is a `snaddrs` file on the Client containing the ip-ports for SNs, and there is a `snaddrs` file on each SN containing its own ip-port.
 
-Step 6. Conduct experiments: `./run.sh`. The exexcution state is shown in `/home/ubuntu/ECDS/data/output_sn.log` and `/home/ubuntu/ECDS/data/output_ac.log`. Find results in `/home/ubuntu/ECDS/data/outlog_client` and `/home/ubuntu/ECDS/data/outlog_ac`.
+Step 6. Modify the Client_IP and snmNum in `run.sh` of AC, and then conduct experiments: `./run.sh`. The exexcution state is shown in `/home/ubuntu/ECDS/data/snlog/` of SN and `/home/ubuntu/ECDS/data/output_ac.log` of AC. Find results in `/home/ubuntu/ECDS/data/outlog_client` of Client and `/home/ubuntu/ECDS/data/outlog_ac` of AC.
