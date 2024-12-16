@@ -1,0 +1,106 @@
+[putfile-w1-ec-clientNum50]
+ReadSNAddr:sn1,10.0.4.19:50061
+ReadSNAddr:sn2,10.0.4.19:50062
+ReadSNAddr:sn3,10.0.4.19:50063
+ReadSNAddr:sn4,10.0.4.19:50064
+ReadSNAddr:sn5,10.0.4.19:50065
+ReadSNAddr:sn6,10.0.4.19:50066
+ReadSNAddr:sn7,10.0.4.19:50067
+ReadSNAddr:sn8,10.0.4.19:50068
+ReadSNAddr:sn9,10.0.4.19:50069
+ReadSNAddr:sn10,10.0.4.19:50070
+ReadSNAddr:sn11,10.0.4.19:50071
+ReadSNAddr:sn12,10.0.4.19:50072
+ReadSNAddr:sn13,10.0.4.19:50073
+ReadSNAddr:sn14,10.0.4.19:50074
+ReadSNAddr:sn15,10.0.4.19:50075
+ReadSNAddr:sn16,10.0.4.19:50076
+ReadSNAddr:sn17,10.0.4.19:50077
+ReadSNAddr:sn18,10.0.4.19:50078
+ReadSNAddr:sn19,10.0.4.19:50079
+ReadSNAddr:sn20,10.0.4.19:50080
+ReadSNAddr:sn21,10.0.4.19:50081
+ReadSNAddr:sn22,10.0.4.19:50082
+ReadSNAddr:sn23,10.0.4.19:50083
+ReadSNAddr:sn24,10.0.4.19:50084
+ReadSNAddr:sn25,10.0.4.19:50085
+ReadSNAddr:sn26,10.0.4.19:50086
+ReadSNAddr:sn27,10.0.4.19:50087
+ReadSNAddr:sn28,10.0.4.19:50088
+ReadSNAddr:sn29,10.0.4.19:50089
+ReadSNAddr:sn30,10.0.4.19:50090
+ReadSNAddr:sn31,10.0.4.19:50091
+2024/12/11 15:44:09 Auditor:{IpAddr:10.0.4.10:50051,SNAddrMap:{sn20:10.0.4.19:50080,sn23:10.0.4.19:50083,sn29:10.0.4.19:50089,sn31:10.0.4.19:50091,sn2:10.0.4.19:50062,sn3:10.0.4.19:50063,sn13:10.0.4.19:50073,sn19:10.0.4.19:50079,sn10:10.0.4.19:50070,sn11:10.0.4.19:50071,sn15:10.0.4.19:50075,sn25:10.0.4.19:50085,sn27:10.0.4.19:50087,sn28:10.0.4.19:50088,sn12:10.0.4.19:50072,sn17:10.0.4.19:50077,sn18:10.0.4.19:50078,sn24:10.0.4.19:50084,sn16:10.0.4.19:50076,sn26:10.0.4.19:50086,sn1:10.0.4.19:50061,sn4:10.0.4.19:50064,sn8:10.0.4.19:50068,sn22:10.0.4.19:50082,sn6:10.0.4.19:50066,sn7:10.0.4.19:50067,sn9:10.0.4.19:50069,sn30:10.0.4.19:50090,sn5:10.0.4.19:50065,sn14:10.0.4.19:50074,sn21:10.0.4.19:50081,},ClientFileShardMap:{},DataNum:11,ParityNum:20}
+10.0.4.10:50051
+2024/12/11 15:45:03 auditNo: 0 sn8 sucessfully
+2024/12/11 15:45:03 auditNo: 0 sn5 sucessfully
+2024/12/11 15:45:03 auditNo: 0 sn12 sucessfully
+2024/12/11 15:45:03 auditNo: 0 sn14 sucessfully
+2024/12/11 15:45:03 auditNo: 0 sn18 sucessfully
+2024/12/11 15:45:03 auditNo: 0 sn1 sucessfully
+2024/12/11 15:45:03 auditNo: 0 sn10 sucessfully
+2024/12/11 15:45:04 auditNo: 0 sn28 sucessfully
+2024/12/11 15:45:04 auditNo: 0 sn7 sucessfully
+2024/12/11 15:45:04 auditNo: 0 sn19 sucessfully
+2024/12/11 15:45:04 auditNo: 0 sn29 sucessfully
+audit-1 latency=5608 ms, avgLatency=5608 ms, avgVOSize=177 KB, auditInforSize=1092 KB
+2024/12/11 15:45:31 auditNo: 1 sn4 sucessfully
+2024/12/11 15:45:32 auditNo: 1 sn1 sucessfully
+2024/12/11 15:45:32 auditNo: 1 sn27 sucessfully
+2024/12/11 15:45:32 auditNo: 1 sn30 sucessfully
+2024/12/11 15:45:33 auditNo: 1 sn14 sucessfully
+2024/12/11 15:45:33 auditNo: 1 sn9 sucessfully
+2024/12/11 15:45:33 auditNo: 1 sn21 sucessfully
+2024/12/11 15:45:33 auditNo: 1 sn13 sucessfully
+2024/12/11 15:45:33 auditNo: 1 sn16 sucessfully
+2024/12/11 15:45:33 auditNo: 1 sn12 sucessfully
+2024/12/11 15:45:33 auditNo: 1 sn11 sucessfully
+audit-2 latency=8899 ms, avgLatency=7253 ms, avgVOSize=245 KB, auditInforSize=1912 KB
+2024/12/11 15:46:05 auditNo: 2 sn8 sucessfully
+2024/12/11 15:46:05 auditNo: 2 sn3 sucessfully
+2024/12/11 15:46:05 auditNo: 2 sn20 sucessfully
+2024/12/11 15:46:06 auditNo: 2 sn13 sucessfully
+2024/12/11 15:46:06 auditNo: 2 sn18 sucessfully
+2024/12/11 15:46:06 auditNo: 2 sn7 sucessfully
+2024/12/11 15:46:06 auditNo: 2 sn11 sucessfully
+2024/12/11 15:46:06 auditNo: 2 sn6 sucessfully
+2024/12/11 15:46:06 auditNo: 2 sn15 sucessfully
+2024/12/11 15:46:06 auditNo: 2 sn30 sucessfully
+2024/12/11 15:46:06 auditNo: 2 sn1 sucessfully
+audit-3 latency=13175 ms, avgLatency=9227 ms, avgVOSize=319 KB, auditInforSize=2859 KB
+2024/12/11 15:46:42 auditNo: 3 sn11 sucessfully
+2024/12/11 15:46:43 auditNo: 3 sn10 sucessfully
+2024/12/11 15:46:44 auditNo: 3 sn5 sucessfully
+2024/12/11 15:46:44 auditNo: 3 sn28 sucessfully
+2024/12/11 15:46:44 auditNo: 3 sn7 sucessfully
+2024/12/11 15:46:44 auditNo: 3 sn19 sucessfully
+2024/12/11 15:46:44 auditNo: 3 sn26 sucessfully
+2024/12/11 15:46:44 auditNo: 3 sn25 sucessfully
+2024/12/11 15:46:44 auditNo: 3 sn24 sucessfully
+2024/12/11 15:46:44 auditNo: 3 sn13 sucessfully
+2024/12/11 15:46:44 auditNo: 3 sn30 sucessfully
+audit-4 latency=18176 ms, avgLatency=11464 ms, avgVOSize=401 KB, auditInforSize=3946 KB
+2024/12/11 15:47:26 auditNo: 4 sn30 sucessfully
+2024/12/11 15:47:27 auditNo: 4 sn20 sucessfully
+2024/12/11 15:47:27 auditNo: 4 sn24 sucessfully
+2024/12/11 15:47:27 auditNo: 4 sn8 sucessfully
+2024/12/11 15:47:27 auditNo: 4 sn12 sucessfully
+2024/12/11 15:47:28 auditNo: 4 sn11 sucessfully
+2024/12/11 15:47:28 auditNo: 4 sn1 sucessfully
+2024/12/11 15:47:28 auditNo: 4 sn23 sucessfully
+2024/12/11 15:47:28 auditNo: 4 sn6 sucessfully
+2024/12/11 15:47:28 auditNo: 4 sn13 sucessfully
+2024/12/11 15:47:28 auditNo: 4 sn10 sucessfully
+audit-5 latency=23864 ms, avgLatency=13944 ms, avgVOSize=490 KB, auditInforSize=5198 KB
+2024/12/11 15:48:16 auditNo: 5 sn10 sucessfully
+2024/12/11 15:48:17 auditNo: 5 sn14 sucessfully
+2024/12/11 15:48:17 auditNo: 5 sn17 sucessfully
+2024/12/11 15:48:17 auditNo: 5 sn8 sucessfully
+2024/12/11 15:48:17 auditNo: 5 sn27 sucessfully
+2024/12/11 15:48:18 auditNo: 5 sn21 sucessfully
+2024/12/11 15:48:18 auditNo: 5 sn16 sucessfully
+2024/12/11 15:48:18 auditNo: 5 sn26 sucessfully
+2024/12/11 15:48:19 auditNo: 5 sn6 sucessfully
+2024/12/11 15:48:19 auditNo: 5 sn4 sucessfully
+2024/12/11 15:48:20 auditNo: 5 sn24 sucessfully
+audit-6 latency=31264 ms, avgLatency=16830 ms, avgVOSize=588 KB, auditInforSize=6410 KB

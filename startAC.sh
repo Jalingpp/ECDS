@@ -2,7 +2,7 @@
 
 # 检查第一个参数是否为空
 if [ -z "$1" ]; then
-    SCRIPT_NAME="exp_putfile_ac.sh"
+    SCRIPT_NAME="exp_ac.sh"
 else
     SCRIPT_NAME=$1
 fi
@@ -22,7 +22,9 @@ else
 fi
 
 # 定义源脚本路径
-SCRIPT_PATH="/home/ubuntu/ECDS/expsh/"
-datadir="/home/ubuntu/ECDS/data/"
+# SCRIPT_PATH="/home/ubuntu/ECDS/expsh/"
+SCRIPT_PATH="/root/DSN/ECDS/expsh/"
+# datadir="/home/ubuntu/ECDS/data/"
+datadir="/root/DSN/ECDS/data/"
 
 nohup bash "$SCRIPT_PATH$SCRIPT_NAME" $dsnMode $clientnum > "$datadir/output_ac.log" 2>&1 &

@@ -11,7 +11,8 @@ else
 fi
 
 if [ -z $3 ]; then
-    datafiledir="/home/ubuntu/ECDS/data/NM/"
+    # datafiledir="/home/ubuntu/ECDS/data/NM/"
+    datafiledir="/root/DSN/ECDS/data/NM/"
 else
     datafiledir=$3
 fi
@@ -22,9 +23,11 @@ else
     datafilenum=$4
 fi
 
-GOPath="/home/ubuntu/ECDS/expgo/"
-GOFile="exp_putfile_client.go"
-datadir="/home/ubuntu/ECDS/data/"
+# GOPath="/home/ubuntu/ECDS/expgo/"
+GOPath="/root/DSN/ECDS/expgo/"
+GOFile="exp_client.go"
+# datadir="/home/ubuntu/ECDS/data/"
+datadir="/root/DSN/ECDS/data/"
 
 cd $GOPath
 

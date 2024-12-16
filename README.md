@@ -75,15 +75,15 @@ Step2. Download PBC package and install it. Download url: `https://crypto.stanfo
 
 ## 4 Test ECDS
 
-Step1. Start the storage nodes: `go run testgo/stornode_main.go`.
+Step1. Start the storage nodes: `cd testgo` and then `go run XX_stornode_main.go`.
 
-Step2. Start the auditor node: `go run testgo/auditor_main.go`.
+Step2. Start the auditor node: `cd testgo` and then `go run XX_auditor_main.go`.
 
-Step3. Start the clients: `go run testgo/client_main.go`.
+Step3. Start the clients: `cd testgo` and then `go run XX_client_main.go`.
 
 ## 5 Deploying and Conduct Experiments In Ucloud
 
-We start 33 machines in Ucloud, each equipped with 32 core CPUs and 256GB of storage space, of which 31 are used as DSN storage nodes, one as the auditor, and one as clients.
+We start 33 instances in Ucloud, each equipped with 4 core CPUs and 64GB of storage space, of which 31 are used as DSN storage nodes, one as the auditor, and one as clients.
 
 The deployment steps are as follows:
 
@@ -91,10 +91,12 @@ Step 1. Create an AC machine with the mirror image. Run `getacaddr.sh` in AC to 
 
 Step 2. Make the AC machine into a mirror image.
 
-Step 3. Create a Client machine and 31 SN machines with the mirror image.
+Step 3. Create a Client machine and 4 machines for SNs (8,8,8,7 instances in the machines) with the mirror image.
 
 Step 4. Manually copy the intranet IPs of SNs from the webpage to `/home/ubuntu/ECDS/data/snips` in AC. Note that the `snips` cannot have empty lines at the end of the file.
 
 Step 5. Modify the AC_IP, Client_IP, ipNum, and portNums in `deploy2.sh` of AC, and then `./deploy2.sh`. VSCode check: There is a `snaddrs` file on the Client containing the ip-ports for SNs, and there is a `snaddrs` file on each SN containing its own ip-port.
 
 Step 6. Modify the Client_IP and snmNum in `run.sh` of AC, and then conduct experiments: `./run.sh`. The exexcution state is shown in `/home/ubuntu/ECDS/data/snlog/` of SN and `/home/ubuntu/ECDS/data/output_ac.log` of AC. Find results in `/home/ubuntu/ECDS/data/outlog_client` of Client and `/home/ubuntu/ECDS/data/outlog_ac` of AC.
+
+Note that all the above paths need to be set according to the specific machine, and all paths in files `deploy2.sh`, `run.sh`, `startSNs.sh`, `startAC.sh`, `startClient.sh`, `exp_sn.sh`, `exp_ac.sh`, `exp_client.sh` should also be adjusted accordingly.

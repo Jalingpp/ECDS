@@ -1,3 +1,0 @@
-[putfile-w1-ec-clientNum50] throughput=19.506653652750664, avglatency=2453 ms, snstoragecost=1884 KB, storageratio=5.141837245729752
-[putfile-w1-storj-clientNum100] throughput=75.7354612323973, avglatency=1312 ms, snstoragecost=41816 KB, storageratio=114.06911249160868
-[putfile-w1-sia-clientNum100] throughput=39.21620739485257, avglatency=2497 ms, snstoragecost=1991 KB, storageratio=5.431862499600413
