@@ -91,7 +91,7 @@ Step 1. Create an AC machine with the mirror image. Run `getacaddr.sh` in AC to 
 
 Step 2. Make the AC machine into a mirror image.
 
-Step 3. Create a Client machine and 4 machines for SNs (8,8,8,7 instances in the machines) with the mirror image.
+Step 3. Create a Client machine and 4 machines for SNs (8,8,8,7 instances in the machines with 100G disk) with the mirror image.
 
 Step 4. Manually copy the intranet IPs of SNs from the webpage to `/home/ubuntu/ECDS/data/snips` in AC. Note that the `snips` cannot have empty lines at the end of the file.
 
@@ -99,4 +99,4 @@ Step 5. Modify the AC_IP, Client_IP, ipNum, and portNums in `deploy2.sh` of AC, 
 
 Step 6. Modify the Client_IP and snmNum in `run.sh` of AC, and then conduct experiments: `./run.sh`. The exexcution state is shown in `/home/ubuntu/ECDS/data/snlog/` of SN and `/home/ubuntu/ECDS/data/output_ac.log` of AC. Find results in `/home/ubuntu/ECDS/data/outlog_client` of Client and `/home/ubuntu/ECDS/data/outlog_ac` of AC.
 
-Note that all the above paths need to be set according to the specific machine, and all paths in files `deploy2.sh`, `run.sh`, `startSNs.sh`, `startAC.sh`, `startClient.sh`, `exp_sn.sh`, `exp_ac.sh`, `exp_client.sh` should also be adjusted accordingly.
+Note that all the above paths need to be set according to the specific machine, and all paths and passwords in files `deploy2.sh`, `run.sh`, `startSNs.sh`, `startAC.sh`, `startClient.sh`, `exp_sn.sh`, `exp_ac.sh`, `exp_client.sh` should also be adjusted accordingly.
