@@ -7,7 +7,9 @@ require (
 	github.com/filecoin-project/filecoin-ffi v1.28.0
 	github.com/filecoin-project/go-padreader v0.0.1
 	github.com/filecoin-project/go-state-types v0.14.0-rc1
+	github.com/hashicorp/golang-lru v1.0.2
 	github.com/ipfs/go-cid v0.4.1
+	github.com/syndtr/goleveldb v1.0.0
 	gonum.org/v1/gonum v0.15.0
 	google.golang.org/grpc v1.66.0
 	google.golang.org/protobuf v1.34.2
@@ -17,9 +19,9 @@ require (
 	github.com/filecoin-project/go-address v1.1.0 // indirect
 	github.com/filecoin-project/go-fil-commcid v0.1.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
+	github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gopherjs/gopherjs v0.0.0-20190812055157-5d271430af9f // indirect
-	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/ipfs/bbloom v0.0.4 // indirect
 	github.com/ipfs/go-block-format v0.0.3 // indirect
 	github.com/ipfs/go-datastore v0.6.0 // indirect

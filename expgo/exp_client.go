@@ -89,31 +89,6 @@ func main() {
 	avglatency = totalLatency / int64(clientNum)
 	util.LogToFile(datadir+"outlog_client", "[getfile-w1-"+dsnMode+"-clientNum"+strconv.Itoa(clientNum)+"] throughput="+throughput+", avglatency="+strconv.Itoa(int(avglatency))+" ms\n")
 	log.Println("[getfile-w1-" + dsnMode + "-clientNum" + strconv.Itoa(clientNum) + "] throughput=" + throughput + ", avglatency=" + strconv.Itoa(int(avglatency)) + " ms")
-
-	//updateFile
-	totalLatency = int64(0)
-	avgFileNum = fileNum / clientNum
-	start = time.Now()
-	done = make(chan struct{})
-	for i := 0; i < clientNum; i++ {
-		clientId := "client" + strconv.Itoa(i)
-		go func(clientId string, index int) {
-			latency := UpdatefileByMode(dsnMode, clientId, index, avgFileNum, filedir, ecco, filecoinco, storjco, siaco)
-			tlMutex.Lock()
-			totalLatency = totalLatency + latency
-			tlMutex.Unlock()
-			done <- struct{}{}
-		}(clientId, i)
-	}
-	// 等待所有协程完成
-	for i := 0; i < clientNum; i++ {
-		<-done
-	}
-	duration = time.Since(start)
-	throughput = strconv.FormatFloat(float64(avgFileNum*clientNum)/duration.Seconds(), 'f', -1, 64)
-	avglatency = totalLatency / int64(clientNum)
-	util.LogToFile(datadir+"outlog_client", "[getfile-w1-"+dsnMode+"-clientNum"+strconv.Itoa(clientNum)+"] throughput="+throughput+", avglatency="+strconv.Itoa(int(avglatency))+" ms\n")
-	log.Println("[getfile-w1-" + dsnMode + "-clientNum" + strconv.Itoa(clientNum) + "] throughput=" + throughput + ", avglatency=" + strconv.Itoa(int(avglatency)) + " ms")
 }
 
 func CountLatency(rets *[]time.Duration, durationChList *[]chan time.Duration, done *chan bool) {
@@ -194,7 +169,9 @@ func PutfileByMode(dsnMode string, clientId string, i int, avgFileNum int, filed
 			filepath := filedir + strconv.Itoa(j)
 			filename := strconv.Itoa(j)
 			st := time.Now()
+			log.Println("before putfile", clientId, filename)
 			fs := client1.PutFile(filepath, filename)
+			log.Println("after putfile", clientId, filename)
 			du := time.Since(st)
 			totalFileSize = totalFileSize + fs
 			latency := du.Milliseconds()
@@ -314,79 +291,6 @@ func GetSNStorageCost(dsnMode string, ecco map[string]*nodes.Client, filecoinco 
 }
 
 func GetfileByMode(dsnMode string, clientId string, i int, avgFileNum int, filedir string, ecco map[string]*nodes.Client, filecoinco map[string]*baselines.FilecoinClient, storjco map[string]*storjnodes.StorjClient, siaco map[string]*sianodes.SiaClient) int64 {
-	count := 0
-	if dsnMode == "ec" {
-		client1 := ecco[clientId]
-		totalLatency := int64(0)
-		for j := i*avgFileNum + 1; j <= (i+1)*avgFileNum; j++ {
-			filename := strconv.Itoa(j)
-			st := time.Now()
-			filestr := client1.GetFile(filename, true)
-			du := time.Since(st)
-			latency := du.Milliseconds()
-			totalLatency = totalLatency + latency
-			count++
-			if count%50 == 0 {
-				log.Println(count, clientId, "get", filename, "complete in", latency, " ms:", filestr)
-			}
-		}
-		return totalLatency / int64(avgFileNum)
-	} else if dsnMode == "filecoin" {
-		client1 := filecoinco[clientId]
-		totalLatency := int64(0)
-		for j := i*avgFileNum + 1; j <= (i+1)*avgFileNum; j++ {
-			//客户端PutFile
-			filename := strconv.Itoa(j)
-			st := time.Now()
-			filestr, fileversion := client1.FilecoinGetFile(filename)
-			du := time.Since(st)
-			latency := du.Milliseconds()
-			totalLatency = totalLatency + latency
-			count++
-			if count%50 == 0 {
-				log.Println(count, clientId, "get", filename, "complete in", latency, " ms:", fileversion, filestr)
-			}
-		}
-		return totalLatency / int64(avgFileNum)
-	} else if dsnMode == "storj" {
-		client1 := storjco[clientId]
-		totalLatency := int64(0)
-		for j := i*avgFileNum + 1; j <= (i+1)*avgFileNum; j++ {
-			filename := strconv.Itoa(j)
-			st := time.Now()
-			filestr, fileversion := client1.StorjGetFile(filename)
-			du := time.Since(st)
-			latency := du.Milliseconds()
-			totalLatency = totalLatency + latency
-			count++
-			if count%50 == 0 {
-				log.Println(count, clientId, "get", filename, "complete in", latency, " ms:", fileversion, filestr)
-			}
-		}
-		return totalLatency / int64(avgFileNum)
-	} else if dsnMode == "sia" {
-		client1 := siaco[clientId]
-		totalLatency := int64(0)
-		for j := i*avgFileNum + 1; j <= (i+1)*avgFileNum; j++ {
-			filename := strconv.Itoa(j)
-			st := time.Now()
-			filestr := client1.SiaGetFile(filename, true)
-			du := time.Since(st)
-			latency := du.Milliseconds()
-			totalLatency = totalLatency + latency
-			count++
-			if count%50 == 0 {
-				log.Println(count, clientId, "put", filename, "complete in", latency, " ms:", filestr)
-			}
-		}
-		return totalLatency / int64(avgFileNum)
-	} else {
-		log.Fatalln("dsnMode error")
-		return 0
-	}
-}
-
-func UpdatefileByMode(dsnMode string, clientId string, i int, avgFileNum int, filedir string, ecco map[string]*nodes.Client, filecoinco map[string]*baselines.FilecoinClient, storjco map[string]*storjnodes.StorjClient, siaco map[string]*sianodes.SiaClient) int64 {
 	count := 0
 	if dsnMode == "ec" {
 		client1 := ecco[clientId]

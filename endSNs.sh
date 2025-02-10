@@ -9,7 +9,7 @@ fi
 
 # 检查第二个参数是否为空
 if [ -z "$2" ]; then
-    end_keyword="exp_putfile_sn"
+    end_keyword="exp_sn"
 else
     end_keyword=$2
 fi
@@ -40,6 +40,7 @@ do
         echo "Valid IP address: $ip_addr"
 
         # 使用sshpass和ssh命令结束远程主机上的脚本
+        # if sshpass -p "$SSH_PASSWORD" ssh ubuntu@"$ip_addr" "pkill -f $end_keyword"; then
         if sshpass -p "$SSH_PASSWORD" ssh root@"$ip_addr" "pkill -f $end_keyword"; then
             echo "Process $end_keyword on $ip_addr has been terminated."
         else

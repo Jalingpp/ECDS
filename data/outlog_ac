@@ -1,7 +1,0 @@
-[putfile-w1-ec-clientNum50]
-audit-1 latency=5608 ms, avgLatency=5608 ms, avgVOSize=177 KB, auditInforSize=1092 KB
-audit-2 latency=8899 ms, avgLatency=7253 ms, avgVOSize=245 KB, auditInforSize=1912 KB
-audit-3 latency=13175 ms, avgLatency=9227 ms, avgVOSize=319 KB, auditInforSize=2859 KB
-audit-4 latency=18176 ms, avgLatency=11464 ms, avgVOSize=401 KB, auditInforSize=3946 KB
-audit-5 latency=23864 ms, avgLatency=13944 ms, avgVOSize=490 KB, auditInforSize=5198 KB
-audit-6 latency=31264 ms, avgLatency=16830 ms, avgVOSize=588 KB, auditInforSize=6410 KB

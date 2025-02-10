@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -138,4 +139,19 @@ func ReadOneAddr(filepath string) (string, error) {
 	}
 	line = strings.TrimRight(line, "\n")
 	return line, nil
+}
+
+// getDatabaseSize 计算指定目录的文件总大小
+func GetDatabaseSize(dbPath string) (int64, error) {
+	var size int64
+	err := filepath.Walk(dbPath, func(_ string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			size += info.Size()
+		}
+		return nil
+	})
+	return size, err
 }

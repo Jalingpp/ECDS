@@ -12,19 +12,23 @@ import (
 	"strings"
 	"sync"
 
+	lru "github.com/hashicorp/golang-lru"
+	"github.com/syndtr/goleveldb/leveldb"
 	"google.golang.org/grpc"
 )
 
 type StorageNode struct {
-	SNId                              string                                             //存储节点id
-	SNAddr                            string                                             //存储节点ip地址
-	Params                            string                                             //用于生成pairing对象的参数，由auditor提供，所有角色一致
-	G                                 []byte                                             //用于签名、验签、举证、验证等的公钥，由auditor提供，所有角色一致
-	ClientPK                          map[string][]byte                                  //客户端的公钥信息，key:clientID,value:公钥
-	CPKMutex                          sync.RWMutex                                       //ClientPK的读写锁
-	ClientFileMap                     map[string][]string                                //为客户端存储的文件列表，key:clientID,value:filename
-	CFMMutex                          sync.RWMutex                                       //ClientFileMap的读写锁
-	FileShardsMap                     map[string]map[string]*util.DataShard              //文件的数据分片列表，key:clientID-filename,value:(key:分片序号)
+	SNId          string                    //存储节点id
+	SNAddr        string                    //存储节点ip地址
+	Params        string                    //用于生成pairing对象的参数，由auditor提供，所有角色一致
+	G             []byte                    //用于签名、验签、举证、验证等的公钥，由auditor提供，所有角色一致
+	ClientPK      map[string][]byte         //客户端的公钥信息，key:clientID,value:公钥
+	CPKMutex      sync.RWMutex              //ClientPK的读写锁
+	ClientFileMap map[string]map[string]int //为客户端存储的文件列表，key:clientID,subkey:filename,int为1则存在
+	CFMMutex      sync.RWMutex              //ClientFileMap的读写锁
+	// FileShardsMap                     map[string]map[string]*util.DataShard //文件的数据分片列表，key:clientID-filename,value:(key:分片序号)
+	CacheDataShards                   *lru.Cache                                         //缓存大小在NewStorageNode中固定
+	DBDataShards                      *leveldb.DB                                        //存储路径在NewStorageNode和GetSNStorageCost中固定
 	FSMMMutex                         sync.RWMutex                                       //FileShardsMap的读写锁
 	pb.UnimplementedSNServiceServer                                                      // 面向客户端的服务器嵌入匿名字段
 	pb.UnimplementedSNACServiceServer                                                    // 面向审计方的服务器嵌入匿名字段
@@ -38,13 +42,24 @@ type StorageNode struct {
 
 // 新建存储分片
 func NewStorageNode(snid string, snaddr string) *StorageNode {
-	clientFileMap := make(map[string][]string)
-	fileShardsMap := make(map[string]map[string]*util.DataShard)
+	clientFileMap := make(map[string]map[string]int)
+	// fileShardsMap := make(map[string]map[string]*util.DataShard)
+	// 创建lru缓存
+	cache, err := lru.New(50)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// 打开或创建数据库
+	path := "/root/DSN/ECDS/data/DB/ECDS/datashards-" + snid
+	db, err := leveldb.OpenFile(path, nil)
+	if err != nil {
+		log.Fatalf("Failed to open database: %v", err)
+	}
 	pacpdsn := make(map[string]map[string]int)
 	pacudsn := make(map[string]map[string]int)
 	cpi := make(map[string][]byte)
 	adsq := make(map[string]map[string]map[string][]*util.DataShard)
-	sn := &StorageNode{snid, snaddr, "", nil, cpi, sync.RWMutex{}, clientFileMap, sync.RWMutex{}, fileShardsMap, sync.RWMutex{}, pb.UnimplementedSNServiceServer{}, pb.UnimplementedSNACServiceServer{}, pacpdsn, sync.RWMutex{}, pacudsn, sync.RWMutex{}, adsq, sync.RWMutex{}}
+	sn := &StorageNode{snid, snaddr, "", nil, cpi, sync.RWMutex{}, clientFileMap, sync.RWMutex{}, cache, db, sync.RWMutex{}, pb.UnimplementedSNServiceServer{}, pb.UnimplementedSNACServiceServer{}, pacpdsn, sync.RWMutex{}, pacudsn, sync.RWMutex{}, adsq, sync.RWMutex{}}
 	// sn := &StorageNode{snid, snaddr, "", nil, cpi, sync.RWMutex{}, clientFileMap, sync.RWMutex{}, fileShardsMap, sync.RWMutex{}, pb.UnimplementedSNServiceServer{}, pb.UnimplementedSNACServiceServer{}, adsq, sync.RWMutex{}}
 	//设置监听地址
 	lis, err := net.Listen("tcp", snaddr)
@@ -142,20 +157,22 @@ func (sn *StorageNode) PutDataShard(ctx context.Context, preq *pb.PutDSRequest) 
 	}
 	//2-3-放置文件分片列表
 	sn.FSMMMutex.Lock()
-	if sn.FileShardsMap[cid_fn] != nil {
+	if sn.ClientFileMap[clientId] != nil && sn.ClientFileMap[clientId][filename] != 0 {
 		message = "Filename Already Exist!"
 		e := errors.New("filename already exist")
 		return &pb.PutDSResponse{Filename: preq.Filename, Dsno: dsno, Message: message}, e
 	}
-	sn.FileShardsMap[cid_fn] = make(map[string]*util.DataShard)
-	sn.FileShardsMap[cid_fn][dsno] = ds
+	dbkey := cid_fn + "-" + dsno
+	sn.SaveDataShardToDB(dbkey, ds)
+	// sn.FileShardsMap[cid_fn] = make(map[string]*util.DataShard)
+	// sn.FileShardsMap[cid_fn][dsno] = ds
 	sn.FSMMMutex.Unlock()
 	//2-4-放置客户端文件名列表
 	sn.CFMMutex.Lock()
 	if sn.ClientFileMap[clientId] == nil {
-		sn.ClientFileMap[clientId] = make([]string, 0)
+		sn.ClientFileMap[clientId] = make(map[string]int, 0)
 	}
-	sn.ClientFileMap[clientId] = append(sn.ClientFileMap[clientId], filename)
+	sn.ClientFileMap[clientId][filename] = 1
 	sn.CFMMutex.Unlock()
 	message = "Put File Success!"
 	//3-修改PendingACPutDSNotice
@@ -197,8 +214,12 @@ func (sn *StorageNode) PutDataShardNotice(ctx context.Context, preq *pb.ClientSt
 	sn.PACNMutex.Unlock()
 	//获取分片版本号和时间戳
 	sn.FSMMMutex.RLock()
-	version := sn.FileShardsMap[cid_fn][dsno].Version
-	timestamp := sn.FileShardsMap[cid_fn][dsno].Timestamp
+	dbkey := cid_fn + "-" + dsno
+	datashard, nil := sn.GetDataShardFromCacheOrDB(dbkey)
+	version := datashard.Version
+	timestamp := datashard.Timestamp
+	// version := sn.FileShardsMap[cid_fn][dsno].Version
+	// timestamp := sn.FileShardsMap[cid_fn][dsno].Timestamp
 	sn.FSMMMutex.RUnlock()
 	return &pb.ClientStorageResponse{ClientId: clientId, Filename: filename, Dsno: dsno, Version: version, Timestamp: timestamp, Message: sn.SNId + " completes the storage of datashard" + dsno + "."}, nil
 }
@@ -207,30 +228,41 @@ func (sn *StorageNode) PutDataShardNotice(ctx context.Context, preq *pb.ClientSt
 func (sn *StorageNode) GetDataShard(ctx context.Context, req *pb.GetDSRequest) (*pb.GetDSResponse, error) {
 	// log.Printf("Received get datashard message from client: %s\n", req.ClientId)
 	cid_fn := req.ClientId + "-" + req.Filename
+	cidfndsno := cid_fn + "-" + req.Dsno
 	sn.FSMMMutex.RLock()
-	if sn.FileShardsMap[cid_fn] == nil {
+	// if sn.FileShardsMap[cid_fn] == nil {
+	if sn.ClientFileMap[req.ClientId] == nil || sn.ClientFileMap[req.ClientId][req.Filename] == 0 {
 		sn.FSMMMutex.RUnlock()
 		e := errors.New("client file not exist")
 		return &pb.GetDSResponse{Filename: req.Filename, DatashardSerialized: nil}, e
-	} else if sn.FileShardsMap[cid_fn][req.Dsno] == nil {
-		sn.FSMMMutex.RUnlock()
-		e := errors.New("datashard not exist")
-		return &pb.GetDSResponse{Filename: req.Filename, DatashardSerialized: nil}, e
+		// } else if sn.FileShardsMap[cid_fn][req.Dsno] == nil {
 	} else {
-		// //制造一个故障：dsno为d2时沉默
-		// if req.Dsno == "d-2" || req.Dsno == "d-5" {
-		// 	sn.FSMMMutex.RUnlock()
-		// 	return &pb.GetDSResponse{Filename: req.Filename, DatashardSerialized: nil}, nil
-		// }
-		// //制造一个故障：dsno为校验块序号且既不是p9也不是p10时沉默
-		// if strings.HasPrefix(req.Dsno, "p") && (req.Dsno != "p-9" && req.Dsno != "p-10") {
-		// 	sn.FSMMMutex.RUnlock()
-		// 	return &pb.GetDSResponse{Filename: req.Filename, DatashardSerialized: nil}, nil
-		// }
-		seds := sn.FileShardsMap[cid_fn][req.Dsno].SerializeDS()
-		sn.FSMMMutex.RUnlock()
-		return &pb.GetDSResponse{Filename: req.Filename, DatashardSerialized: seds}, nil
+		ds, err := sn.GetDataShardFromCacheOrDB(cidfndsno)
+		if err != nil {
+			sn.FSMMMutex.RUnlock()
+			return &pb.GetDSResponse{Filename: req.Filename, DatashardSerialized: nil}, err
+		}
+		if ds == nil {
+			sn.FSMMMutex.RUnlock()
+			e := errors.New("datashard not exist")
+			return &pb.GetDSResponse{Filename: req.Filename, DatashardSerialized: nil}, e
+		} else {
+			// //制造一个故障：dsno为d2时沉默
+			// if req.Dsno == "d-2" || req.Dsno == "d-5" {
+			// 	sn.FSMMMutex.RUnlock()
+			// 	return &pb.GetDSResponse{Filename: req.Filename, DatashardSerialized: nil}, nil
+			// }
+			// //制造一个故障：dsno为校验块序号且既不是p9也不是p10时沉默
+			// if strings.HasPrefix(req.Dsno, "p") && (req.Dsno != "p-9" && req.Dsno != "p-10") {
+			// 	sn.FSMMMutex.RUnlock()
+			// 	return &pb.GetDSResponse{Filename: req.Filename, DatashardSerialized: nil}, nil
+			// }
+			seds := ds.SerializeDS()
+			sn.FSMMMutex.RUnlock()
+			return &pb.GetDSResponse{Filename: req.Filename, DatashardSerialized: seds}, nil
+		}
 	}
+	return nil, nil
 }
 
 // 【供客户端使用的RPC】存储节点验证分片序号是否与审计方通知的一致，验签，更新数据分片，告知审计方已更新或更新失败，给客户端回复消息
@@ -287,22 +319,33 @@ func (sn *StorageNode) UpdateDataShards(ctx context.Context, req *pb.UpdDSsReque
 		}
 		//2-3-更新文件分片列表
 		sn.FSMMMutex.Lock()
-		if sn.FileShardsMap[cid_fn] == nil {
+		// if sn.FileShardsMap[cid_fn] == nil {
+		if sn.ClientFileMap[clientId] == nil || sn.ClientFileMap[clientId][filename] == 0 {
 			message = "file not exist!"
 			e := errors.New("file not exist")
 			return &pb.UpdDSsResponse{Filename: req.Filename, Dsnos: updatedDSno, Message: message}, e
-		} else if sn.FileShardsMap[cid_fn][dsno] == nil {
-			message = "datashard not exist!"
-			e := errors.New("datashard not exist")
-			return &pb.UpdDSsResponse{Filename: req.Filename, Dsnos: updatedDSno, Message: message}, e
+			// } else if sn.FileShardsMap[cid_fn][dsno] == nil {
+		} else {
+			dbkey := cid_fn + "-" + dsno
+			ds, er := sn.GetDataShardFromCacheOrDB(dbkey)
+			if er != nil {
+				message = "datashard not exist!"
+				return &pb.UpdDSsResponse{Filename: req.Filename, Dsnos: updatedDSno, Message: message}, er
+			}
+			if ds == nil {
+				message = "datashard not exist!"
+				e := errors.New("datashard not exist")
+				return &pb.UpdDSsResponse{Filename: req.Filename, Dsnos: updatedDSno, Message: message}, e
+			}
+			// sn.FileShardsMap[cid_fn][dsno] = newds
+			sn.SaveDataShardToDB(dbkey, newds)
+			updatedDSno = append(updatedDSno, dsno)
+			sn.FSMMMutex.Unlock()
+			//3-修改PendingACUpdDSNotice
+			sn.PACUDSNMutex.Lock()
+			sn.PendingACUpdDSNotice[cid_fn][dsno] = 2
+			sn.PACUDSNMutex.Unlock()
 		}
-		sn.FileShardsMap[cid_fn][dsno] = newds
-		updatedDSno = append(updatedDSno, dsno)
-		sn.FSMMMutex.Unlock()
-		//3-修改PendingACUpdDSNotice
-		sn.PACUDSNMutex.Lock()
-		sn.PendingACUpdDSNotice[cid_fn][dsno] = 2
-		sn.PACUDSNMutex.Unlock()
 	}
 	message = "Update datashards Success!"
 	//4-告知审计方分片更新结果
@@ -341,8 +384,10 @@ func (sn *StorageNode) UpdateDataShardNotice(ctx context.Context, preq *pb.Clien
 	sn.PACUDSNMutex.Unlock()
 	//获取分片版本号和时间戳
 	sn.FSMMMutex.RLock()
-	version := sn.FileShardsMap[cid_fn][dsno].Version
-	timestamp := sn.FileShardsMap[cid_fn][dsno].Timestamp
+	dbkey := cid_fn + "-" + dsno
+	ds, nil := sn.GetDataShardFromCacheOrDB(dbkey)
+	version := ds.Version
+	timestamp := ds.Timestamp
 	// log.Println("【UpdateDataShardNotice】", sn.SNId, cid_fn, dsno, "version:", version, "timestamp:", timestamp)
 	sn.FSMMMutex.RUnlock()
 	return &pb.ClientUpdDSResponse{ClientId: clientId, Filename: filename, Dsno: dsno, Version: version, Timestamp: timestamp, Message: sn.SNId + " completes the update of datashard" + dsno + "."}, nil
@@ -373,25 +418,30 @@ func (sn *StorageNode) PutIncParityShards(ctx context.Context, req *pb.PutIPSReq
 		//1.1-获取旧的校验块
 		var oldPS *util.DataShard
 		sn.FSMMMutex.RLock()
-		if sn.FileShardsMap[cid_fn] == nil {
+		// if sn.FileShardsMap[cid_fn] == nil {
+		if sn.ClientFileMap[req.ClientId] == nil || sn.ClientFileMap[req.ClientId][req.Filename] == 0 {
 			sn.FSMMMutex.RUnlock()
 			e := errors.New("client file not exist")
 			return &pb.PutIPSResponse{Filename: req.Filename, Psno: req.Psno, PosSerialized: nil}, e
 		}
-		if sn.FileShardsMap[cid_fn][req.Psno] == nil {
+		dbkey := cid_fn + "-" + req.Psno
+		oldps, _ := sn.GetDataShardFromCacheOrDB(dbkey)
+		if oldps == nil {
 			sn.FSMMMutex.RUnlock()
 			e := errors.New("parityshard not exist")
 			return &pb.PutIPSResponse{Filename: req.Filename, Psno: req.Psno, PosSerialized: nil}, e
 		}
-		oldPS = sn.FileShardsMap[cid_fn][req.Psno]
 		sn.FSMMMutex.RUnlock()
 		//1.2-更新校验块，指针就地更新
 		sn.FSMMMutex.Lock()
-		encode.UpdateParityShard(oldPS, incPS, sn.Params)
+		newps := encode.UpdateParityShard(oldPS, incPS, sn.Params)
+		sn.SaveDataShardToDB(dbkey, newps)
 		sn.FSMMMutex.Unlock()
 	}
 	sn.FSMMMutex.RLock()
-	newPS := sn.FileShardsMap[cid_fn][req.Psno]
+	dbkey := cid_fn + "-" + req.Psno
+	newPS, _ := sn.GetDataShardFromCacheOrDB(dbkey)
+	// newPS := sn.FileShardsMap[cid_fn][req.Psno]
 	sn.FSMMMutex.RUnlock()
 	//2-生成更新后的校验块的存储证明
 	pos := pdp.ProvePos(sn.Params, sn.G, pk, newPS, req.Randomnum)
@@ -469,22 +519,26 @@ func (sn *StorageNode) PreAuditSN(ctx context.Context, req *pb.PASNRequest) (*pb
 func (sn *StorageNode) GetDSSTNoLessV(cid string, fn string, dsno string, version int32) (*util.DataShard, error) {
 	cid_fn := cid + "-" + fn
 	sn.FSMMMutex.RLock()
-	if sn.FileShardsMap[cid_fn] == nil {
+	// if sn.FileShardsMap[cid_fn] == nil {
+	if sn.ClientFileMap[cid] == nil || sn.ClientFileMap[cid][fn] == 0 {
 		sn.FSMMMutex.RUnlock()
 		e := errors.New("client-filename not exist")
 		return nil, e
 	}
-	if sn.FileShardsMap[cid_fn][dsno] == nil {
+	// if sn.FileShardsMap[cid_fn][dsno] == nil {
+	dbkey := cid_fn + "-" + dsno
+	ds, _ := sn.GetDataShardFromCacheOrDB(dbkey)
+	if ds == nil {
 		sn.FSMMMutex.RUnlock()
 		e := errors.New("datashard" + cid_fn + "-" + dsno + " not exist")
 		return nil, e
 	}
-	if sn.FileShardsMap[cid_fn][dsno].Version < version {
+	if ds.Version < version {
 		sn.FSMMMutex.RUnlock()
 		// log.Println("current ds version less than given version")
 		return nil, nil
 	}
-	ds := sn.FileShardsMap[cid_fn][dsno]
+	// ds := sn.FileShardsMap[cid_fn][dsno]
 	data := make([]int32, len(ds.Data))
 	copy(data, ds.Data)
 	sig := make([]byte, len(ds.Sig))
@@ -511,42 +565,64 @@ func (sn *StorageNode) GetAggPosSN(ctx context.Context, req *pb.GAPSNRequest) (*
 	return &pb.GAPSNResponse{Aggpos: pdp.SerializeAggPOS(aggpos)}, nil
 }
 
-// 打印storage node
-func (sn *StorageNode) PrintSN() {
-	str := "StorageNode:{SNId:" + sn.SNId + ",SNAddr:" + sn.SNAddr + ",ClientFileMap:{"
-	for key, value := range sn.ClientFileMap {
-		str = str + key + ":{"
-		for i := 0; i < len(value); i++ {
-			str = str + value[i] + ","
-		}
-		str = str + "},"
-	}
-	str = str + "},FileShardsMap:{"
-	for key, value := range sn.FileShardsMap {
-		str = str + key + ":{"
-		for skey, _ := range value {
-			str = str + skey + ","
-		}
-		str = str + "},"
-	}
-	str = str + "}}"
-	log.Println(str)
-}
-
 // 【供客户端使用的RPC】获取当前节点上对clientID相关文件的存储空间代价
 func (sn *StorageNode) GetSNStorageCost(ctx context.Context, req *pb.GSNSCRequest) (*pb.GSNSCResponse, error) {
 	cid := req.ClientId
-	totalSize := 0
-	//统计所占存储空间大小
-	sn.FSMMMutex.RLock()
-	clientFSMap := sn.FileShardsMap
-	sn.FSMMMutex.RUnlock()
-	for key, dslist := range clientFSMap {
-		if strings.HasPrefix(key, cid) {
-			for _, ds := range dslist {
-				totalSize = totalSize + ds.Sizeof()
-			}
-		}
-	}
+	// totalSize := 0
+	// //统计所占存储空间大小
+	// sn.FSMMMutex.RLock()
+	// clientFSMap := sn.FileShardsMap
+	// sn.FSMMMutex.RUnlock()
+	// for key, dslist := range clientFSMap {
+	// 	if strings.HasPrefix(key, cid) {
+	// 		for _, ds := range dslist {
+	// 			totalSize = totalSize + ds.Sizeof()
+	// 		}
+	// 	}
+	// }
+	path := "/root/DSN/ECDS/data/DB/ECDS/datashards-" + sn.SNId
+	totalSize, _ := util.GetDatabaseSize(path)
 	return &pb.GSNSCResponse{ClientId: cid, SnId: sn.SNId, Storagecost: int32(totalSize)}, nil
+}
+
+func (sn *StorageNode) SaveDataShardToDB(key string, datashard *util.DataShard) error {
+	sn.FSMMMutex.Lock()
+	defer sn.FSMMMutex.Unlock()
+
+	// 序列化 DataShard
+	shardbytes := datashard.SerializeDS()
+
+	// 写入 LevelDB
+	err := sn.DBDataShards.Put([]byte(key), shardbytes, nil)
+	if err != nil {
+		return err
+	}
+	// 更新缓存
+	sn.CacheDataShards.Add(string(key), datashard)
+
+	return nil
+}
+
+func (sn *StorageNode) GetDataShardFromCacheOrDB(key string) (*util.DataShard, error) {
+	// 尝试从缓存中获取
+	if val, ok := sn.CacheDataShards.Get(key); ok {
+		return val.(*util.DataShard), nil
+	}
+
+	// 缓存未命中，从 LevelDB 获取
+	data, err := sn.DBDataShards.Get([]byte(key), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// 反序列化 DataShard
+	shard, err := util.DeserializeDS(data)
+	if err != nil {
+		return nil, err
+	}
+
+	// 更新缓存
+	sn.CacheDataShards.Add(key, shard)
+
+	return shard, nil
 }
