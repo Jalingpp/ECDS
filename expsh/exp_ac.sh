@@ -10,9 +10,9 @@ else
     clientnum=$2
 fi
 
-# putfile_ac="/home/ubuntu/ECDS/expgo/exp_ac.go"
-putfile_ac="/root/DSN/ECDS/expgo/exp_ac.go"
-# datadir="/home/ubuntu/ECDS/data/"
-datadir="/root/DSN/ECDS/data/"
+putfile_ac="/home/ubuntu/ECDS/expgo/exp_ac.go"
+# putfile_ac="/root/DSN/ECDS/expgo/exp_ac.go"
+datadir="/home/ubuntu/ECDS/data/"
+# datadir="/root/DSN/ECDS/data/"
 
 go run $putfile_ac $dsnMode $clientnum $datadir

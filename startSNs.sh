@@ -2,7 +2,7 @@
 
 # 检查第一个参数是否为空
 if [ -z "$1" ]; then
-    snNum=2
+    snNum=4
 else
     snNum=$1
 fi
@@ -22,16 +22,16 @@ else
 fi
 
 # 定义源脚本路径
-# SCRIPT_PATH="/home/ubuntu/ECDS/expsh/"
-SCRIPT_PATH="/root/DSN/ECDS/expsh/"
+SCRIPT_PATH="/home/ubuntu/ECDS/expsh/"
+# SCRIPT_PATH="/root/DSN/ECDS/expsh/"
 
 # 定义snips文件的路径
-# SNIPS_FILE="/home/ubuntu/ECDS/data/snaddrs"
-SNIPS_FILE="/root/DSN/ECDS/data/snaddrs"
+SNIPS_FILE="/home/ubuntu/ECDS/data/snaddrs"
+# SNIPS_FILE="/root/DSN/ECDS/data/snaddrs"
 
 # 定义SSH密码
-# SSH_PASSWORD="jjp918JJP"
-SSH_PASSWORD="bassword"
+SSH_PASSWORD="jjp918JJP"
+# SSH_PASSWORD="bassword"
 
 # 检查snips文件是否存在
 if [ ! -f "$SNIPS_FILE" ]; then
@@ -58,22 +58,22 @@ do
         echo "Valid IP address: $IP"
 
         # 使用sshpass复制文件到目标主机
-        # if ! sshpass -p "$SSH_PASSWORD" scp "$SCRIPT_PATH$SCRIPT_NAME" ubuntu@$IP:"$SCRIPT_PATH"; then
-        if ! sshpass -p "$SSH_PASSWORD" scp "$SCRIPT_PATH$SCRIPT_NAME" root@$IP:"$SCRIPT_PATH"; then
+        if ! sshpass -p "$SSH_PASSWORD" scp "$SCRIPT_PATH$SCRIPT_NAME" ubuntu@$IP:"$SCRIPT_PATH"; then
+        # if ! sshpass -p "$SSH_PASSWORD" scp "$SCRIPT_PATH$SCRIPT_NAME" root@$IP:"$SCRIPT_PATH"; then
           echo "Failed to copy script to $IP"
           continue
         fi
 
         # 使用sshpass在目标主机上给予脚本执行权限
-        # if ! sshpass -p "$SSH_PASSWORD" ssh -tt ubuntu@$IP "chmod +x $SCRIPT_PATH$SCRIPT_NAME"; then
-        if ! sshpass -p "$SSH_PASSWORD" ssh -tt root@$IP "chmod +x $SCRIPT_PATH$SCRIPT_NAME"; then
+        if ! sshpass -p "$SSH_PASSWORD" ssh -tt ubuntu@$IP "chmod +x $SCRIPT_PATH$SCRIPT_NAME"; then
+        # if ! sshpass -p "$SSH_PASSWORD" ssh -tt root@$IP "chmod +x $SCRIPT_PATH$SCRIPT_NAME"; then
           echo "Failed to set execute permission on $IP"
           continue
         fi
 
         # 使用sshpass在目标主机上执行脚本
-        # if ! sshpass -p "$SSH_PASSWORD" ssh -tt ubuntu@$IP "$SCRIPT_PATH$SCRIPT_NAME" $dsnMode $PORT; then
-        if ! sshpass -p "$SSH_PASSWORD" ssh -tt root@$IP "$SCRIPT_PATH$SCRIPT_NAME" $dsnMode $PORT; then
+        if ! sshpass -p "$SSH_PASSWORD" ssh -tt ubuntu@$IP "$SCRIPT_PATH$SCRIPT_NAME" $dsnMode $PORT; then
+        # if ! sshpass -p "$SSH_PASSWORD" ssh -tt root@$IP "$SCRIPT_PATH$SCRIPT_NAME" $dsnMode $PORT; then
           echo "Failed to execute script on $IP"
         else
           echo "Script executed successfully on $IP"

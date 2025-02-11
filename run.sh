@@ -4,10 +4,10 @@ else
     round=$1
 fi
 
-CLIENT_IP="10.0.4.11"
+CLIENT_IP="10.24.15.200"
 
 snNum=31
-snmNum=1
+snmNum=4
 
 # dsnModes=(ec storj sia filecoin)
 dsnModes=(ec)
@@ -21,8 +21,8 @@ EndKeyword_AC=exp_ac
 EndKeyword_Client=client
 EndKeyword_SN=exp_sn
 
-# datafiledirs=("/home/ubuntu/ECDS/data/NM/")
-datafiledirs=("/root/DSN/ECDS/data/NM/")
+datafiledirs=("/home/ubuntu/ECDS/data/NM/")
+# datafiledirs=("/root/DSN/ECDS/data/NM/")
 datafilenums=(6234)
 datasetNum=1
 
