@@ -50,7 +50,8 @@ func NewStorageNode(snid string, snaddr string) *StorageNode {
 		log.Fatal(err)
 	}
 	// 打开或创建数据库
-	path := "/root/DSN/ECDS/data/DB/ECDS/datashards-" + snid
+	path := "/home/ubuntu/ECDS/data/DB/ECDS/datashards-" + snid
+	// path := "/root/DSN/ECDS/data/DB/ECDS/datashards-" + snid
 	db, err := leveldb.OpenFile(path, nil)
 	if err != nil {
 		log.Fatalf("Failed to open database: %v", err)
@@ -580,7 +581,8 @@ func (sn *StorageNode) GetSNStorageCost(ctx context.Context, req *pb.GSNSCReques
 	// 		}
 	// 	}
 	// }
-	path := "/root/DSN/ECDS/data/DB/ECDS/datashards-" + sn.SNId
+	path := "/home/ubuntu/ECDS/data/DB/ECDS/datashards-" + sn.SNId
+	// path := "/root/DSN/ECDS/data/DB/ECDS/datashards-" + sn.SNId
 	totalSize, _ := util.GetDatabaseSize(path)
 	return &pb.GSNSCResponse{ClientId: cid, SnId: sn.SNId, Storagecost: int32(totalSize)}, nil
 }
