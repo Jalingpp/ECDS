@@ -169,9 +169,9 @@ func PutfileByMode(dsnMode string, clientId string, i int, avgFileNum int, filed
 			filepath := filedir + strconv.Itoa(j)
 			filename := strconv.Itoa(j)
 			st := time.Now()
-			log.Println("before putfile", clientId, filename)
+			// log.Println("before putfile", clientId, filename)
 			fs := client1.PutFile(filepath, filename)
-			log.Println("after putfile", clientId, filename)
+			// log.Println("after putfile", clientId, filename)
 			du := time.Since(st)
 			totalFileSize = totalFileSize + fs
 			latency := du.Milliseconds()

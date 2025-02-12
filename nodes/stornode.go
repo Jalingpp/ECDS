@@ -116,6 +116,7 @@ func (sn *StorageNode) PutDataShard(ctx context.Context, preq *pb.PutDSRequest) 
 	cid_fn := clientId + "-" + filename
 	//1-阻塞等待收到审计方通知
 	for {
+		log.Println(sn.SNId, "waiting notice from AC for storage", filename, dsno)
 		sn.PACNMutex.RLock()
 		v1, ok1 := sn.PendingACPutDSNotice[cid_fn]
 		if ok1 {
@@ -130,6 +131,7 @@ func (sn *StorageNode) PutDataShard(ctx context.Context, preq *pb.PutDSRequest) 
 	}
 	//2-存放数据分片
 	//2-1-提取数据分片对象
+	// log.Println(sn.SNId, "before deserializedDS")
 	ds, err := util.DeserializeDS(preq.DatashardSerialized)
 	if err != nil {
 		// log.Println("Deserialize DataShard Error!")
@@ -137,8 +139,10 @@ func (sn *StorageNode) PutDataShard(ctx context.Context, preq *pb.PutDSRequest) 
 		e := errors.New("deserialize dataShard error")
 		return &pb.PutDSResponse{Filename: preq.Filename, Dsno: dsno, Message: message}, e
 	}
+	// log.Println(sn.SNId, "deserializedDS successfully.")
 	//2-2-验签
 	// pairing, _ := pbc.NewPairingFromString(sn.Params)
+	// log.Println(sn.SNId, "before verify signature")
 	var pk []byte
 	sn.CPKMutex.RLock()
 	if sn.ClientPK[clientId] == nil {
@@ -156,6 +160,7 @@ func (sn *StorageNode) PutDataShard(ctx context.Context, preq *pb.PutDSRequest) 
 		// e := errors.New("signature verify error")
 		// return &pb.PutDSResponse{Filename: preq.Filename, Dsno: dsno, Message: message}, e
 	}
+	// log.Println(sn.SNId, "verify signature successfully.")
 	//2-3-放置文件分片列表
 	sn.FSMMMutex.Lock()
 	if sn.ClientFileMap[clientId] != nil && sn.ClientFileMap[clientId][filename] != 0 {
@@ -168,6 +173,7 @@ func (sn *StorageNode) PutDataShard(ctx context.Context, preq *pb.PutDSRequest) 
 	// sn.FileShardsMap[cid_fn] = make(map[string]*util.DataShard)
 	// sn.FileShardsMap[cid_fn][dsno] = ds
 	sn.FSMMMutex.Unlock()
+	// log.Println(sn.SNId, "save datashard to DB successfully.")
 	//2-4-放置客户端文件名列表
 	sn.CFMMutex.Lock()
 	if sn.ClientFileMap[clientId] == nil {
@@ -175,6 +181,7 @@ func (sn *StorageNode) PutDataShard(ctx context.Context, preq *pb.PutDSRequest) 
 	}
 	sn.ClientFileMap[clientId][filename] = 1
 	sn.CFMMutex.Unlock()
+	// log.Println(sn.SNId, "put datashard to ClientFileMap successfully.")
 	message = "Put File Success!"
 	//3-修改PendingACPutDSNotice
 	sn.PACNMutex.Lock()
@@ -588,8 +595,6 @@ func (sn *StorageNode) GetSNStorageCost(ctx context.Context, req *pb.GSNSCReques
 }
 
 func (sn *StorageNode) SaveDataShardToDB(key string, datashard *util.DataShard) error {
-	sn.FSMMMutex.Lock()
-	defer sn.FSMMMutex.Unlock()
 
 	// 序列化 DataShard
 	shardbytes := datashard.SerializeDS()
@@ -599,9 +604,9 @@ func (sn *StorageNode) SaveDataShardToDB(key string, datashard *util.DataShard) 
 	if err != nil {
 		return err
 	}
+
 	// 更新缓存
 	sn.CacheDataShards.Add(string(key), datashard)
-
 	return nil
 }
 

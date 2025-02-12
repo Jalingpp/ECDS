@@ -9,7 +9,7 @@ fi
 
 # 检查第二个参数是否为空
 if [ -z "$2" ]; then
-    end_keyword="exp_sn"
+    end_keyword="expsn"
 else
     end_keyword=$2
 fi
@@ -45,6 +45,14 @@ do
             echo "Process $end_keyword on $ip_addr has been terminated."
         else
             echo "Failed to terminate script $end_keyword on $ip_addr."
+        fi
+
+        # 使用sshpass和ssh命令删除远程主机上/home/ubuntu/ECDS/data/DB/ECDS目录下的所有文件
+        if sshpass -p "$SSH_PASSWORD" ssh ubuntu@"$ip_addr" "rm -rf /home/ubuntu/ECDS/data/DB/ECDS/*"; then
+        # if sshpass -p "$SSH_PASSWORD" ssh root@"$ip_addr" "rm -rf /home/ubuntu/ECDS/data/DB/ECDS/*"; then
+            echo "DB in sn has been deleted."
+        else
+            echo "Failed to delete DB in sn."
         fi
 
     else

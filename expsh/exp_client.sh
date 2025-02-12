@@ -29,7 +29,12 @@ GOFile="exp_client.go"
 datadir="/home/ubuntu/ECDS/data/"
 # datadir="/root/DSN/ECDS/data/"
 
-cd $GOPath
+# 切换到GOPath目录
+cd "$GOPath" || { echo "Failed to change directory to $GOPath"; exit 1; }
 
-/usr/local/go/bin/go run $GOFile $dsnMode $datafiledir $clientnum $datafilenum $datadir
+
+# /usr/local/go/bin/go run $GOFile $dsnMode $datafiledir $clientnum $datafilenum $datadir
+
+/usr/local/go/bin/go run $GOFile $dsnMode $datafiledir $clientnum $datafilenum $datadir > "/home/ubuntu/ECDS/data/clientlog/output_client.log" 2>&1
+
 sleep 1

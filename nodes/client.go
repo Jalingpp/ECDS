@@ -123,6 +123,7 @@ func (client *Client) PutFile(filepath string, filename string) int {
 	filesize := len([]byte(filestr))
 	//3.2-纠删码编码出所有分片
 	datashards := client.Filecoder.Setup(filename, filestr)
+	// log.Printf("Client ec datashards completed.")
 	//3.3-将分片存入相应存储节点
 	sn4ds := stor_res.SnsForDs
 	sn4ps := stor_res.SnsForPs
@@ -141,7 +142,7 @@ func (client *Client) PutFile(filepath string, filename string) int {
 				Dsno:                datashards[i].DSno,
 				DatashardSerialized: datashards[i].SerializeDS(),
 			}
-
+			// log.Println("Before sending datashards to ", sn)
 			// 3.3.2 - 发送分片存入请求给存储节点
 			_, err := client.SNRPCs[sn].PutDataShard(context.Background(), pds_req)
 			if err != nil {
