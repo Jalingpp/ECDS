@@ -4,3 +4,19 @@ audit-2 latency=7078 ms, avgLatency=5701 ms, avgVOSize=334 KB, auditInforSize=25
 audit-3 latency=10211 ms, avgLatency=7204 ms, avgVOSize=421 KB, auditInforSize=3722 KB
 audit-4 latency=13931 ms, avgLatency=8885 ms, avgVOSize=516 KB, auditInforSize=5003 KB
 audit-5 latency=17496 ms, avgLatency=10607 ms, avgVOSize=619 KB, auditInforSize=6396 KB
+[putfile-w1-ec-clientNum10]
+audit-1 latency=4194 ms, avgLatency=4194 ms, avgVOSize=242 KB, auditInforSize=1506 KB
+[putfile-w1-storj-clientNum10]
+[putfile-w1-storj-clientNum10]
+[putfile-w1-storj-clientNum10]
+[putfile-w1-storj-clientNum10]
+audit-1 latency=1915 ms, avgLatency=1915 ms, avgVOSize=95633 KB, auditInforSize=17518 KB
+[putfile-w1-ec-clientNum10]
+audit-1 latency=4029 ms, avgLatency=4029 ms, avgVOSize=238 KB, auditInforSize=1481 KB
+audit-2 latency=6861 ms, avgLatency=5445 ms, avgVOSize=316 KB, auditInforSize=2445 KB
+audit-3 latency=9741 ms, avgLatency=6877 ms, avgVOSize=400 KB, auditInforSize=3530 KB
+audit-4 latency=13260 ms, avgLatency=8472 ms, avgVOSize=490 KB, auditInforSize=4741 KB
+audit-5 latency=16832 ms, avgLatency=10144 ms, avgVOSize=588 KB, auditInforSize=6074 KB
+audit-6 latency=17736 ms, avgLatency=11409 ms, avgVOSize=682 KB, auditInforSize=6437 KB
+[putfile-w1-storj-clientNum10]
+audit-1 latency=2020 ms, avgLatency=2020 ms, avgVOSize=91662 KB, auditInforSize=16892 KB

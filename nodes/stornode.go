@@ -163,11 +163,14 @@ func (sn *StorageNode) PutDataShard(ctx context.Context, preq *pb.PutDSRequest) 
 	// log.Println(sn.SNId, "verify signature successfully.")
 	//2-3-放置文件分片列表
 	sn.FSMMMutex.Lock()
+	sn.CFMMutex.RLock()
 	if sn.ClientFileMap[clientId] != nil && sn.ClientFileMap[clientId][filename] != 0 {
+		sn.CFMMutex.RUnlock()
 		message = "Filename Already Exist!"
 		e := errors.New("filename already exist")
 		return &pb.PutDSResponse{Filename: preq.Filename, Dsno: dsno, Message: message}, e
 	}
+	sn.CFMMutex.RUnlock()
 	dbkey := cid_fn + "-" + dsno
 	sn.SaveDataShardToDB(dbkey, ds)
 	// sn.FileShardsMap[cid_fn] = make(map[string]*util.DataShard)
@@ -239,12 +242,15 @@ func (sn *StorageNode) GetDataShard(ctx context.Context, req *pb.GetDSRequest) (
 	cidfndsno := cid_fn + "-" + req.Dsno
 	sn.FSMMMutex.RLock()
 	// if sn.FileShardsMap[cid_fn] == nil {
+	sn.CFMMutex.RLock()
 	if sn.ClientFileMap[req.ClientId] == nil || sn.ClientFileMap[req.ClientId][req.Filename] == 0 {
+		sn.CFMMutex.RUnlock()
 		sn.FSMMMutex.RUnlock()
 		e := errors.New("client file not exist")
 		return &pb.GetDSResponse{Filename: req.Filename, DatashardSerialized: nil}, e
 		// } else if sn.FileShardsMap[cid_fn][req.Dsno] == nil {
 	} else {
+		sn.CFMMutex.RUnlock()
 		ds, err := sn.GetDataShardFromCacheOrDB(cidfndsno)
 		if err != nil {
 			sn.FSMMMutex.RUnlock()
@@ -270,7 +276,6 @@ func (sn *StorageNode) GetDataShard(ctx context.Context, req *pb.GetDSRequest) (
 			return &pb.GetDSResponse{Filename: req.Filename, DatashardSerialized: seds}, nil
 		}
 	}
-	return nil, nil
 }
 
 // 【供客户端使用的RPC】存储节点验证分片序号是否与审计方通知的一致，验签，更新数据分片，告知审计方已更新或更新失败，给客户端回复消息
@@ -328,12 +333,15 @@ func (sn *StorageNode) UpdateDataShards(ctx context.Context, req *pb.UpdDSsReque
 		//2-3-更新文件分片列表
 		sn.FSMMMutex.Lock()
 		// if sn.FileShardsMap[cid_fn] == nil {
+		sn.CFMMutex.RLock()
 		if sn.ClientFileMap[clientId] == nil || sn.ClientFileMap[clientId][filename] == 0 {
+			sn.CFMMutex.RUnlock()
 			message = "file not exist!"
 			e := errors.New("file not exist")
 			return &pb.UpdDSsResponse{Filename: req.Filename, Dsnos: updatedDSno, Message: message}, e
 			// } else if sn.FileShardsMap[cid_fn][dsno] == nil {
 		} else {
+			sn.CFMMutex.RUnlock()
 			dbkey := cid_fn + "-" + dsno
 			ds, er := sn.GetDataShardFromCacheOrDB(dbkey)
 			if er != nil {
@@ -427,11 +435,14 @@ func (sn *StorageNode) PutIncParityShards(ctx context.Context, req *pb.PutIPSReq
 		var oldPS *util.DataShard
 		sn.FSMMMutex.RLock()
 		// if sn.FileShardsMap[cid_fn] == nil {
+		sn.CFMMutex.RLock()
 		if sn.ClientFileMap[req.ClientId] == nil || sn.ClientFileMap[req.ClientId][req.Filename] == 0 {
+			sn.CFMMutex.RUnlock()
 			sn.FSMMMutex.RUnlock()
 			e := errors.New("client file not exist")
 			return &pb.PutIPSResponse{Filename: req.Filename, Psno: req.Psno, PosSerialized: nil}, e
 		}
+		sn.CFMMutex.RUnlock()
 		dbkey := cid_fn + "-" + req.Psno
 		oldps, _ := sn.GetDataShardFromCacheOrDB(dbkey)
 		if oldps == nil {
@@ -528,11 +539,14 @@ func (sn *StorageNode) GetDSSTNoLessV(cid string, fn string, dsno string, versio
 	cid_fn := cid + "-" + fn
 	sn.FSMMMutex.RLock()
 	// if sn.FileShardsMap[cid_fn] == nil {
+	sn.CFMMutex.RLock()
 	if sn.ClientFileMap[cid] == nil || sn.ClientFileMap[cid][fn] == 0 {
+		sn.CFMMutex.RUnlock()
 		sn.FSMMMutex.RUnlock()
 		e := errors.New("client-filename not exist")
 		return nil, e
 	}
+	sn.CFMMutex.RUnlock()
 	// if sn.FileShardsMap[cid_fn][dsno] == nil {
 	dbkey := cid_fn + "-" + dsno
 	ds, _ := sn.GetDataShardFromCacheOrDB(dbkey)

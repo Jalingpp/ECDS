@@ -1,94 +1,37 @@
-[putfile-w1-ec-clientNum10]
-ReadSNAddr:sn1,10.24.15.129:50061
-ReadSNAddr:sn2,10.24.15.129:50062
-ReadSNAddr:sn3,10.24.15.129:50063
-ReadSNAddr:sn4,10.24.15.129:50064
-ReadSNAddr:sn5,10.24.15.129:50065
-ReadSNAddr:sn6,10.24.15.129:50066
-ReadSNAddr:sn7,10.24.15.129:50067
-ReadSNAddr:sn8,10.24.15.129:50068
-ReadSNAddr:sn9,10.24.15.179:50061
-ReadSNAddr:sn10,10.24.15.179:50062
-ReadSNAddr:sn11,10.24.15.179:50063
-ReadSNAddr:sn12,10.24.15.179:50064
-ReadSNAddr:sn13,10.24.15.179:50065
-ReadSNAddr:sn14,10.24.15.179:50066
-ReadSNAddr:sn15,10.24.15.179:50067
-ReadSNAddr:sn16,10.24.15.179:50068
-ReadSNAddr:sn17,10.24.15.144:50061
-ReadSNAddr:sn18,10.24.15.144:50062
-ReadSNAddr:sn19,10.24.15.144:50063
-ReadSNAddr:sn20,10.24.15.144:50064
-ReadSNAddr:sn21,10.24.15.144:50065
-ReadSNAddr:sn22,10.24.15.144:50066
-ReadSNAddr:sn23,10.24.15.144:50067
-ReadSNAddr:sn24,10.24.15.144:50068
-ReadSNAddr:sn25,10.24.15.204:50061
-ReadSNAddr:sn26,10.24.15.204:50062
-ReadSNAddr:sn27,10.24.15.204:50063
-ReadSNAddr:sn28,10.24.15.204:50064
-ReadSNAddr:sn29,10.24.15.204:50065
-ReadSNAddr:sn30,10.24.15.204:50066
-ReadSNAddr:sn31,10.24.15.204:50067
-2025/02/12 20:07:24 Auditor:{IpAddr:10.24.15.152:50051,SNAddrMap:{sn18:10.24.15.144:50062,sn22:10.24.15.144:50066,sn25:10.24.15.204:50061,sn5:10.24.15.129:50065,sn7:10.24.15.129:50067,sn9:10.24.15.179:50061,sn29:10.24.15.204:50065,sn13:10.24.15.179:50065,sn19:10.24.15.144:50063,sn20:10.24.15.144:50064,sn17:10.24.15.144:50061,sn28:10.24.15.204:50064,sn4:10.24.15.129:50064,sn8:10.24.15.129:50068,sn12:10.24.15.179:50064,sn26:10.24.15.204:50062,sn2:10.24.15.129:50062,sn14:10.24.15.179:50066,sn23:10.24.15.144:50067,sn16:10.24.15.179:50068,sn24:10.24.15.144:50068,sn15:10.24.15.179:50067,sn6:10.24.15.129:50066,sn10:10.24.15.179:50062,sn11:10.24.15.179:50063,sn21:10.24.15.144:50065,sn31:10.24.15.204:50067,sn30:10.24.15.204:50066,sn1:10.24.15.129:50061,sn3:10.24.15.129:50063,sn27:10.24.15.204:50063,},ClientFileShardMap:{},DataNum:11,ParityNum:20}
-10.24.15.152:50051
-2025/02/12 20:08:18 auditNo: 0 sn6 sucessfully
-2025/02/12 20:08:18 auditNo: 0 sn29 sucessfully
-2025/02/12 20:08:18 auditNo: 0 sn13 sucessfully
-2025/02/12 20:08:18 auditNo: 0 sn23 sucessfully
-2025/02/12 20:08:18 auditNo: 0 sn30 sucessfully
-2025/02/12 20:08:18 auditNo: 0 sn9 sucessfully
-2025/02/12 20:08:18 auditNo: 0 sn27 sucessfully
-2025/02/12 20:08:18 auditNo: 0 sn25 sucessfully
-2025/02/12 20:08:18 auditNo: 0 sn5 sucessfully
-2025/02/12 20:08:18 auditNo: 0 sn14 sucessfully
-2025/02/12 20:08:18 auditNo: 0 sn11 sucessfully
-audit-1 latency=4325 ms, avgLatency=4325 ms, avgVOSize=253 KB, auditInforSize=1565 KB
-2025/02/12 20:08:45 auditNo: 1 sn4 sucessfully
-2025/02/12 20:08:45 auditNo: 1 sn27 sucessfully
-2025/02/12 20:08:45 auditNo: 1 sn20 sucessfully
-2025/02/12 20:08:45 auditNo: 1 sn7 sucessfully
-2025/02/12 20:08:45 auditNo: 1 sn23 sucessfully
-2025/02/12 20:08:45 auditNo: 1 sn6 sucessfully
-2025/02/12 20:08:45 auditNo: 1 sn19 sucessfully
-2025/02/12 20:08:45 auditNo: 1 sn8 sucessfully
-2025/02/12 20:08:45 auditNo: 1 sn11 sucessfully
-2025/02/12 20:08:45 auditNo: 1 sn3 sucessfully
-2025/02/12 20:08:45 auditNo: 1 sn15 sucessfully
-audit-2 latency=7078 ms, avgLatency=5701 ms, avgVOSize=334 KB, auditInforSize=2583 KB
-2025/02/12 20:09:15 auditNo: 2 sn31 sucessfully
-2025/02/12 20:09:15 auditNo: 2 sn30 sucessfully
-2025/02/12 20:09:15 auditNo: 2 sn5 sucessfully
-2025/02/12 20:09:15 auditNo: 2 sn4 sucessfully
-2025/02/12 20:09:15 auditNo: 2 sn8 sucessfully
-2025/02/12 20:09:15 auditNo: 2 sn11 sucessfully
-2025/02/12 20:09:16 auditNo: 2 sn10 sucessfully
-2025/02/12 20:09:16 auditNo: 2 sn12 sucessfully
-2025/02/12 20:09:16 auditNo: 2 sn9 sucessfully
-2025/02/12 20:09:16 auditNo: 2 sn14 sucessfully
-2025/02/12 20:09:16 auditNo: 2 sn21 sucessfully
-audit-3 latency=10211 ms, avgLatency=7204 ms, avgVOSize=421 KB, auditInforSize=3722 KB
-2025/02/12 20:09:49 auditNo: 3 sn19 sucessfully
-2025/02/12 20:09:49 auditNo: 3 sn1 sucessfully
-2025/02/12 20:09:49 auditNo: 3 sn25 sucessfully
-2025/02/12 20:09:49 auditNo: 3 sn4 sucessfully
-2025/02/12 20:09:49 auditNo: 3 sn6 sucessfully
-2025/02/12 20:09:49 auditNo: 3 sn31 sucessfully
-2025/02/12 20:09:49 auditNo: 3 sn23 sucessfully
-2025/02/12 20:09:49 auditNo: 3 sn5 sucessfully
-2025/02/12 20:09:49 auditNo: 3 sn28 sucessfully
-2025/02/12 20:09:49 auditNo: 3 sn21 sucessfully
-2025/02/12 20:09:50 auditNo: 3 sn16 sucessfully
-audit-4 latency=13931 ms, avgLatency=8885 ms, avgVOSize=516 KB, auditInforSize=5003 KB
-2025/02/12 20:10:26 auditNo: 4 sn2 sucessfully
-2025/02/12 20:10:26 auditNo: 4 sn27 sucessfully
-2025/02/12 20:10:26 auditNo: 4 sn7 sucessfully
-2025/02/12 20:10:26 auditNo: 4 sn25 sucessfully
-2025/02/12 20:10:26 auditNo: 4 sn5 sucessfully
-2025/02/12 20:10:27 auditNo: 4 sn21 sucessfully
-2025/02/12 20:10:27 auditNo: 4 sn9 sucessfully
-2025/02/12 20:10:27 auditNo: 4 sn18 sucessfully
-2025/02/12 20:10:27 auditNo: 4 sn28 sucessfully
-2025/02/12 20:10:27 auditNo: 4 sn14 sucessfully
-2025/02/12 20:10:27 auditNo: 4 sn15 sucessfully
-audit-5 latency=17496 ms, avgLatency=10607 ms, avgVOSize=619 KB, auditInforSize=6396 KB
+[putfile-w1-storj-clientNum10]
+ReadSNAddr:sn1,10.24.15.153:50061
+ReadSNAddr:sn2,10.24.15.153:50062
+ReadSNAddr:sn3,10.24.15.153:50063
+ReadSNAddr:sn4,10.24.15.153:50064
+ReadSNAddr:sn5,10.24.15.153:50065
+ReadSNAddr:sn6,10.24.15.153:50066
+ReadSNAddr:sn7,10.24.15.153:50067
+ReadSNAddr:sn8,10.24.15.153:50068
+ReadSNAddr:sn9,10.24.15.240:50061
+ReadSNAddr:sn10,10.24.15.240:50062
+ReadSNAddr:sn11,10.24.15.240:50063
+ReadSNAddr:sn12,10.24.15.240:50064
+ReadSNAddr:sn13,10.24.15.240:50065
+ReadSNAddr:sn14,10.24.15.240:50066
+ReadSNAddr:sn15,10.24.15.240:50067
+ReadSNAddr:sn16,10.24.15.240:50068
+ReadSNAddr:sn17,10.24.15.43:50061
+ReadSNAddr:sn18,10.24.15.43:50062
+ReadSNAddr:sn19,10.24.15.43:50063
+ReadSNAddr:sn20,10.24.15.43:50064
+ReadSNAddr:sn21,10.24.15.43:50065
+ReadSNAddr:sn22,10.24.15.43:50066
+ReadSNAddr:sn23,10.24.15.43:50067
+ReadSNAddr:sn24,10.24.15.43:50068
+ReadSNAddr:sn25,10.24.15.216:50061
+ReadSNAddr:sn26,10.24.15.216:50062
+ReadSNAddr:sn27,10.24.15.216:50063
+ReadSNAddr:sn28,10.24.15.216:50064
+ReadSNAddr:sn29,10.24.15.216:50065
+ReadSNAddr:sn30,10.24.15.216:50066
+ReadSNAddr:sn31,10.24.15.216:50067
+2025/02/13 22:23:16 Auditor:{IpAddr:10.24.15.82:50051,SNAddrMap:{sn10:10.24.15.240:50062,sn4:10.24.15.153:50064,sn18:10.24.15.43:50062,sn26:10.24.15.216:50062,sn31:10.24.15.216:50067,sn14:10.24.15.240:50066,sn13:10.24.15.240:50065,sn20:10.24.15.43:50064,sn2:10.24.15.153:50062,sn25:10.24.15.216:50061,sn28:10.24.15.216:50064,sn19:10.24.15.43:50063,sn12:10.24.15.240:50064,sn15:10.24.15.240:50067,sn17:10.24.15.43:50061,sn22:10.24.15.43:50066,sn7:10.24.15.153:50067,sn5:10.24.15.153:50065,sn6:10.24.15.153:50066,sn8:10.24.15.153:50068,sn23:10.24.15.43:50067,sn27:10.24.15.216:50063,sn29:10.24.15.216:50065,sn3:10.24.15.153:50063,sn9:10.24.15.240:50061,sn21:10.24.15.43:50065,sn24:10.24.15.43:50068,sn1:10.24.15.153:50061,sn16:10.24.15.240:50068,sn30:10.24.15.216:50066,sn11:10.24.15.240:50063,},ClientFileShardMap:{},DataNum:11,ParityNum:20}
+10.24.15.82:50051
+2025/02/13 22:24:06 start auditing: 0
+2025/02/13 22:24:08 end auditing: 0
+audit-1 latency=2020 ms, avgLatency=2020 ms, avgVOSize=91662 KB, auditInforSize=16892 KB
