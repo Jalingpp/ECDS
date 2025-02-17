@@ -3,25 +3,32 @@ package baselines
 import (
 	pb "ECDS/proto" // 根据实际路径修改
 	"ECDS/util"
+	"bytes"
 	"context"
+	"encoding/gob"
 	"errors"
+	"fmt"
 	"log"
 	"net"
 	"strings"
 	"sync"
 
+	lru "github.com/hashicorp/golang-lru"
+	"github.com/syndtr/goleveldb/leveldb"
 	"google.golang.org/grpc"
 )
 
 type SiaSN struct {
-	SNId                                 string                               //存储节点id
-	SNAddr                               string                               //存储节点ip地址
-	ClientDSHashMap                      map[string][][]byte                  //为客户端存储的文件列表，key:clientID,value:数据分片的哈希值列表
-	ClientDSHashIndexMap                 map[string]int                       //分片在ClientDSHashMap某个列表中的索引号，key:clientID-filename-i,value:索引号
-	FileShardsMap                        map[string][]int32                   //文件的数据分片列表，key:clientID-filename-i,value:分片
-	FileVersionMap                       map[string]int                       //文件的版本号，key:clientID-filename-i,value:版本号
-	ClientMerkleRootMap                  map[string][]byte                    //客户端所有分片构建成的Merkel树根最新哈希值，key:clientID,value:hash value of root
-	ClientMerkleRootTimeMap              map[string]int                       //最新根节点哈希值的时间戳，key:clientID,value:时间戳
+	SNId   string //存储节点id
+	SNAddr string //存储节点ip地址
+	// ClientDSHashMap      map[string][][]byte //为客户端存储的文件列表，key:clientID,value:数据分片的哈希值列表
+	// ClientDSHashIndexMap map[string]int      //分片在ClientDSHashMap某个列表中的索引号，key:clientID-filename-i,value:索引号
+	// FileShardsMap                        map[string][]int32                   //文件的数据分片列表，key:clientID-filename-i,value:分片
+	// FileVersionMap                       map[string]int                       //文件的版本号，key:clientID-filename-i,value:版本号
+	// ClientMerkleRootMap                  map[string][]byte                    //客户端所有分片构建成的Merkel树根最新哈希值，key:clientID,value:hash value of root
+	// ClientMerkleRootTimeMap              map[string]int                       //最新根节点哈希值的时间戳，key:clientID,value:时间戳
+	CacheDataShards                      *lru.Cache                           //缓存大小在NewStorageNode中固定
+	DBDataShards                         *leveldb.DB                          //存储路径在NewStorageNode和GetSNStorageCost中固定
 	CFMMutex                             sync.RWMutex                         //ClientFileMap的读写锁
 	pb.UnimplementedSiaSNServiceServer                                        // 面向客户端的服务器嵌入匿名字段
 	pb.UnimplementedSiaSNACServiceServer                                      // 面向审计方的服务器嵌入匿名字段
@@ -41,12 +48,24 @@ type SiaSN struct {
 
 // 新建存储分片
 func NewSiaSN(snid string, snaddr string) *SiaSN {
-	clientdshMap := make(map[string][][]byte)
-	clientdshiMap := make(map[string]int)
-	clientmrMap := make(map[string][]byte)
-	clientmrtMap := make(map[string]int)
-	fileShardsMap := make(map[string][]int32)
-	fileversionMap := make(map[string]int)
+	// clientdshMap := make(map[string][][]byte)
+	// clientdshiMap := make(map[string]int)
+	// clientmrMap := make(map[string][]byte)
+	// clientmrtMap := make(map[string]int)
+	// fileShardsMap := make(map[string][]int32)
+	// fileversionMap := make(map[string]int)
+	// 创建lru缓存
+	cache, err := lru.New(50)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// 打开或创建数据库
+	path := "/home/ubuntu/ECDS/data/DB/Sia/datashards-" + snid
+	// path := "/root/DSN/ECDS/data/DB/Sia/datashards-" + snid
+	db, err := leveldb.OpenFile(path, nil)
+	if err != nil {
+		log.Fatalf("Failed to open database: %v", err)
+	}
 	pacpfn := make(map[string]int)
 	pacpp := make(map[string][][]byte)
 	pacpt := make(map[string][]byte)
@@ -56,7 +75,8 @@ func NewSiaSN(snid string, snaddr string) *SiaSN {
 	pacut := make(map[string][]byte)
 	pacutr := make(map[string]int)
 	afq := make(map[string]map[string]*SiaAuditInfor)
-	sn := &SiaSN{snid, snaddr, clientdshMap, clientdshiMap, fileShardsMap, fileversionMap, clientmrMap, clientmrtMap, sync.RWMutex{}, pb.UnimplementedSiaSNServiceServer{}, pb.UnimplementedSiaSNACServiceServer{}, pacpfn, pacpp, pacpt, pacptr, sync.RWMutex{}, pacufn, pacupp, pacut, pacutr, sync.RWMutex{}, afq, sync.RWMutex{}} //设置监听地址
+	sn := &SiaSN{snid, snaddr, cache, db, sync.RWMutex{}, pb.UnimplementedSiaSNServiceServer{}, pb.UnimplementedSiaSNACServiceServer{}, pacpfn, pacpp, pacpt, pacptr, sync.RWMutex{}, pacufn, pacupp, pacut, pacutr, sync.RWMutex{}, afq, sync.RWMutex{}} //设置监听地址
+	// sn := &SiaSN{snid, snaddr, clientdshMap, clientdshiMap, fileShardsMap, fileversionMap, clientmrMap, clientmrtMap, sync.RWMutex{}, pb.UnimplementedSiaSNServiceServer{}, pb.UnimplementedSiaSNACServiceServer{}, pacpfn, pacpp, pacpt, pacptr, sync.RWMutex{}, pacufn, pacupp, pacut, pacutr, sync.RWMutex{}, afq, sync.RWMutex{}} //设置监听地址
 	lis, err := net.Listen("tcp", snaddr)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
@@ -94,31 +114,48 @@ func (sn *SiaSN) SiaPutFileDS(ctx context.Context, preq *pb.SiaPutFRequest) (*pb
 	//2-存放数据分片
 	//2-2-放置文件分片和版本号
 	sn.CFMMutex.Lock()
-	if sn.FileShardsMap[cid_fn] != nil {
+	fskey := cid_fn + "FS"
+	fileshard, _ := sn.GetSiaFileShardFromCacheOrDB(fskey)
+	// if sn.FileShardsMap[cid_fn] != nil {
+	if fileshard != nil {
 		sn.CFMMutex.Unlock()
 		message = "Filename Already Exist!"
 		e := errors.New("filename already exist")
 		return &pb.SiaPutFResponse{Filename: preq.Filename, Dsno: preq.Dsno, Message: message}, e
 	}
-	sn.FileShardsMap[cid_fn] = preq.DataShard
-	sn.FileVersionMap[cid_fn] = int(preq.Version)
+	// sn.FileShardsMap[cid_fn] = preq.DataShard
+	// sn.FileVersionMap[cid_fn] = int(preq.Version)
+	fileshardToSave := preq.DataShard
+	fileversionToSave := int(preq.Version)
 	//2-3-放置客户端文件名列表
-	if sn.ClientDSHashMap[clientId] == nil {
-		sn.ClientDSHashMap[clientId] = make([][]byte, 0)
+	cdshkey := clientId + "CDSH"
+	clientDSHash, _ := sn.GetSiaClientDSHashFromCacheOrDB(cdshkey)
+	// if sn.ClientDSHashMap[clientId] == nil {
+	if clientDSHash == nil {
+		// sn.ClientDSHashMap[clientId] = make([][]byte, 0)
+		clientDSHash = make([][]byte, 0)
 	}
 	//对分片取哈希
 	dshash := util.Hash([]byte(util.Int32SliceToStr(preq.DataShard)))
-	sn.ClientDSHashMap[clientId] = append(sn.ClientDSHashMap[clientId], dshash)
-	sn.ClientDSHashIndexMap[cid_fn] = len(sn.ClientDSHashMap[clientId]) - 1
+	// sn.ClientDSHashMap[clientId] = append(sn.ClientDSHashMap[clientId], dshash)
+	clientDSHash = append(clientDSHash, dshash)
+	// sn.ClientDSHashIndexMap[cid_fn] = len(sn.ClientDSHashMap[clientId]) - 1
+	clientDSHashIndex := len(clientDSHash) - 1
 	//计算Merkel根节点哈希，并获取dsno分片对应的验证路径
-	leafHashes := sn.ClientDSHashMap[preq.ClientId]
-	index := sn.ClientDSHashIndexMap[cid_fn]
+	// leafHashes := sn.ClientDSHashMap[preq.ClientId]
+	leafHashes := clientDSHash
+	index := clientDSHashIndex
 	// sn.CFMMutex.Unlock()
 	root, paths := util.BuildMerkleTreeAndGeneratePath(leafHashes, index)
 	// sn.CFMMutex.Lock()
-	oldtime := sn.ClientMerkleRootTimeMap[preq.ClientId]
-	sn.ClientMerkleRootMap[preq.ClientId] = root
-	sn.ClientMerkleRootTimeMap[preq.ClientId] = oldtime + 1
+	cmrtkey := clientId + "CMRT"
+	// oldtime := sn.ClientMerkleRootTimeMap[preq.ClientId]
+	oldtime, _ := sn.GetSiaClientMerkleRootTimeFromCacheOrDB(cmrtkey)
+	// sn.ClientMerkleRootMap[preq.ClientId] = root
+	clientMerkleRootToSave := root
+	// sn.ClientMerkleRootTimeMap[preq.ClientId] = oldtime + 1
+	clientMerkleRootTimeToSave := oldtime + 1
+	sn.SaveSiaDataShardToDB(cid_fn, clientId, clientDSHash, clientDSHashIndex, fileshardToSave, fileversionToSave, clientMerkleRootToSave, clientMerkleRootTimeToSave)
 	sn.CFMMutex.Unlock()
 	message = "Put File Success!"
 	//3-修改PendingACPutDSNotice
@@ -131,6 +168,319 @@ func (sn *SiaSN) SiaPutFileDS(ctx context.Context, preq *pb.SiaPutFRequest) (*pb
 	// fmt.Println(sn.SNId, cid_fn, "结束SiaPutFileDS")
 	// 4-告知审计方分片放置结果
 	return &pb.SiaPutFResponse{Filename: preq.Filename, Dsno: preq.Dsno, Message: message}, nil
+}
+
+func (sn *SiaSN) SaveSiaDataShardToDB(cid_fn string, clientId string, clientDSHash [][]byte, clientDSHashIndex int, fileShard []int32, fileVersion int, clientMerkleRoot []byte, clientMerkleRootTime int) error {
+	// 序列化 clientDSHash
+	cdshbytes := serializedCDSH(clientDSHash)
+	// 将clientDSHash写入LevelDB
+	cdshkey := clientId + "CDSH"
+	err := sn.DBDataShards.Put([]byte(cdshkey), cdshbytes, nil)
+	if err != nil {
+		return err
+	}
+	// 更新缓存
+	sn.CacheDataShards.Add(string(cdshkey), clientDSHash)
+
+	// 序列化 clientDSHashIndex
+	cdshibytes := serializedCDSHI(clientDSHashIndex)
+	// 将leaves写入DB
+	cdshikey := cid_fn + "CDSHI"
+	err = sn.DBDataShards.Put([]byte(cdshikey), cdshibytes, nil)
+	if err != nil {
+		return err
+	}
+	// 更新缓存
+	sn.CacheDataShards.Add(string(cdshikey), clientDSHashIndex)
+
+	// 序列化 fileshard
+	fsbytes := serializedFS(fileShard)
+	// 将fileshard写入DB
+	fskey := cid_fn + "FS"
+	err = sn.DBDataShards.Put([]byte(fskey), fsbytes, nil)
+	if err != nil {
+		return err
+	}
+	// 更新缓存
+	sn.CacheDataShards.Add(string(fskey), fileShard)
+
+	// 序列化版本号
+	fvbytes := serializedFV(fileVersion)
+	// 将version写入DB
+	fvkey := cid_fn + "FV"
+	err = sn.DBDataShards.Put([]byte(fvkey), fvbytes, nil)
+	if err != nil {
+		return err
+	}
+	// 更新缓存
+	sn.CacheDataShards.Add(string(fvkey), fileVersion)
+
+	// 将clientMerkleRoot写入LevelDB
+	cmrkey := clientId + "CMR"
+	err = sn.DBDataShards.Put([]byte(cmrkey), clientMerkleRoot, nil)
+	if err != nil {
+		return err
+	}
+	// 更新缓存
+	sn.CacheDataShards.Add(string(cmrkey), clientMerkleRoot)
+
+	// 序列化 clientMerkleRootTime
+	cmrtbytes := serializedCMRT(clientMerkleRootTime)
+	// 将clientMerkleRootTime写入DB
+	cmrtkey := clientId + "CMRT"
+	err = sn.DBDataShards.Put([]byte(cmrtkey), cmrtbytes, nil)
+	if err != nil {
+		return err
+	}
+	// 更新缓存
+	sn.CacheDataShards.Add(string(cmrtkey), clientMerkleRootTime)
+
+	return nil
+}
+
+func (sn *SiaSN) GetSiaFileVersionFromCacheOrDB(clientIDFV string) (int, error) {
+	// 尝试从缓存中获取
+	if val, ok := sn.CacheDataShards.Get(clientIDFV); ok {
+		return val.(int), nil
+	}
+
+	// 缓存未命中，从 LevelDB 获取
+	fvbytes, err := sn.DBDataShards.Get([]byte(clientIDFV), nil)
+	if err != nil {
+		return -1, err
+	}
+
+	// 反序列化 clientDSHash
+	fileversion := deserializeCMRT(fvbytes)
+	if err != nil {
+		return -1, err
+	}
+
+	// 更新缓存
+	sn.CacheDataShards.Add(clientIDFV, fileversion)
+
+	return fileversion, nil
+}
+
+// 将fileversion序列化为[]byte
+func serializedFV(fileversion int) []byte {
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(fileversion)
+	if err != nil {
+		fmt.Println("序列化失败:", err)
+		return nil
+	}
+	serializedData := buf.Bytes()
+	return serializedData
+}
+
+// 将序列化后的fileversion反序列化
+func deserializeFV(fvbytes []byte) int {
+	var deserializedData int
+	dec := gob.NewDecoder(bytes.NewReader(fvbytes))
+	err := dec.Decode(&deserializedData)
+	if err != nil {
+		fmt.Println("反序列化失败:", err)
+		return -1
+	}
+	return deserializedData
+}
+
+func (sn *SiaSN) GetSiaClientDSHashIndexFromCacheOrDB(clientIDCDSHI string) (int, error) {
+	// 尝试从缓存中获取
+	if val, ok := sn.CacheDataShards.Get(clientIDCDSHI); ok {
+		return val.(int), nil
+	}
+
+	// 缓存未命中，从 LevelDB 获取
+	cdshibytes, err := sn.DBDataShards.Get([]byte(clientIDCDSHI), nil)
+	if err != nil {
+		return -1, err
+	}
+
+	// 反序列化 clientDSHash
+	clientDSHashIndex := deserializeCDSHI(cdshibytes)
+	if err != nil {
+		return -1, err
+	}
+
+	// 更新缓存
+	sn.CacheDataShards.Add(clientIDCDSHI, clientDSHashIndex)
+
+	return clientDSHashIndex, nil
+}
+
+// 将clientDSHashIndex序列化为[]byte
+func serializedCDSHI(clientDSHashIndex int) []byte {
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(clientDSHashIndex)
+	if err != nil {
+		fmt.Println("序列化失败:", err)
+		return nil
+	}
+	serializedData := buf.Bytes()
+	return serializedData
+}
+
+// 将序列化后的clientDSHashIndex反序列化
+func deserializeCDSHI(cdshibytes []byte) int {
+	var deserializedData int
+	dec := gob.NewDecoder(bytes.NewReader(cdshibytes))
+	err := dec.Decode(&deserializedData)
+	if err != nil {
+		fmt.Println("反序列化失败:", err)
+		return -1
+	}
+	return deserializedData
+}
+
+func (sn *SiaSN) GetSiaClientMerkleRootTimeFromCacheOrDB(clientIDCMRT string) (int, error) {
+	// 尝试从缓存中获取
+	if val, ok := sn.CacheDataShards.Get(clientIDCMRT); ok {
+		return val.(int), nil
+	}
+
+	// 缓存未命中，从 LevelDB 获取
+	cmrtbytes, err := sn.DBDataShards.Get([]byte(clientIDCMRT), nil)
+	if err != nil {
+		return -1, err
+	}
+
+	// 反序列化 clientDSHash
+	clientMerkleRootTime := deserializeCMRT(cmrtbytes)
+	if err != nil {
+		return -1, err
+	}
+
+	// 更新缓存
+	sn.CacheDataShards.Add(clientIDCMRT, clientMerkleRootTime)
+
+	return clientMerkleRootTime, nil
+}
+
+// 将clientMerkleRootTime序列化为[]byte
+func serializedCMRT(clientMerkleRootTime int) []byte {
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(clientMerkleRootTime)
+	if err != nil {
+		fmt.Println("序列化失败:", err)
+		return nil
+	}
+	serializedData := buf.Bytes()
+	return serializedData
+}
+
+// 将序列化后的clientMerkleRootTime反序列化
+func deserializeCMRT(cmrtbytes []byte) int {
+	var deserializedData int
+	dec := gob.NewDecoder(bytes.NewReader(cmrtbytes))
+	err := dec.Decode(&deserializedData)
+	if err != nil {
+		fmt.Println("反序列化失败:", err)
+		return -1
+	}
+	return deserializedData
+}
+
+func (sn *SiaSN) GetSiaClientDSHashFromCacheOrDB(clientIDCDSH string) ([][]byte, error) {
+	// 尝试从缓存中获取
+	if val, ok := sn.CacheDataShards.Get(clientIDCDSH); ok {
+		return val.([][]byte), nil
+	}
+
+	// 缓存未命中，从 LevelDB 获取
+	cdshbytes, err := sn.DBDataShards.Get([]byte(clientIDCDSH), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// 反序列化 clientDSHash
+	clientDSHash := deserializeCDSH(cdshbytes)
+	if err != nil {
+		return nil, err
+	}
+
+	// 更新缓存
+	sn.CacheDataShards.Add(clientIDCDSH, clientDSHash)
+
+	return clientDSHash, nil
+}
+
+// 将clientDSHash序列化为[]byte
+func serializedCDSH(clientDSHash [][]byte) []byte {
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(clientDSHash)
+	if err != nil {
+		fmt.Println("序列化失败:", err)
+		return nil
+	}
+	serializedData := buf.Bytes()
+	return serializedData
+}
+
+// 将序列化后的clientDSHash反序列化
+func deserializeCDSH(cdshbytes []byte) [][]byte {
+	var deserializedData [][]byte
+	dec := gob.NewDecoder(bytes.NewReader(cdshbytes))
+	err := dec.Decode(&deserializedData)
+	if err != nil {
+		fmt.Println("反序列化失败:", err)
+		return nil
+	}
+	return deserializedData
+}
+
+func (sn *SiaSN) GetSiaFileShardFromCacheOrDB(clientIDFS string) ([]int32, error) {
+	// 尝试从缓存中获取
+	if val, ok := sn.CacheDataShards.Get(clientIDFS); ok {
+		return val.([]int32), nil
+	}
+
+	// 缓存未命中，从 LevelDB 获取
+	fsbytes, err := sn.DBDataShards.Get([]byte(clientIDFS), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// 反序列化 fileshard
+	fileshard := deserializeFS(fsbytes)
+	if err != nil {
+		return nil, err
+	}
+
+	// 更新缓存
+	sn.CacheDataShards.Add(clientIDFS, fileshard)
+
+	return fileshard, nil
+}
+
+// 将FileShard序列化为[]byte
+func serializedFS(fileShard []int32) []byte {
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(fileShard)
+	if err != nil {
+		fmt.Println("序列化失败:", err)
+		return nil
+	}
+	serializedData := buf.Bytes()
+	return serializedData
+}
+
+// 将序列化后的FileShard反序列化
+func deserializeFS(fsbytes []byte) []int32 {
+	var deserializedData []int32
+	dec := gob.NewDecoder(bytes.NewReader(fsbytes))
+	err := dec.Decode(&deserializedData)
+	if err != nil {
+		fmt.Println("反序列化失败:", err)
+		return nil
+	}
+	return deserializedData
 }
 
 // 【供审计方使用的RPC】存储节点接收审计方文件存放通知，阻塞等待客户端存放文件，完成后回复审计方
@@ -155,7 +505,9 @@ func (sn *SiaSN) SiaPutFileNotice(ctx context.Context, preq *pb.SiaClientStorage
 		}
 	}
 	sn.CFMMutex.RLock()
-	index := sn.ClientDSHashIndexMap[cid_fn]
+	// index := sn.ClientDSHashIndexMap[cid_fn]
+	cdshikey := cid_fn + "CDSHI"
+	index, _ := sn.GetSiaClientDSHashIndexFromCacheOrDB(cdshikey)
 	sn.CFMMutex.RUnlock()
 	//文件完成存储，则删除pending元素，给审计方返回消息
 	sn.PACNMutex.Lock()
@@ -174,16 +526,26 @@ func (sn *SiaSN) SiaPutFileNotice(ctx context.Context, preq *pb.SiaClientStorage
 func (sn *SiaSN) SiaGetFileDS(ctx context.Context, req *pb.SiaGetFRequest) (*pb.SiaGetFResponse, error) {
 	cid_fni := req.ClientId + "-" + req.Filename + "-" + req.Dsno
 	sn.CFMMutex.RLock()
-	if sn.FileShardsMap[cid_fni] == nil {
+	fskey := cid_fni + "FS"
+	fileshard, _ := sn.GetSiaFileShardFromCacheOrDB(fskey)
+	// if sn.FileShardsMap[cid_fni] == nil {
+	if fileshard == nil {
 		sn.CFMMutex.RUnlock()
 		e := errors.New("datashard not exist")
 		return nil, e
 	} else {
-		seds := sn.FileShardsMap[cid_fni]
-		version := sn.FileVersionMap[cid_fni]
+		// seds := sn.FileShardsMap[cid_fni]
+		seds := fileshard
+		// version := sn.FileVersionMap[cid_fni]
+		fvkey := cid_fni + "FV"
+		version, _ := sn.GetSiaFileVersionFromCacheOrDB(fvkey)
 		//构建数据分片的存储证明
-		leafHashes := sn.ClientDSHashMap[req.ClientId]
-		index := sn.ClientDSHashIndexMap[cid_fni]
+		// leafHashes := sn.ClientDSHashMap[req.ClientId]
+		cdshkey := req.ClientId + "CDSH"
+		leafHashes, _ := sn.GetSiaClientDSHashFromCacheOrDB(cdshkey)
+		// index := sn.ClientDSHashIndexMap[cid_fni]
+		cdshikey := cid_fni + "CDSHI"
+		index, _ := sn.GetSiaClientDSHashIndexFromCacheOrDB(cdshikey)
 		sn.CFMMutex.RUnlock()
 		_, paths := util.BuildMerkleTreeAndGeneratePath(leafHashes, index)
 		return &pb.SiaGetFResponse{Filename: req.Filename, Version: int32(version), DataShard: seds, Merklepath: paths, Index: int32(index)}, nil
@@ -213,29 +575,47 @@ func (sn *SiaSN) SiaUpdateFileDS(ctx context.Context, req *pb.SiaUpdDSRequest) (
 	//2-存放数据分片
 	//2-2-放置文件分片和版本号
 	sn.CFMMutex.Lock()
-	if sn.FileShardsMap[cid_fn] == nil {
+	fskey := cid_fn + "FS"
+	fileshard, _ := sn.GetSiaFileShardFromCacheOrDB(fskey)
+	// if sn.FileShardsMap[cid_fn] == nil {
+	if fileshard == nil {
 		sn.CFMMutex.Unlock()
 		message = "Filename Not Exist!"
 		e := errors.New("filename not exist")
 		return nil, e
 	}
-	sn.FileShardsMap[cid_fn] = ds
-	sn.FileVersionMap[cid_fn] = int(req.Newversion)
+	// sn.FileShardsMap[cid_fn] = ds
+	fileshardToSave := ds
+	// sn.FileVersionMap[cid_fn] = int(req.Newversion)
+	fileversionToSave := int(req.Newversion)
 	//2-3-放置客户端文件名列表
-	if sn.ClientDSHashMap[clientId] == nil {
-		sn.ClientDSHashMap[clientId] = make([][]byte, 0)
+	cdshkey := clientId + "CDSH"
+	clientDSHash, _ := sn.GetSiaClientDSHashFromCacheOrDB(cdshkey)
+	// if sn.ClientDSHashMap[clientId] == nil {
+	if clientDSHash == nil {
+		// sn.ClientDSHashMap[clientId] = make([][]byte, 0)
+		clientDSHash = make([][]byte, 0)
 	}
 	//对分片取哈希后更新至列表
 	dshash := util.Hash([]byte(util.Int32SliceToStr(ds)))
-	index := sn.ClientDSHashIndexMap[cid_fn]
-	sn.ClientDSHashMap[clientId][index] = dshash
-	leafHashes := sn.ClientDSHashMap[clientId]
+	// index := sn.ClientDSHashIndexMap[cid_fn]
+	cdshikey := cid_fn + "CDSHI"
+	clientDSHashIndex, _ := sn.GetSiaClientDSHashIndexFromCacheOrDB(cdshikey)
+	// sn.ClientDSHashMap[clientId][index] = dshash
+	clientDSHash[clientDSHashIndex] = dshash
+	// leafHashes := sn.ClientDSHashMap[clientId]
+	leafHashes := clientDSHash
 	// sn.CFMMutex.Unlock()
-	root, paths := util.BuildMerkleTreeAndGeneratePath(leafHashes, index)
+	root, paths := util.BuildMerkleTreeAndGeneratePath(leafHashes, clientDSHashIndex)
 	// sn.CFMMutex.Lock()
-	oldtime := sn.ClientMerkleRootTimeMap[clientId]
-	sn.ClientMerkleRootMap[clientId] = root
-	sn.ClientMerkleRootTimeMap[clientId] = oldtime + 1
+	// oldtime := sn.ClientMerkleRootTimeMap[clientId]
+	cmrtkey := clientId + "CMRT"
+	oldtime, _ := sn.GetSiaClientMerkleRootTimeFromCacheOrDB(cmrtkey)
+	// sn.ClientMerkleRootMap[clientId] = root
+	clientMerkleRootToSave := root
+	// sn.ClientMerkleRootTimeMap[clientId] = oldtime + 1
+	clientMerkleRootTimeToSave := oldtime + 1
+	sn.SaveSiaDataShardToDB(cid_fn, clientId, clientDSHash, clientDSHashIndex, fileshardToSave, fileversionToSave, clientMerkleRootToSave, clientMerkleRootTimeToSave)
 	sn.CFMMutex.Unlock()
 	message = "Update DataShard Success!"
 	//3-修改PendingACUpdFNotice
@@ -270,8 +650,12 @@ func (sn *SiaSN) SiaUpdateDataShardNotice(ctx context.Context, preq *pb.SiaClien
 		}
 	}
 	sn.CFMMutex.RLock()
-	index := sn.ClientDSHashIndexMap[cid_fn]
-	version := sn.FileVersionMap[cid_fn]
+	cdshikey := cid_fn + "CDSHI"
+	// index := sn.ClientDSHashIndexMap[cid_fn]
+	index, _ := sn.GetSiaClientDSHashIndexFromCacheOrDB(cdshikey)
+	fvkey := cid_fn + "FV"
+	// version := sn.FileVersionMap[cid_fn]
+	version, _ := sn.GetSiaFileVersionFromCacheOrDB(fvkey)
 	sn.CFMMutex.RUnlock()
 	//文件完成存储，则删除pending元素，给审计方返回消息
 	sn.PACUFNMutex.Lock()
@@ -353,20 +737,33 @@ func (sn *SiaSN) SiaPreAuditSN(ctx context.Context, req *pb.SiaPASNRequest) (*pb
 func (sn *SiaSN) SiaGetDSSTNoLessV(cid string, fn string, dsno string, version int32) (*SiaAuditInfor, error) {
 	cid_fni := cid + "-" + fn + "-" + dsno
 	sn.CFMMutex.RLock()
-	if sn.FileShardsMap[cid_fni] == nil {
+	fskey := cid_fni + "FS"
+	fileshard, _ := sn.GetSiaFileShardFromCacheOrDB(fskey)
+	// if sn.FileShardsMap[cid_fni] == nil {
+	if fileshard == nil {
 		sn.CFMMutex.RUnlock()
 		return nil, nil
 	}
-	v := sn.FileVersionMap[cid_fni]
+	fvkey := cid_fni + "FV"
+	// v := sn.FileVersionMap[cid_fni]
+	v, _ := sn.GetSiaFileVersionFromCacheOrDB(fvkey)
 	if v < int(version) {
 		sn.CFMMutex.RUnlock()
 		return nil, nil
 	}
-	index := sn.ClientDSHashIndexMap[cid_fni]
-	rt := sn.ClientMerkleRootTimeMap[cid]
-	ds := make([]int32, len(sn.FileShardsMap[cid_fni]))
-	copy(ds, sn.FileShardsMap[cid_fni])
-	hashes := sn.ClientDSHashMap[cid]
+	cdshikey := cid_fni + "CDSHI"
+	// index := sn.ClientDSHashIndexMap[cid_fni]
+	index, _ := sn.GetSiaClientDSHashIndexFromCacheOrDB(cdshikey)
+	cmrtkey := cid + "CMRT"
+	// rt := sn.ClientMerkleRootTimeMap[cid]
+	rt, _ := sn.GetSiaClientMerkleRootTimeFromCacheOrDB(cmrtkey)
+	// ds := make([]int32, len(sn.FileShardsMap[cid_fni]))
+	ds := make([]int32, len(fileshard))
+	// copy(ds, sn.FileShardsMap[cid_fni])
+	copy(ds, fileshard)
+	cdshkey := cid + "CDSH"
+	// hashes := sn.ClientDSHashMap[cid]
+	hashes, _ := sn.GetSiaClientDSHashFromCacheOrDB(cdshkey)
 	root, path := util.BuildMerkleTreeAndGeneratePath(hashes, index)
 	sn.CFMMutex.RUnlock()
 	return &SiaAuditInfor{Key: cid_fni, Data: ds, Version: int32(v), RootHash: root, RootTimestamp: rt, Path: path, Index: index}, nil
@@ -394,15 +791,18 @@ func (sn *SiaSN) SiaGetPosSN(ctx context.Context, req *pb.SiaGAPSNRequest) (*pb.
 // 【供客户端使用的RPC】获取当前节点上对clientID相关文件的存储空间代价
 func (sn *SiaSN) SiaGetSNStorageCost(ctx context.Context, req *pb.SiaGSNSCRequest) (*pb.SiaGSNSCResponse, error) {
 	cid := req.ClientId
-	totalSize := 0
-	//统计所占存储空间大小
-	sn.CFMMutex.RLock()
-	clientFSMap := sn.FileShardsMap
-	sn.CFMMutex.RUnlock()
-	for key, ds := range clientFSMap {
-		if strings.HasPrefix(key, cid) {
-			totalSize = totalSize + len([]byte(util.Int32SliceToStr(ds)))
-		}
-	}
+	// totalSize := 0
+	// //统计所占存储空间大小
+	// sn.CFMMutex.RLock()
+	// clientFSMap := sn.FileShardsMap
+	// sn.CFMMutex.RUnlock()
+	// for key, ds := range clientFSMap {
+	// 	if strings.HasPrefix(key, cid) {
+	// 		totalSize = totalSize + len([]byte(util.Int32SliceToStr(ds)))
+	// 	}
+	// }
+	path := "/home/ubuntu/ECDS/data/DB/Sia/datashards-" + sn.SNId
+	// path := "/root/DSN/ECDS/data/DB/Sia/datashards-" + sn.SNId
+	totalSize, _ := util.GetDatabaseSize(path)
 	return &pb.SiaGSNSCResponse{ClientId: cid, SnId: sn.SNId, Storagecost: int32(totalSize)}, nil
 }

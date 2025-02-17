@@ -4,13 +4,13 @@ else
     round=$1
 fi
 
-CLIENT_IP="10.24.15.186"
+CLIENT_IP="10.24.15.133"
 
 snNum=31
 snmNum=4
 
 # dsnModes=(ec storj sia filecoin)
-dsnModes=(storj)
+dsnModes=(sia)
 # clientnums=(50 150 250 350 450)
 clientnums=(10)
 

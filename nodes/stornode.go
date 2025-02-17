@@ -116,7 +116,7 @@ func (sn *StorageNode) PutDataShard(ctx context.Context, preq *pb.PutDSRequest) 
 	cid_fn := clientId + "-" + filename
 	//1-阻塞等待收到审计方通知
 	for {
-		log.Println(sn.SNId, "waiting notice from AC for storage", filename, dsno)
+		// log.Println(sn.SNId, "waiting notice from AC for storage", filename, dsno)
 		sn.PACNMutex.RLock()
 		v1, ok1 := sn.PendingACPutDSNotice[cid_fn]
 		if ok1 {

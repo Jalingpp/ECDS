@@ -2,10 +2,10 @@
 # 该脚本实现：1.根据snips写所有SN的snaddrs文件(同一个ip对应多个port)；2.写AC本地snaadrs文件；3.复制AC的snaddrs文件到Client。
 
 # AC 的 IP 地址
-AC_IP="10.24.15.82"
+AC_IP="10.24.15.10"
 
 # Client 的 IP 地址
-Client_IP="10.24.15.186"
+Client_IP="10.24.15.133"
 
 # snNum 的数量（假设已经定义）
 snNum=31

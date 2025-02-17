@@ -37,7 +37,7 @@ func main() {
 	for {
 		time.Sleep(30 * time.Second) // 每小时检查一次
 		// 可以在这里添加一些定期任务
-		fmt.Println("sns持续运行中")
+		// fmt.Println("sns持续运行中")
 	}
 }
 
