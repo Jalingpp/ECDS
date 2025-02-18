@@ -2,8 +2,10 @@ package baselines
 
 import (
 	pb "ECDS/proto" // 根据实际路径修改"
+	"ECDS/util"
 	"bytes"
 	"context"
+	"encoding/gob"
 	"errors"
 	"fmt"
 	"io"
@@ -17,7 +19,9 @@ import (
 	ffi "github.com/filecoin-project/filecoin-ffi"
 	"github.com/filecoin-project/go-state-types/abi"
 	prooftypes "github.com/filecoin-project/go-state-types/proof"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/ipfs/go-cid"
+	"github.com/syndtr/goleveldb/leveldb"
 	"google.golang.org/grpc"
 )
 
@@ -33,11 +37,13 @@ func (ssi *SectorSealedInfor) Sizeof() int {
 }
 
 type FilecoinSN struct {
-	SNId                                      string                                                      //存储节点id
-	SNAddr                                    string                                                      //存储节点ip地址
-	ClientFileRepMap                          map[string]string                                           //客户端文件副本内容，key:clientID-fliename-i,value:content
-	ClientFileRepVMap                         map[string]int                                              //客户端文件副本版本，key:clientID-filename-i,value:version number
-	ClientFileRepSectorInforMap               map[string]map[int]*SectorSealedInfor                       //为客户端存储的文件列表，key:clientID-filename-i,subkey:sectorNum,value:SectorSealedInfor
+	SNId   string //存储节点id
+	SNAddr string //存储节点ip地址
+	// ClientFileRepMap                          map[string]string                                           //客户端文件副本内容，key:clientID-fliename-i,value:content
+	// ClientFileRepVMap                         map[string]int                                              //客户端文件副本版本，key:clientID-filename-i,value:version number
+	// ClientFileRepSectorInforMap               map[string]map[int]*SectorSealedInfor                       //为客户端存储的文件列表，key:clientID-filename-i,subkey:sectorNum,value:SectorSealedInfor
+	CacheDataShards                           *lru.Cache                                                  //缓存大小在NewStorageNode中固定
+	DBDataShards                              *leveldb.DB                                                 //存储路径在NewStorageNode和GetSNStorageCost中固定
 	CFRMMutex                                 sync.RWMutex                                                //ClientFileMap的读写锁
 	pb.UnimplementedFilecoinSNServiceServer                                                               // 面向客户端的服务器嵌入匿名字段
 	pb.UnimplementedFilecoinSNACServiceServer                                                             // 面向审计方的服务器嵌入匿名字段
@@ -64,9 +70,21 @@ type FilecoinSN struct {
 
 // 新建存储分片
 func NewFilecoinSN(snid string, snaddr string) *FilecoinSN {
-	clientFileRepMap := make(map[string]string)
-	clientFileRepVMap := make(map[string]int)
-	clientFileRepSectorInforMap := make(map[string]map[int]*SectorSealedInfor)
+	// clientFileRepMap := make(map[string]string)
+	// clientFileRepVMap := make(map[string]int)
+	// clientFileRepSectorInforMap := make(map[string]map[int]*SectorSealedInfor)
+	// 创建lru缓存
+	cache, err := lru.New(50)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// 打开或创建数据库
+	path := "/home/ubuntu/ECDS/data/DB/Filecoin/datashards-" + snid
+	// path := "/root/DSN/ECDS/data/DB/Filecoin/datashards-" + snid
+	db, err := leveldb.OpenFile(path, nil)
+	if err != nil {
+		log.Fatalf("Failed to open database: %v", err)
+	}
 	pacpfn := make(map[string]int)
 	pacufn := make(map[string]int)
 	pacufvmap := make(map[string]int)
@@ -81,7 +99,8 @@ func NewFilecoinSN(snid string, snaddr string) *FilecoinSN {
 	afq := make(map[string]map[string]map[string]map[int]*SectorSealedInfor)
 	ascdmap := make(map[string]map[string]map[string]string)
 	assfmap := make(map[string]map[string]map[string]string)
-	sn := &FilecoinSN{snid, snaddr, clientFileRepMap, clientFileRepVMap, clientFileRepSectorInforMap, sync.RWMutex{}, pb.UnimplementedFilecoinSNServiceServer{}, pb.UnimplementedFilecoinSNACServiceServer{}, pacpfn, sync.RWMutex{}, pacufn, pacufvmap, sync.RWMutex{}, abi.ActorID(snidint), sealProofType, CidFnRepsectorCacheDirPath, CidFnRepstagedSectorFile, CidFnRepsealedSectorFile, sync.RWMutex{}, ticket, seed, 0, sync.RWMutex{}, afq, ascdmap, assfmap, sync.RWMutex{}} //设置监听地址
+	sn := &FilecoinSN{snid, snaddr, cache, db, sync.RWMutex{}, pb.UnimplementedFilecoinSNServiceServer{}, pb.UnimplementedFilecoinSNACServiceServer{}, pacpfn, sync.RWMutex{}, pacufn, pacufvmap, sync.RWMutex{}, abi.ActorID(snidint), sealProofType, CidFnRepsectorCacheDirPath, CidFnRepstagedSectorFile, CidFnRepsealedSectorFile, sync.RWMutex{}, ticket, seed, 0, sync.RWMutex{}, afq, ascdmap, assfmap, sync.RWMutex{}} //设置监听地址
+	// sn := &FilecoinSN{snid, snaddr, clientFileRepMap, clientFileRepVMap, clientFileRepSectorInforMap, sync.RWMutex{}, pb.UnimplementedFilecoinSNServiceServer{}, pb.UnimplementedFilecoinSNACServiceServer{}, pacpfn, sync.RWMutex{}, pacufn, pacufvmap, sync.RWMutex{}, abi.ActorID(snidint), sealProofType, CidFnRepsectorCacheDirPath, CidFnRepstagedSectorFile, CidFnRepsealedSectorFile, sync.RWMutex{}, ticket, seed, 0, sync.RWMutex{}, afq, ascdmap, assfmap, sync.RWMutex{}} //设置监听地址
 	lis, err := net.Listen("tcp", snaddr)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
@@ -120,17 +139,227 @@ func (sn *FilecoinSN) FilecoinPutFile(ctx context.Context, preq *pb.FilecoinPutF
 	sn.CFRMMutex.Lock()
 	//构建扇区并生成sealedID
 	// sn.ClientFileRepSectorInforMap[cid_fn] = sn.FilecoinConstructSectors(cid_fn, int(preq.Version), preq.Content)
-	sn.ClientFileRepSectorInforMap[cid_fn] = cfrsis
-	sn.ClientFileRepMap[cid_fn] = preq.Content
-	sn.ClientFileRepVMap[cid_fn] = int(preq.Version)
+	// sn.ClientFileRepSectorInforMap[cid_fn] = cfrsis
+	// sn.ClientFileRepMap[cid_fn] = preq.Content
+	// sn.ClientFileRepVMap[cid_fn] = int(preq.Version)
+	sn.SaveFilecoinDataShardToDB(cid_fn, cfrsis, preq.Content, int(preq.Version))
 	sn.CFRMMutex.Unlock()
 	message = "OK"
+	log.Println("【PutFile】", cid_fn, message)
 	//3-修改PendingACPutDSNotice
 	sn.PACNMutex.Lock()
 	sn.PendingACPutFNotice[cid_fn] = 2
 	sn.PACNMutex.Unlock()
 	// 4-告知审计方分片放置结果
 	return &pb.FilecoinPutFResponse{Filename: preq.Filename, Repno: preq.Repno, Message: message}, nil
+}
+
+func (sn *FilecoinSN) SaveFilecoinDataShardToDB(cid_fn string, clientFileRepSectorInfor map[int]*SectorSealedInfor, clientFileRep string, clientFileRepV int) error {
+	// 序列化 clientFileRepSectorInfor
+	ssibytes := serializedSSI(clientFileRepSectorInfor)
+	// 将clientFileRepSectorInfor写入LevelDB
+	ssikey := cid_fn + "SSI"
+	err := sn.DBDataShards.Put([]byte(ssikey), ssibytes, nil)
+	if err != nil {
+		return err
+	}
+	// 更新缓存
+	sn.CacheDataShards.Add(string(ssikey), clientFileRepSectorInfor)
+
+	// 序列化 clientFileRep
+	cfrbytes := []byte(clientFileRep)
+	// 将clientFileRep写入DB
+	cfrkey := cid_fn + "CFR"
+	err = sn.DBDataShards.Put([]byte(cfrkey), cfrbytes, nil)
+	if err != nil {
+		return err
+	}
+	// 更新缓存
+	sn.CacheDataShards.Add(string(cfrkey), clientFileRep)
+
+	// 序列化 clientFileRepV
+	cfrvbytes := serializedCFRV(clientFileRepV)
+	// 将clientMerkleRootTime写入DB
+	cfrvkey := cid_fn + "CFRV"
+	err = sn.DBDataShards.Put([]byte(cfrvkey), cfrvbytes, nil)
+	if err != nil {
+		return err
+	}
+	// 更新缓存
+	sn.CacheDataShards.Add(string(cfrvkey), clientFileRepV)
+
+	return nil
+}
+
+// 将clientFileRepV序列化为[]byte
+func serializedCFRV(clientFileRepV int) []byte {
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(clientFileRepV)
+	if err != nil {
+		fmt.Println("序列化失败:", err)
+		return nil
+	}
+	serializedData := buf.Bytes()
+	return serializedData
+}
+
+// 将序列化后的clientFileRepV反序列化
+func deserializeCFRV(cfrvbytes []byte) int {
+	var deserializedData int
+	dec := gob.NewDecoder(bytes.NewReader(cfrvbytes))
+	err := dec.Decode(&deserializedData)
+	if err != nil {
+		fmt.Println("反序列化失败:", err)
+		return -1
+	}
+	return deserializedData
+}
+
+type SerializableSectorSealedInfor struct {
+	SectorNum   abi.SectorNumber
+	SealedCID   string
+	UnsealedCID string
+	Proof       []byte
+}
+
+// 将clientFileRepSectorInfor序列化为[]byte
+func serializedSSI(clientFileRepSectorInfor map[int]*SectorSealedInfor) []byte {
+	// 转换为可序列化的结构体
+	serializableMap := make(map[int]*SerializableSectorSealedInfor)
+	for key, value := range clientFileRepSectorInfor {
+		serializableMap[key] = &SerializableSectorSealedInfor{
+			SectorNum:   value.SectorNum,
+			SealedCID:   value.SealedCID.String(),
+			UnsealedCID: value.UnsealedCID.String(),
+			Proof:       value.Proof,
+		}
+	}
+
+	// 序列化
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(serializableMap)
+	if err != nil {
+		fmt.Println("序列化失败:", err)
+		return nil
+	}
+	return buf.Bytes()
+}
+
+// 反序列化clientFileRepSectorInfor
+func deserializedSSI(data []byte) (map[int]*SectorSealedInfor, error) {
+	// 注册类型
+	gob.Register(&SerializableSectorSealedInfor{})
+
+	// 创建一个缓冲区
+	buf := bytes.NewBuffer(data)
+
+	// 创建解码器
+	dec := gob.NewDecoder(buf)
+
+	// 解码为 map[int]*SerializableSectorSealedInfor
+	serializableMap := make(map[int]*SerializableSectorSealedInfor)
+	err := dec.Decode(&serializableMap)
+	if err != nil {
+		return nil, fmt.Errorf("反序列化失败: %v", err)
+	}
+
+	// 转换为 map[int]*SectorSealedInfor
+	resultMap := make(map[int]*SectorSealedInfor)
+	for key, value := range serializableMap {
+		// 将字符串转换为 cid.Cid
+		sealedCID, err := cid.Decode(value.SealedCID)
+		if err != nil {
+			return nil, fmt.Errorf("解析 SealedCID 失败: %v", err)
+		}
+		unsealedCID, err := cid.Decode(value.UnsealedCID)
+		if err != nil {
+			return nil, fmt.Errorf("解析 UnsealedCID 失败: %v", err)
+		}
+
+		// 构造 SectorSealedInfor
+		resultMap[key] = &SectorSealedInfor{
+			SectorNum:   value.SectorNum,
+			SealedCID:   sealedCID,
+			UnsealedCID: unsealedCID,
+			Proof:       value.Proof,
+		}
+	}
+
+	return resultMap, nil
+}
+
+func (sn *FilecoinSN) GetFilecoinSSIFromCacheOrDB(ssikey string) (map[int]*SectorSealedInfor, error) {
+	// 尝试从缓存中获取
+	if val, ok := sn.CacheDataShards.Get(ssikey); ok {
+		return val.(map[int]*SectorSealedInfor), nil
+	}
+
+	// 缓存未命中，从 LevelDB 获取
+	ssibytes, err := sn.DBDataShards.Get([]byte(ssikey), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// 反序列化为 map[int]*SectorSealedInfor
+	clientFileRepSectorInfor, _ := deserializedSSI(ssibytes)
+	if err != nil {
+		return nil, err
+	}
+
+	// 更新缓存
+	sn.CacheDataShards.Add(ssikey, clientFileRepSectorInfor)
+
+	return clientFileRepSectorInfor, nil
+}
+
+func (sn *FilecoinSN) GetFilecoinCFRFromCacheOrDB(cfrkey string) (string, error) {
+	// 尝试从缓存中获取
+	if val, ok := sn.CacheDataShards.Get(cfrkey); ok {
+		return val.(string), nil
+	}
+
+	// 缓存未命中，从 LevelDB 获取
+	cfrbytes, err := sn.DBDataShards.Get([]byte(cfrkey), nil)
+	if err != nil {
+		return "", err
+	}
+
+	// 反序列化 clientFileRep
+	clientFileRep := string(cfrbytes)
+	if err != nil {
+		return "", err
+	}
+
+	// 更新缓存
+	sn.CacheDataShards.Add(cfrkey, clientFileRep)
+
+	return clientFileRep, nil
+}
+
+func (sn *FilecoinSN) GetFilecoinCFRVFromCacheOrDB(cfrvkey string) (int, error) {
+	// 尝试从缓存中获取
+	if val, ok := sn.CacheDataShards.Get(cfrvkey); ok {
+		return val.(int), nil
+	}
+
+	// 缓存未命中，从 LevelDB 获取
+	cfrvbytes, err := sn.DBDataShards.Get([]byte(cfrvkey), nil)
+	if err != nil {
+		return -1, err
+	}
+
+	// 反序列化 clientFileRep
+	clientFileRepV := deserializeCFRV(cfrvbytes)
+	if err != nil {
+		return -1, err
+	}
+
+	// 更新缓存
+	sn.CacheDataShards.Add(cfrvkey, clientFileRepV)
+
+	return clientFileRepV, nil
 }
 
 // 为文件内容构建扇区
@@ -189,7 +418,7 @@ func (sn *FilecoinSN) FilecoinConstructSectors(cid_fn string, version int, filec
 		if err != nil {
 			log.Fatalf("SealPreCommitPhase1 Error: %v", err.Error())
 		}
-		// log.Println("sealPreCommitPhase1Output:", sealPreCommitPhase1Output)
+		log.Println("sealPreCommitPhase1Output:", sealPreCommitPhase1Output)
 		sealedCID, unsealedCID, err := ffi.SealPreCommitPhase2(sealPreCommitPhase1Output, sectorCacheDirPath, sealedSectorFile.Name())
 		if err != nil {
 			log.Fatalf("SealPreCommitPhase2 Error: %v", err.Error())
@@ -255,7 +484,10 @@ func (sn *FilecoinSN) FilecoinPutFileNotice(ctx context.Context, preq *pb.Fileco
 	delete(sn.PendingACPutFNotice, cid_fn)
 	sn.PACNMutex.Unlock()
 	sn.CFRMMutex.RLock()
-	snl, scidl, uscidl, pl := SectorSealedInforToMessage(sn.ClientFileRepSectorInforMap[cid_fn])
+	// snl, scidl, uscidl, pl := SectorSealedInforToMessage(sn.ClientFileRepSectorInforMap[cid_fn])
+	ssikey := cid_fn + "SSI"
+	clientFileRepSectorInfor, _ := sn.GetFilecoinSSIFromCacheOrDB(ssikey)
+	snl, scidl, uscidl, pl := SectorSealedInforToMessage(clientFileRepSectorInfor)
 	sn.CFRMMutex.RUnlock()
 	return &pb.FilecoinClientStorageResponse{ClientId: clientId, Filename: filename, Repno: repno, Snid: sn.SNId, MinerID: int32(sn.MinerID), SectorNum: snl, SealedCID: scidl, UnsealedCID: uscidl, Proof: pl, Message: sn.SNId + " completes the storage of " + cid_fn + "."}, nil
 }
@@ -312,18 +544,27 @@ func requireTempFile(fileContentsReader io.Reader, size uint64) *os.File {
 func (sn *FilecoinSN) FilecoinGetFile(ctx context.Context, req *pb.FilecoinGetFRequest) (*pb.FilecoinGetFResponse, error) {
 	cid_fn := req.ClientId + "-" + req.Filename + "-" + req.Rep
 	sn.CFRMMutex.RLock()
-	if _, ok := sn.ClientFileRepMap[cid_fn]; !ok {
+	cfrkey := cid_fn + "CFR"
+	clientFileRep, err := sn.GetFilecoinCFRFromCacheOrDB(cfrkey)
+	cfrvkey := cid_fn + "CFRV"
+	clientFileRepV, err2 := sn.GetFilecoinCFRVFromCacheOrDB(cfrvkey)
+	// if _, ok := sn.ClientFileRepMap[cid_fn]; !ok {
+	if err != nil {
 		sn.CFRMMutex.RUnlock()
 		e := errors.New("file rep not exist")
 		return &pb.FilecoinGetFResponse{Filename: req.Filename, Version: int32(0), Content: ""}, e
-	} else if _, ok := sn.ClientFileRepVMap[cid_fn]; !ok {
-		content := sn.ClientFileRepMap[cid_fn]
+		// } else if _, ok := sn.ClientFileRepVMap[cid_fn]; !ok {
+	} else if err2 != nil {
+		// content := sn.ClientFileRepMap[cid_fn]
+		content := clientFileRep
 		sn.CFRMMutex.RUnlock()
 		e := errors.New("file version not exist")
 		return &pb.FilecoinGetFResponse{Filename: req.Filename, Version: int32(0), Content: content}, e
 	} else {
-		content := sn.ClientFileRepMap[cid_fn]
-		v := sn.ClientFileRepVMap[cid_fn]
+		// content := sn.ClientFileRepMap[cid_fn]
+		content := clientFileRep
+		// v := sn.ClientFileRepVMap[cid_fn]
+		v := clientFileRepV
 		sn.CFRMMutex.RUnlock()
 		return &pb.FilecoinGetFResponse{Filename: req.Filename, Version: int32(v), Content: content}, nil
 	}
@@ -350,7 +591,9 @@ func (sn *FilecoinSN) FilecoinUpdateFile(ctx context.Context, req *pb.FilecoinUp
 	//2-更新数据分片
 	//2-1-比较客户端发来的原始版本是否与当前版本一致
 	sn.CFRMMutex.RLock()
-	originVersion := sn.ClientFileRepVMap[cid_fn]
+	// originVersion := sn.ClientFileRepVMap[cid_fn]
+	cfrvkey := cid_fn + "CFRV"
+	originVersion, _ := sn.GetFilecoinCFRVFromCacheOrDB(cfrvkey)
 	sn.CFRMMutex.RUnlock()
 	if originVersion != int(req.Originversion) {
 		log.Println(cid_fn, "update error: original version not consist.")
@@ -361,9 +604,10 @@ func (sn *FilecoinSN) FilecoinUpdateFile(ctx context.Context, req *pb.FilecoinUp
 	cfrsis := sn.FilecoinConstructSectors(cid_fn, newversion, req.Newcontent)
 	sn.CFRMMutex.Lock()
 	// sn.ClientFileRepSectorInforMap[cid_fn] = sn.FilecoinConstructSectors(cid_fn, newversion, req.Newcontent)
-	sn.ClientFileRepSectorInforMap[cid_fn] = cfrsis
-	sn.ClientFileRepMap[cid_fn] = req.Newcontent
-	sn.ClientFileRepVMap[cid_fn] = newversion
+	// sn.ClientFileRepSectorInforMap[cid_fn] = cfrsis
+	// sn.ClientFileRepMap[cid_fn] = req.Newcontent
+	// sn.ClientFileRepVMap[cid_fn] = newversion
+	sn.SaveFilecoinDataShardToDB(cid_fn, cfrsis, req.Newcontent, newversion)
 	sn.CFRMMutex.Unlock()
 	//3-修改PendingACUpdFNotice
 	sn.PACUFNMutex.Lock()
@@ -404,7 +648,10 @@ func (sn *FilecoinSN) FilecoinUpdateFileNotice(ctx context.Context, preq *pb.Fil
 	sn.PACUFNMutex.Unlock()
 	//获取文件扇区封装信息
 	sn.CFRMMutex.RLock()
-	snl, scidl, uscidl, pl := SectorSealedInforToMessage(sn.ClientFileRepSectorInforMap[cid_fn])
+	// snl, scidl, uscidl, pl := SectorSealedInforToMessage(sn.ClientFileRepSectorInforMap[cid_fn])
+	ssikey := cid_fn + "SSI"
+	clientFileRepSectorInfor, _ := sn.GetFilecoinSSIFromCacheOrDB(ssikey)
+	snl, scidl, uscidl, pl := SectorSealedInforToMessage(clientFileRepSectorInfor)
 	sn.CFRMMutex.RUnlock()
 	return &pb.FilecoinClientUFResponse{ClientId: clientId, Filename: filename, Repno: repno, Snid: sn.SNId, MinerID: int32(sn.MinerID), SectorNum: snl, SealedCID: scidl, UnsealedCID: uscidl, Proof: pl, Message: sn.SNId + " completes the update of " + cid_fn + "."}, nil
 }
@@ -431,12 +678,16 @@ func (sn *FilecoinSN) FilecoinPreAuditSN(ctx context.Context, req *pb.FilecoinPA
 			//如果当前完成更新的版本小于被挑战的版本，则等待更新完成后加入到readyFileMap中
 			//如果当前完成更新的版本大于被挑战的版本，则加入到unreadyFileMap中
 			// sn.CFRMMutex.RLock()
-			currentV := sn.ClientFileRepVMap[cidfni]
+			// currentV := sn.ClientFileRepVMap[cidfni]
+			cfrvkey := cidfni + "CFRV"
+			currentV, _ := sn.GetFilecoinCFRVFromCacheOrDB(cfrvkey)
 			// sn.CFRMMutex.RUnlock()
 			if currentV <= version {
 				// sn.CFRMMutex.RLock()
 				rFMMutex.Lock()
-				readyFileMap[cidfni] = sn.ClientFileRepSectorInforMap[cidfni]
+				// readyFileMap[cidfni] = sn.ClientFileRepSectorInforMap[cidfni]
+				ssikey := cidfni + "SSI"
+				readyFileMap[cidfni], _ = sn.GetFilecoinSSIFromCacheOrDB(ssikey)
 				rFMMutex.Unlock()
 				cdrsfnMutex.Lock()
 				cacheDirPathMap[cidfni] = sn.CidFnRepSectorCacheDirPathMap[cidfni]
@@ -579,15 +830,18 @@ func ProofsToMessage(cidfni_sector_proofs map[string]map[int][]prooftypes.PoStPr
 // 【供客户端使用的RPC】获取当前节点上对clientID相关文件的存储空间代价
 func (sn *FilecoinSN) FilecoinGetSNStorageCost(ctx context.Context, req *pb.FilecoinGSNSCRequest) (*pb.FilecoinGSNSCResponse, error) {
 	cid := req.ClientId
-	totalSize := 0
-	//统计所占存储空间大小
-	sn.CFRMMutex.RLock()
-	clientFSMap := sn.ClientFileRepMap
-	sn.CFRMMutex.RUnlock()
-	for key, file := range clientFSMap {
-		if strings.HasPrefix(key, cid) {
-			totalSize = totalSize + len([]byte(file))
-		}
-	}
+	// totalSize := 0
+	// //统计所占存储空间大小
+	// sn.CFRMMutex.RLock()
+	// clientFSMap := sn.ClientFileRepMap
+	// sn.CFRMMutex.RUnlock()
+	// for key, file := range clientFSMap {
+	// 	if strings.HasPrefix(key, cid) {
+	// 		totalSize = totalSize + len([]byte(file))
+	// 	}
+	// }
+	path := "/home/ubuntu/ECDS/data/DB/Filecoin/datashards-" + sn.SNId
+	// path := "/root/DSN/ECDS/data/DB/Filecoin/datashards-" + sn.SNId
+	totalSize, _ := util.GetDatabaseSize(path)
 	return &pb.FilecoinGSNSCResponse{ClientId: cid, SnId: sn.SNId, Storagecost: int32(totalSize)}, nil
 }

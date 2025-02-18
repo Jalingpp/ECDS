@@ -442,7 +442,7 @@ func (sn *SiaSN) GetSiaFileShardFromCacheOrDB(clientIDFS string) ([]int32, error
 
 	// 缓存未命中，从 LevelDB 获取
 	fsbytes, err := sn.DBDataShards.Get([]byte(clientIDFS), nil)
-	if err != nil {
+	if err != nil || fsbytes == nil {
 		return nil, err
 	}
 

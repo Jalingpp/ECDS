@@ -4,15 +4,15 @@ else
     round=$1
 fi
 
-CLIENT_IP="10.24.15.133"
+CLIENT_IP="10.24.15.152"
 
 snNum=31
 snmNum=4
 
 # dsnModes=(ec storj sia filecoin)
-dsnModes=(sia)
+dsnModes=(filecoin)
 # clientnums=(50 150 250 350 450)
-clientnums=(10)
+clientnums=(10 20 30 40 50)
 
 SCRIPT_NAME_AC=exp_ac.sh
 SCRIPT_NAME_Client=exp_client.sh

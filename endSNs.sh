@@ -48,8 +48,8 @@ do
         fi
 
         # 使用sshpass和ssh命令删除远程主机上/home/ubuntu/ECDS/data/DB/ECDS目录下的所有文件
-        if sshpass -p "$SSH_PASSWORD" ssh ubuntu@"$ip_addr" "rm -rf /home/ubuntu/ECDS/data/DB/ECDS/*"; then
-        # if sshpass -p "$SSH_PASSWORD" ssh root@"$ip_addr" "rm -rf /home/ubuntu/ECDS/data/DB/ECDS/*"; then
+        if sshpass -p "$SSH_PASSWORD" ssh ubuntu@"$ip_addr" "rm -rf /home/ubuntu/ECDS/data/DB/*"; then
+        # if sshpass -p "$SSH_PASSWORD" ssh root@"$ip_addr" "rm -rf /home/ubuntu/ECDS/data/DB/*"; then
             echo "DB in sn has been deleted."
         else
             echo "Failed to delete DB in sn."
