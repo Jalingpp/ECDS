@@ -4,13 +4,19 @@ This is an Erasure Coded Decentralized Storage System. ECDS implements functions
 
 The installation and testing steps for ECDS are as follows.
 
-## 1 Install gRPC 
+## 1 Download filecoin-ffi
+
+As an external reference package for ECDS, the correct operation of the program requires the downloaded filecoin-ffi.
+
+The download command is: `cd ~/ECDS/extern` then `git clone https://github.com/filecoin-project/filecoin-ffi.git`.
+
+## 2 Install gRPC 
 
 The golang-grpc package provides a library about gRPC. 
 
 The installation command is: `go get -u google.golang.org/grpc`
 
-## 2 Install Protocol Buffers
+## 3 Install Protocol Buffers
 
 Protocol Buffers is a language-neutral, platform-neutral, extensible mechanism for serializing structured data and is used as a data exchange format. gRPC uses protoc as the protocol processing tool.
 
@@ -58,7 +64,7 @@ The result after executing the script is as shown in the following image:
 
 <img src="image.png" alt="image" style="float:left; margin-right:10px;" />
 
-## 3 Install PBC
+## 4 Install PBC
 
 The Pairing-Based Cryptography (PBC) is a cryptographic library specifically designed to handle pairing operations. These operations are commonly used to construct cryptographic schemes based on bilinear maps, such as identity authentication, signatures, and other encryption schemes.
 
@@ -73,7 +79,7 @@ NOTICE: If meeting error `E: Unable to fetch some archives, maybe run apt-get up
 
 Step2. Download PBC package and install it. Download url: `https://crypto.stanford.edu/pbc/download.html`. Download pbc version is `pbc-0.5.14.tar.gz`. Extract it and `cd pbc-0.5.14`, then execute `./configure`, then execute `make` and `make install`. After installation, rebuild the search library path: `ldconfig`.
 
-## 4 Test ECDS
+## 5 Test ECDS
 
 Step1. Start the storage nodes: `cd testgo` and then `go run XX_stornode_main.go`.
 
@@ -81,7 +87,7 @@ Step2. Start the auditor node: `cd testgo` and then `go run XX_auditor_main.go`.
 
 Step3. Start the clients: `cd testgo` and then `go run XX_client_main.go`.
 
-## 5 Deploying and Conduct Experiments In Ucloud
+## 6 Deploying and Conduct Experiments In Ucloud
 
 We start 33 instances in Ucloud, each equipped with 4 core CPUs and 64GB of storage space, of which 31 are used as DSN storage nodes, one as the auditor, and one as clients.
 

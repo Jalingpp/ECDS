@@ -2,7 +2,7 @@
 
 # 检查第一个参数是否为空
 if [ -z "$1" ]; then
-    snmNum=4
+    snmNum=1
 else
     snmNum=$1
 fi
