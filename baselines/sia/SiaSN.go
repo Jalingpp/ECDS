@@ -60,8 +60,8 @@ func NewSiaSN(snid string, snaddr string) *SiaSN {
 		log.Fatal(err)
 	}
 	// 打开或创建数据库
-	path := "/home/ubuntu/ECDS/data/DB/Sia/datashards-" + snid
-	// path := "/root/DSN/ECDS/data/DB/Sia/datashards-" + snid
+	// path := "/home/ubuntu/ECDS/data/DB/Sia/datashards-" + snid
+	path := "/root/ECDS/data/DB/Sia/datashards-" + snid
 	db, err := leveldb.OpenFile(path, nil)
 	if err != nil {
 		log.Fatalf("Failed to open database: %v", err)
@@ -801,8 +801,8 @@ func (sn *SiaSN) SiaGetSNStorageCost(ctx context.Context, req *pb.SiaGSNSCReques
 	// 		totalSize = totalSize + len([]byte(util.Int32SliceToStr(ds)))
 	// 	}
 	// }
-	path := "/home/ubuntu/ECDS/data/DB/Sia/datashards-" + sn.SNId
-	// path := "/root/DSN/ECDS/data/DB/Sia/datashards-" + sn.SNId
+	// path := "/home/ubuntu/ECDS/data/DB/Sia/datashards-" + sn.SNId
+	path := "/root/ECDS/data/DB/Sia/datashards-" + sn.SNId
 	totalSize, _ := util.GetDatabaseSize(path)
 	return &pb.SiaGSNSCResponse{ClientId: cid, SnId: sn.SNId, Storagecost: int32(totalSize)}, nil
 }

@@ -13,7 +13,7 @@ func main() {
 	pn := 20
 	// acAddr := "10.0.4.29:50051"
 	acAddr := "localhost:50051"
-	snAddrFilepath := "/root/DSN/ECDS/data/snaddrs"
+	snAddrFilepath := "/root/ECDS/data/snaddr3"
 	clientNum := 50
 	fileNum := 100
 	// logoutpath := "data/outlog"
@@ -39,7 +39,7 @@ func main() {
 		go func(clientId string) {
 			//创建一个客户端
 			client1 := clientObject[clientId]
-			filepath := "/root/DSN/ECDS/data/testData2"
+			filepath := "/root/ECDS/data/testData2"
 			for j := 0; j < fileNum; j++ {
 				//客户端PutFile
 				filename := "testData" + strconv.Itoa(j)
@@ -53,10 +53,10 @@ func main() {
 	for i := 0; i < clientNum; i++ {
 		<-done
 	}
-	util.LogToFile("/root/DSN/ECDS/data/outlog", "putfile结束")
+	util.LogToFile("/root/ECDS/data/outlog", "putfile结束")
 	// log.Println("putfile结束")
 	duration := time.Since(start)
-	util.LogToFile("/root/DSN/ECDS/data/outlog", strconv.Itoa(int(duration.Milliseconds())))
+	util.LogToFile("/root/ECDS/data/outlog", strconv.Itoa(int(duration.Milliseconds())))
 	log.Println("putfile executed in:", duration.Milliseconds())
 
 	//GetFile
@@ -80,10 +80,10 @@ func main() {
 	for i := 0; i < clientNum; i++ {
 		<-done
 	}
-	util.LogToFile("/root/DSN/ECDS/data/outlog", "getfile结束")
+	util.LogToFile("/root/ECDS/data/outlog", "getfile结束")
 	// log.Println("putfile结束")
 	duration = time.Since(start)
-	util.LogToFile("/root/DSN/ECDS/data/outlog", strconv.Itoa(int(duration.Milliseconds())))
+	util.LogToFile("/root/ECDS/data/outlog", strconv.Itoa(int(duration.Milliseconds())))
 	log.Println("getfile executed in:", duration.Milliseconds())
 
 	//UpdateFile
@@ -107,9 +107,9 @@ func main() {
 	for i := 0; i < clientNum; i++ {
 		<-done
 	}
-	util.LogToFile("/root/DSN/ECDS/data/outlog", "updatefile结束")
+	util.LogToFile("/root/ECDS/data/outlog", "updatefile结束")
 	// log.Println("putfile结束")
 	duration = time.Since(start)
-	util.LogToFile("/root/DSN/ECDS/data/outlog", strconv.Itoa(int(duration.Milliseconds())))
+	util.LogToFile("/root/ECDS/data/outlog", strconv.Itoa(int(duration.Milliseconds())))
 	log.Println("updatefile executed in:", duration.Milliseconds())
 }

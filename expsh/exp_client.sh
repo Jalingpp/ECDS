@@ -11,8 +11,8 @@ else
 fi
 
 if [ -z $3 ]; then
-    datafiledir="/home/ubuntu/ECDS/data/NM/"
-    # datafiledir="/root/DSN/ECDS/data/NM/"
+    # datafiledir="/home/ubuntu/ECDS/data/NM/"
+    datafiledir="/root/ECDS/data/NM/"
 else
     datafiledir=$3
 fi
@@ -23,11 +23,11 @@ else
     datafilenum=$4
 fi
 
-GOPath="/home/ubuntu/ECDS/expgo/"
-# GOPath="/root/DSN/ECDS/expgo/"
+# GOPath="/home/ubuntu/ECDS/expgo/"
+GOPath="/root/ECDS/expgo/"
 GOFile="exp_client.go"
-datadir="/home/ubuntu/ECDS/data/"
-# datadir="/root/DSN/ECDS/data/"
+# datadir="/home/ubuntu/ECDS/data/"
+datadir="/root/ECDS/data/"
 
 # 切换到GOPath目录
 cd "$GOPath" || { echo "Failed to change directory to $GOPath"; exit 1; }

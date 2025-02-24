@@ -79,8 +79,8 @@ func NewFilecoinSN(snid string, snaddr string) *FilecoinSN {
 		log.Fatal(err)
 	}
 	// 打开或创建数据库
-	path := "/home/ubuntu/ECDS/data/DB/Filecoin/datashards-" + snid
-	// path := "/root/DSN/ECDS/data/DB/Filecoin/datashards-" + snid
+	// path := "/home/ubuntu/ECDS/data/DB/Filecoin/datashards-" + snid
+	path := "/root/ECDS/data/DB/Filecoin/datashards-" + snid
 	db, err := leveldb.OpenFile(path, nil)
 	if err != nil {
 		log.Fatalf("Failed to open database: %v", err)
@@ -840,8 +840,8 @@ func (sn *FilecoinSN) FilecoinGetSNStorageCost(ctx context.Context, req *pb.File
 	// 		totalSize = totalSize + len([]byte(file))
 	// 	}
 	// }
-	path := "/home/ubuntu/ECDS/data/DB/Filecoin/datashards-" + sn.SNId
-	// path := "/root/DSN/ECDS/data/DB/Filecoin/datashards-" + sn.SNId
+	// path := "/home/ubuntu/ECDS/data/DB/Filecoin/datashards-" + sn.SNId
+	path := "/root/ECDS/data/DB/Filecoin/datashards-" + sn.SNId
 	totalSize, _ := util.GetDatabaseSize(path)
 	return &pb.FilecoinGSNSCResponse{ClientId: cid, SnId: sn.SNId, Storagecost: int32(totalSize)}, nil
 }

@@ -56,8 +56,8 @@ func NewStorjSN(snid string, snaddr string) *StorjSN {
 		log.Fatal(err)
 	}
 	// 打开或创建数据库
-	path := "/home/ubuntu/ECDS/data/DB/Storj/datashards-" + snid
-	// path := "/root/DSN/ECDS/data/DB/Storj/datashards-" + snid
+	// path := "/home/ubuntu/ECDS/data/DB/Storj/datashards-" + snid
+	path := "/root/ECDS/data/DB/Storj/datashards-" + snid
 	db, err := leveldb.OpenFile(path, nil)
 	if err != nil {
 		log.Fatalf("Failed to open database: %v", err)
@@ -650,8 +650,8 @@ func (sn *StorjSN) StorjGetSNStorageCost(ctx context.Context, req *pb.StorjGSNSC
 	// 		}
 	// 	}
 	// }
-	path := "/home/ubuntu/ECDS/data/DB/Storj/datashards-" + sn.SNId
-	// path := "/root/DSN/ECDS/data/DB/Storj/datashards-" + sn.SNId
+	// path := "/home/ubuntu/ECDS/data/DB/Storj/datashards-" + sn.SNId
+	path := "/root/ECDS/data/DB/Storj/datashards-" + sn.SNId
 	totalSize, _ := util.GetDatabaseSize(path)
 	return &pb.StorjGSNSCResponse{ClientId: cid, SnId: sn.SNId, Storagecost: int32(totalSize)}, nil
 }

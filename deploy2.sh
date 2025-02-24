@@ -2,29 +2,30 @@
 # 该脚本实现：1.根据snips写所有SN的snaddrs文件(同一个ip对应多个port)；2.写AC本地snaadrs文件；3.复制AC的snaddrs文件到Client。
 
 # AC 的 IP 地址
-AC_IP="10.24.15.202"
+AC_IP="172.23.165.210"
 
 # Client 的 IP 地址
-Client_IP="10.24.15.152"
+Client_IP="172.23.165.211"
 
 # snNum 的数量（假设已经定义）
 snNum=31
 
 # 运行存储服务节点的机器数量（即snips中ip个数）
-ipNum=4
+ipNum=1
 # 每个ip对应的要生成ip:port的数量
-portNums=(8 8 8 7)
+# portNums=(8 8 8 7)
+portNums=(31)
 
 # 包含 IP 地址的文件
-SN_ADDRS_FILE="/home/ubuntu/ECDS/data/snips"
-# SN_ADDRS_FILE="/root/DSN/ECDS/data/snips"
+# SN_ADDRS_FILE="/home/ubuntu/ECDS/data/snips"
+SN_ADDRS_FILE="/root/ECDS/data/snips"
 
 # 要写入远端文件的字符串的前缀
 prefix="sn"
 
 # 密码
-PASSWORD="jjp918JJP"
-# PASSWORD="bassword"
+# PASSWORD="jjp918JJP"
+PASSWORD="bassword"
 
 # 确保 snips 文件存在
 if [ ! -f "$SN_ADDRS_FILE" ]; then
@@ -33,8 +34,8 @@ if [ ! -f "$SN_ADDRS_FILE" ]; then
 fi
 
 # 清空当前的 snaddrs 文件（如果存在）
-rm -f /home/ubuntu/ECDS/data/snaddrs
-# rm -f /root/DSN/ECDS/data/snaddrs
+# rm -f /home/ubuntu/ECDS/data/snaddrs
+rm -f /root/ECDS/data/snaddrs
 
 startport=50061
 snid=0
@@ -56,20 +57,20 @@ do
         ssh-keyscan -H $ip_addr >> ~/.ssh/known_hosts
 
         # 使用 sshpass 连接到每个 IP 地址并写入文件
-        sshpass -p "$PASSWORD" ssh ubuntu@$ip_addr "echo '$data' > /home/ubuntu/ECDS/data/snaddrfile/${port}"
-        # sshpass -p "$PASSWORD" ssh root@$ip_addr "echo '$data' > /root/DSN/ECDS/data/snaddrfile/${port}"
+        # sshpass -p "$PASSWORD" ssh ubuntu@$ip_addr "echo '$data' > /home/ubuntu/ECDS/data/snaddrfile/${port}"
+        sshpass -p "$PASSWORD" ssh -p 22001 root@$ip_addr "echo '$data' > /root/ECDS/data/snaddrfile/${port}"
         
         # 将数据追加到本地文件
-        echo "$data" >> /home/ubuntu/ECDS/data/snaddrs
-        # echo "$data" >> /root/DSN/ECDS/data/snaddrs
+        # echo "$data" >> /home/ubuntu/ECDS/data/snaddrs
+        echo "$data" >> /root/ECDS/data/snaddrs
 
         # 检查 SSH 命令是否成功执行
         if [ $? -eq 0 ]; then
-            echo "成功写入 $ip_addr 的 /home/ubuntu/ECDS/data/snaddrfile/${port} 文件"
-            # echo "成功写入 $ip_addr 的 /root/DSN/ECDS/data/snaddrfile/${port} 文件"
+            # echo "成功写入 $ip_addr 的 /home/ubuntu/ECDS/data/snaddrfile/${port} 文件"
+            echo "成功写入 $ip_addr 的 /root/ECDS/data/snaddrfile/${port} 文件"
         else
-            echo "写入 $ip_addr 的 /home/ubuntu/ECDS/data/snaddrfile/${port} 文件失败"
-            # echo "写入 $ip_addr 的 /root/DSN/ECDS/data/snaddrfile/${port} 文件失败"
+            # echo "写入 $ip_addr 的 /home/ubuntu/ECDS/data/snaddrfile/${port} 文件失败"
+            echo "写入 $ip_addr 的 /root/ECDS/data/snaddrfile/${port} 文件失败"
         fi
     done
 done
@@ -77,12 +78,12 @@ done
 ssh-keyscan -H $Client_IP >> ~/.ssh/known_hosts
 
 # 复制文件到Client
-if sshpass -p "$PASSWORD" scp /home/ubuntu/ECDS/data/snaddrs ubuntu@$Client_IP:/home/ubuntu/ECDS/data; then
-# if sshpass -p "$PASSWORD" scp /root/DSN/ECDS/data/snaddrs root@$Client_IP:/root/DSN/ECDS/data/; then
+# if sshpass -p "$PASSWORD" scp /home/ubuntu/ECDS/data/snaddrs ubuntu@$Client_IP:/home/ubuntu/ECDS/data; then
+if sshpass -p "$PASSWORD" scp -P 22008 /root/ECDS/data/snaddrs root@$Client_IP:/root/ECDS/data/; then
     echo "文件成功复制到 Client"
 else
     echo "文件复制到 Client 失败"
 fi
 
-echo "所有数据已写入 AC 的 /home/ubuntu/ECDS/data/snaddrs 文件，并已复制到Client"
-# echo "所有数据已写入 AC 的 /root/DSN/ECDS/data/snaddrs 文件，并已复制到Client"
+# echo "所有数据已写入 AC 的 /home/ubuntu/ECDS/data/snaddrs 文件，并已复制到Client"
+echo "所有数据已写入 AC 的 /root/ECDS/data/snaddrs 文件，并已复制到Client"

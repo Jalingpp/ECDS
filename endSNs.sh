@@ -15,13 +15,13 @@ else
 fi
 
 # 定义snips文件的路径
-SNIPS_FILE="/home/ubuntu/ECDS/data/snips"
-# SNIPS_FILE="/root/DSN/ECDS/data/snips"
+# SNIPS_FILE="/home/ubuntu/ECDS/data/snips"
+SNIPS_FILE="/root/ECDS/data/snips"
 
 
 # 定义SSH密码
-SSH_PASSWORD="jjp918JJP"
-# SSH_PASSWORD="bassword"
+# SSH_PASSWORD="jjp918JJP"
+SSH_PASSWORD="bassword"
 
 # 检查snips文件是否存在
 if [ ! -f "$SNIPS_FILE" ]; then
@@ -40,16 +40,16 @@ do
         echo "Valid IP address: $ip_addr"
 
         # 使用sshpass和ssh命令结束远程主机上的脚本
-        if sshpass -p "$SSH_PASSWORD" ssh ubuntu@"$ip_addr" "pkill -f $end_keyword"; then
-        # if sshpass -p "$SSH_PASSWORD" ssh root@"$ip_addr" "pkill -f $end_keyword"; then
+        # if sshpass -p "$SSH_PASSWORD" ssh ubuntu@"$ip_addr" "pkill -f $end_keyword"; then
+        if sshpass -p "$SSH_PASSWORD" ssh -p 22001 root@"$ip_addr" "pkill -f $end_keyword"; then
             echo "Process $end_keyword on $ip_addr has been terminated."
         else
             echo "Failed to terminate script $end_keyword on $ip_addr."
         fi
 
         # 使用sshpass和ssh命令删除远程主机上/home/ubuntu/ECDS/data/DB/ECDS目录下的所有文件
-        if sshpass -p "$SSH_PASSWORD" ssh ubuntu@"$ip_addr" "rm -rf /home/ubuntu/ECDS/data/DB/*"; then
-        # if sshpass -p "$SSH_PASSWORD" ssh root@"$ip_addr" "rm -rf /home/ubuntu/ECDS/data/DB/*"; then
+        # if sshpass -p "$SSH_PASSWORD" ssh ubuntu@"$ip_addr" "rm -rf /home/ubuntu/ECDS/data/DB/*"; then
+        if sshpass -p "$SSH_PASSWORD" ssh -p 22001 root@"$ip_addr" "rm -rf /root/ECDS/data/DB/*"; then
             echo "DB in sn has been deleted."
         else
             echo "Failed to delete DB in sn."
