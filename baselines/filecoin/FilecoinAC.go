@@ -140,6 +140,7 @@ func (ac *FilecoinAC) FilecoinPutFileNoticeToSN(cid string, fn string, snids []s
 			pds_res, err := ac.SNRPCs[snid].FilecoinPutFileNotice(context.Background(), pds_req)
 			if err != nil {
 				log.Println("storagenode could not process request:", err)
+				return
 			}
 			//处理存储节点回复消息：验证扇区封装证明，加入到待存储扇区信息表
 			minerID := abi.ActorID(pds_res.MinerID)

@@ -1,7 +1,7 @@
 
 # 检查第一个参数是否为空
 if [ -z "$1" ]; then
-    CLIENT_IP="10.24.15.186"
+    CLIENT_IP="10.24.15.143"
 else
     CLIENT_IP=$1
 fi

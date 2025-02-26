@@ -12,15 +12,19 @@ import (
 	"log"
 	"net"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	ffi "github.com/filecoin-project/filecoin-ffi"
 	"github.com/filecoin-project/go-state-types/abi"
 	prooftypes "github.com/filecoin-project/go-state-types/proof"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/ipfs/go-cid"
+	"github.com/shirou/gopsutil/mem"
 	"github.com/syndtr/goleveldb/leveldb"
 	"google.golang.org/grpc"
 )
@@ -80,7 +84,7 @@ func NewFilecoinSN(snid string, snaddr string) *FilecoinSN {
 	}
 	// 打开或创建数据库
 	path := "/home/ubuntu/ECDS/data/DB/Filecoin/datashards-" + snid
-	// path := "/root/DSN/ECDS/data/DB/Filecoin/datashards-" + snid
+	// path := "/root/ECDS/data/DB/Filecoin/datashards-" + snid
 	db, err := leveldb.OpenFile(path, nil)
 	if err != nil {
 		log.Fatalf("Failed to open database: %v", err)
@@ -135,6 +139,7 @@ func (sn *FilecoinSN) FilecoinPutFile(ctx context.Context, preq *pb.FilecoinPutF
 	}
 	//2-存放数据文件
 	//2-3-放置客户端文件名列表
+	//监测当前内存使用情况
 	cfrsis := sn.FilecoinConstructSectors(cid_fn, int(preq.Version), preq.Content)
 	sn.CFRMMutex.Lock()
 	//构建扇区并生成sealedID
@@ -368,41 +373,115 @@ func (sn *FilecoinSN) FilecoinConstructSectors(cid_fn string, version int, filec
 	sn.CFRSCMutex.Lock()
 	sectorCacheDirPath := requireTempDirPath("sector-cache-dir" + cid_fn + "-" + strconv.Itoa(version) + "-")
 	stagedSectorFile := requireTempFile(bytes.NewReader([]byte{}), 0)
-	fmt.Println("stagedSectorFileName:", stagedSectorFile.Name())
+	// fmt.Println("stagedSectorFileName:", stagedSectorFile.Name())
 	defer stagedSectorFile.Close()
 	sealedSectorFile := requireTempFile(bytes.NewReader([]byte{}), 0)
-	fmt.Println("sealedSectorFileName:", sealedSectorFile.Name())
+	// fmt.Println("sealedSectorFileName:", sealedSectorFile.Name())
 	defer sealedSectorFile.Close()
 	sn.CFRSCMutex.Unlock()
 	databyte, roudnum := PadTo1524Multiple([]byte(filecontent))
 	for i := 0; i < roudnum; i++ {
+		// for {
+		// 	//用于监测内存使用情况
+		// 	v, err := mem.VirtualMemory()
+		// 	if err != nil {
+		// 		fmt.Println("Failed to get memory info:", err)
+		// 	}
+		// 	if v.Free >= v.Total/2 {
+		// 		fmt.Println(cid_fn, roudnum, "Free Memory1:", v.Free/1024/1024)
+		// 		break
+		// 	} else {
+		// 		time.Sleep(1 * time.Second)
+		// 	}
+		// }
 		sn.SNMutex.RLock()
 		sectorNum := abi.SectorNumber(sn.SectorNumber)
 		sn.SNMutex.RUnlock()
 		startnum := i * 1524
 		pieceFileA := requireTempFile(bytes.NewReader(databyte[startnum:startnum+508]), 508)
-		//将data写入pieceFileA的方法一
+		defer os.Remove(pieceFileA.Name()) // 确保在函数退出时删除临时文件
+		// for {
+		// 	//用于监测内存使用情况
+		// 	v, err := mem.VirtualMemory()
+		// 	if err != nil {
+		// 		fmt.Println("Failed to get memory info:", err)
+		// 	}
+		// 	if v.Free >= v.Total/2 {
+		// 		fmt.Println(cid_fn, roudnum, "Free Memory2:", v.Free/1024/1024)
+		// 		break
+		// 	} else {
+		// 		time.Sleep(1 * time.Second)
+		// 	}
+
+		// }
 		pieceCIDA, err := ffi.GeneratePieceCIDFromFile(sn.SealProofType, pieceFileA, 508)
 		if err != nil {
+			os.Remove(pieceFileA.Name()) // 错误处理时清理
 			log.Fatalf("GeneratePieceCIDFromFile Error: %v", err)
 		}
 		pieceFileA.Seek(0, 0)
-		// 将data写入pieceFileA的方法二
+		// for {
+		// 	//用于监测内存使用情况
+		// 	v, err := mem.VirtualMemory()
+		// 	if err != nil {
+		// 		fmt.Println("Failed to get memory info:", err)
+		// 	}
+		// 	if v.Free >= v.Total/2 {
+		// 		fmt.Println(cid_fn, roudnum, "Free Memory3:", v.Free/1024/1024)
+		// 		break
+		// 	} else {
+		// 		time.Sleep(1 * time.Second)
+		// 	}
+		// }
 		_, _, err = ffi.WriteWithoutAlignment(sn.SealProofType, pieceFileA, 508, stagedSectorFile)
 		if err != nil {
+			os.Remove(pieceFileA.Name()) // 错误处理时清理
 			log.Fatalf("WriteWithoutAlignment Error: %v", err.Error())
 		}
+		// for {
+		// 	//用于监测内存使用情况
+		// 	v, err := mem.VirtualMemory()
+		// 	if err != nil {
+		// 		fmt.Println("Failed to get memory info:", err)
+		// 	}
+		// 	if v.Free >= v.Total/2 {
+		// 		fmt.Println(cid_fn, roudnum, "Free Memory4:", v.Free/1024/1024)
+		// 		break
+		// 	} else {
+		// 		time.Sleep(1 * time.Second)
+		// 	}
+		// }
 		pieceFileB := requireTempFile(bytes.NewReader(databyte[startnum+508:startnum+1524]), 1016)
+		defer os.Remove(pieceFileB.Name()) // 确保在函数退出时删除临时文件
 		pieceCIDB, err := ffi.GeneratePieceCIDFromFile(sn.SealProofType, pieceFileB, 1016)
 		if err != nil {
+			os.Remove(pieceFileA.Name()) // 清理已创建的临时文件
+			os.Remove(pieceFileB.Name()) // 清理当前临时文件
 			log.Fatalf("GeneratePieceCIDFromFile Error: %v", err.Error())
 		}
 		_, err = pieceFileB.Seek(0, 0)
 		if err != nil {
+			os.Remove(pieceFileA.Name()) // 清理已创建的临时文件
+			os.Remove(pieceFileB.Name()) // 清理当前临时文件
 			log.Fatalf("Seek Error: %v", err.Error())
 		}
+		// for {
+		// 	//用于监测内存使用情况
+		// 	v, err := mem.VirtualMemory()
+		// 	if err != nil {
+		// 		fmt.Println("Failed to get memory info:", err)
+		// 	}
+		// 	if v.Free >= v.Total/2 {
+		// 		fmt.Println(cid_fn, roudnum, "Free Memory5:", v.Free/1024/1024)
+		// 		break
+		// 	} else {
+		// 		time.Sleep(1 * time.Second)
+		// 	}
+		// }
 		_, _, _, err = ffi.WriteWithAlignment(sn.SealProofType, pieceFileB, 1016, stagedSectorFile, []abi.UnpaddedPieceSize{508})
 		if err != nil {
+			os.Remove(pieceFileA.Name()) // 清理已创建的临时文件
+			os.Remove(pieceFileB.Name()) // 清理当前临时文件
 			log.Fatalf("WriteWithAlignment Error: %v", err.Error())
 		}
 		// 构建分片的公共信息
@@ -413,25 +492,93 @@ func (sn *FilecoinSN) FilecoinConstructSectors(cid_fn string, version int, filec
 			Size:     abi.UnpaddedPieceSize(1016).Padded(),
 			PieceCID: pieceCIDB,
 		}}
+		// for {
+		// 	//用于监测内存使用情况
+		// 	v, err := mem.VirtualMemory()
+		// 	if err != nil {
+		// 		fmt.Println("Failed to get memory info:", err)
+		// 	}
+		// 	if v.Free >= v.Total/2 {
+		// 		fmt.Println(cid_fn, roudnum, "Free Memory6:", v.Free/1024/1024)
+		// 		break
+		// 	} else {
+		// 		time.Sleep(1 * time.Second)
+		// 	}
+		// }
 		// 预提交封装
 		sealPreCommitPhase1Output, err := ffi.SealPreCommitPhase1(sn.SealProofType, sectorCacheDirPath, stagedSectorFile.Name(), sealedSectorFile.Name(), sectorNum, sn.MinerID, sn.Ticket, publicPieces)
 		if err != nil {
+			os.Remove(pieceFileA.Name()) // 清理已创建的临时文件
+			os.Remove(pieceFileB.Name()) // 清理当前临时文件
 			log.Fatalf("SealPreCommitPhase1 Error: %v", err.Error())
 		}
-		log.Println("sealPreCommitPhase1Output:", sealPreCommitPhase1Output)
+		// log.Println("sealPreCommitPhase1Output:", sealPreCommitPhase1Output)
+		for {
+			//用于监测内存使用情况
+			v, err := mem.VirtualMemory()
+			if err != nil {
+				fmt.Println("Failed to get memory info:", err)
+			}
+			if v.Free >= v.Total/2 {
+				fmt.Println(cid_fn, roudnum, "Free Memory7:", v.Free/1024/1024)
+				break
+			} else {
+				time.Sleep(1 * time.Second)
+			}
+		}
 		sealedCID, unsealedCID, err := ffi.SealPreCommitPhase2(sealPreCommitPhase1Output, sectorCacheDirPath, sealedSectorFile.Name())
 		if err != nil {
+			os.Remove(pieceFileA.Name()) // 清理已创建的临时文件
+			os.Remove(pieceFileB.Name()) // 清理当前临时文件
 			log.Fatalf("SealPreCommitPhase2 Error: %v", err.Error())
 		}
+		// for {
+		// 	//用于监测内存使用情况
+		// 	v, err := mem.VirtualMemory()
+		// 	if err != nil {
+		// 		fmt.Println("Failed to get memory info:", err)
+		// 	}
+		// 	if v.Free >= v.Total/2 {
+		// 		fmt.Println(cid_fn, roudnum, "Free Memory8:", v.Free/1024/1024)
+		// 		break
+		// 	} else {
+		// 		time.Sleep(1 * time.Second)
+		// 	}
+		// }
 		// 提交封装
 		sealCommitPhase1Output, err := ffi.SealCommitPhase1(sn.SealProofType, sealedCID, unsealedCID, sectorCacheDirPath, sealedSectorFile.Name(), sectorNum, sn.MinerID, sn.Ticket, sn.Seed, publicPieces)
 		if err != nil {
+			os.Remove(pieceFileA.Name()) // 清理已创建的临时文件
+			os.Remove(pieceFileB.Name()) // 清理当前临时文件
 			log.Fatalf("SealCommitPhase1 Error: %v", err.Error())
 		}
+		// for {
+		// 	//用于监测内存使用情况
+		// 	v, err := mem.VirtualMemory()
+		// 	if err != nil {
+		// 		fmt.Println("Failed to get memory info:", err)
+		// 	}
+		// 	if v.Free >= v.Total/2 {
+		// 		fmt.Println(cid_fn, roudnum, "Free Memory9:", v.Free/1024/1024)
+		// 		break
+		// 	} else {
+		// 		time.Sleep(1 * time.Second)
+		// 	}
+		// }
 		proof, err := ffi.SealCommitPhase2(sealCommitPhase1Output, sectorNum, sn.MinerID)
 		if err != nil {
+			os.Remove(pieceFileA.Name()) // 清理已创建的临时文件
+			os.Remove(pieceFileB.Name()) // 清理当前临时文件
 			log.Fatalf("SealCommitPhase2 Error: %v", err.Error())
 		}
+
+		// 释放不再使用的变量
+		sealPreCommitPhase1Output = nil
+		sealCommitPhase1Output = nil
+
+		// 强制触发垃圾回收
+		runtime.GC()
+
 		sn.SNMutex.Lock()
 		sectors[sn.SectorNumber] = &SectorSealedInfor{sectorNum, sealedCID, unsealedCID, proof}
 		sn.SectorNumber++
@@ -439,10 +586,176 @@ func (sn *FilecoinSN) FilecoinConstructSectors(cid_fn string, version int, filec
 	}
 	sn.CFRSCMutex.Lock()
 	sn.CidFnRepSectorCacheDirPathMap[cid_fn] = sectorCacheDirPath
+	SCDPkey := cid_fn + "SCDP"
+	sn.storeCacheToLevelDB(sectorCacheDirPath, SCDPkey)
 	sn.CidFnRepStagedSectorFileMap[cid_fn] = stagedSectorFile.Name()
+	stagedSFPkey := cid_fn + "stagedSFP"
+	sn.storeStagedSectorFileToLevelDB(stagedSectorFile.Name(), stagedSFPkey)
 	sn.CidFnRepSealedSectorFileMap[cid_fn] = sealedSectorFile.Name()
+	sealedSFPkey := cid_fn + "sealedSFP"
+	sn.storeSealedSectorFileToLevelDB(sealedSectorFile.Name(), sealedSFPkey)
 	sn.CFRSCMutex.Unlock()
 	return sectors
+}
+
+func (sn *FilecoinSN) storeSealedSectorFileToLevelDB(sealedSectorFilePath string, cid_fn_sealed string) error {
+	// 读取 sealedSectorFile 的内容
+	data, err := os.ReadFile(sealedSectorFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to read sealedSectorFile: %v", err)
+	}
+
+	// 将内容存储到 LevelDB 中
+	key := fmt.Sprintf("%s_sealedSectorFile", cid_fn_sealed)
+	err = sn.DBDataShards.Put([]byte(key), data, nil)
+	if err != nil {
+		return fmt.Errorf("failed to store sealedSectorFile to LevelDB: %v", err)
+	}
+
+	// 可选：删除原文件以节省磁盘空间
+	err = os.Remove(sealedSectorFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to remove original sealedSectorFile: %v", err)
+	}
+
+	return nil
+}
+
+func (sn *FilecoinSN) restoreSealedSectorFileFromLevelDB(sealedSectorFilePath string, cid_fn_sealed string) error {
+	// 确保目标目录存在
+	err := os.MkdirAll(filepath.Dir(sealedSectorFilePath), os.ModePerm)
+	if err != nil {
+		return fmt.Errorf("failed to create directory for sealedSectorFile: %v", err)
+	}
+
+	// 从 LevelDB 中读取数据
+	key := fmt.Sprintf("%s_sealedSectorFile", cid_fn_sealed)
+	data, err := sn.DBDataShards.Get([]byte(key), nil)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve sealedSectorFile from LevelDB: %v", err)
+	}
+
+	// 将数据写入文件
+	err = os.WriteFile(sealedSectorFilePath, data, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write sealedSectorFile: %v", err)
+	}
+
+	return nil
+}
+
+func (sn *FilecoinSN) storeStagedSectorFileToLevelDB(stagedSectorFilePath string, cid_fn_Staged string) error {
+	// 读取 stagedSectorFile 的内容
+	data, err := os.ReadFile(stagedSectorFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to read stagedSectorFile: %v", err)
+	}
+
+	// 将内容存储到 LevelDB 中
+	key := fmt.Sprintf("%s_stagedSectorFile", cid_fn_Staged)
+	err = sn.DBDataShards.Put([]byte(key), data, nil)
+	if err != nil {
+		return fmt.Errorf("failed to store stagedSectorFile to LevelDB: %v", err)
+	}
+
+	// 可选：删除原文件以节省磁盘空间
+	err = os.Remove(stagedSectorFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to remove original stagedSectorFile: %v", err)
+	}
+
+	return nil
+}
+
+// func (sn *FilecoinSN) restoreStagedSectorFileFromLevelDB(stagedSectorFilePath string, cid_fn_Staged string) error {
+// 	// 确保目标目录存在
+// 	err := os.MkdirAll(filepath.Dir(stagedSectorFilePath), os.ModePerm)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to create directory for stagedSectorFile: %v", err)
+// 	}
+
+// 	// 从 LevelDB 中读取数据
+// 	key := fmt.Sprintf("%s_stagedSectorFile", cid_fn_Staged)
+// 	data, err := sn.DBDataShards.Get([]byte(key), nil)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to retrieve stagedSectorFile from LevelDB: %v", err)
+// 	}
+
+// 	// 将数据写入文件
+// 	err = os.WriteFile(stagedSectorFilePath, data, 0644)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to write stagedSectorFile: %v", err)
+// 	}
+
+// 	return nil
+// }
+
+func (sn *FilecoinSN) storeCacheToLevelDB(sectorCacheDirPath string, cid_fn_SCDP string) error {
+	// 遍历缓存目录中的所有文件
+	files, err := os.ReadDir(sectorCacheDirPath)
+	if err != nil {
+		return fmt.Errorf("failed to read cache directory: %v", err)
+	}
+
+	for _, file := range files {
+		filePath := filepath.Join(sectorCacheDirPath, file.Name())
+		data, err := os.ReadFile(filePath)
+		if err != nil {
+			return fmt.Errorf("failed to read cache file %s: %v", filePath, err)
+		}
+
+		// 将文件内容存储到 LevelDB 中
+		key := fmt.Sprintf("%s_%s", cid_fn_SCDP, file.Name())
+		err = sn.DBDataShards.Put([]byte(key), data, nil)
+		if err != nil {
+			return fmt.Errorf("failed to store cache to LevelDB: %v", err)
+		}
+	}
+
+	// 清除缓存目录下的所有文件
+	for _, file := range files {
+		filePath := filepath.Join(sectorCacheDirPath, file.Name())
+		err := os.Remove(filePath)
+		if err != nil {
+			return fmt.Errorf("failed to remove cache file %s: %v", filePath, err)
+		}
+	}
+
+	return nil
+}
+
+func (sn *FilecoinSN) restoreCacheFromLevelDB(sectorCacheDirPath string, cid_fn_SCDP string) error {
+	// 确保缓存目录存在
+	err := os.MkdirAll(sectorCacheDirPath, os.ModePerm)
+	if err != nil {
+		return fmt.Errorf("failed to create cache directory: %v", err)
+	}
+
+	// 从 LevelDB 中恢复缓存数据
+	iter := sn.DBDataShards.NewIterator(nil, nil)
+	for iter.Next() {
+		key := iter.Key()
+		value := iter.Value()
+
+		// 检查 key 是否属于当前 cid_fn
+		if len(key) > len(cid_fn_SCDP) && string(key[:len(cid_fn_SCDP)]) == cid_fn_SCDP {
+			fileName := string(key[len(cid_fn_SCDP)+1:])
+			filePath := filepath.Join(sectorCacheDirPath, fileName)
+
+			// 将数据写入文件
+			err := os.WriteFile(filePath, value, 0644)
+			if err != nil {
+				return fmt.Errorf("failed to write cache file %s: %v", filePath, err)
+			}
+		}
+	}
+	iter.Release()
+	err = iter.Error()
+	if err != nil {
+		return fmt.Errorf("failed to iterate LevelDB: %v", err)
+	}
+
+	return nil
 }
 
 func PadTo1524Multiple(databyte []byte) ([]byte, int) {
@@ -455,7 +768,7 @@ func PadTo1524Multiple(databyte []byte) ([]byte, int) {
 		return append(databyte, padding...), (len(databyte) + paddingNeeded) / 1524
 	}
 	// 如果不需要填充，返回原始数据和原始长度
-	fmt.Println("len(databyte)=", len(databyte), "len(databyte)/1524=", len(databyte)/1524)
+	// fmt.Println("len(databyte)=", len(databyte), "len(databyte)/1524=", len(databyte)/1524)
 	return databyte, len(databyte) / 1524
 }
 
@@ -784,6 +1097,10 @@ func (sn *FilecoinSN) GetStorProofs(cid_fni string, si *SectorSealedInfor, rando
 	// sn.CFRSCMutex.RUnlock()
 	// fmt.Println("2-sectorCacheDirPath:", sectorCacheDirPath, "sealedSectorFileName:", sealedSectorFileName)
 	// 构建Sector的私有信息
+	SCDPkey := cid_fni + "SCDP"
+	sn.restoreCacheFromLevelDB(sectorCacheDirPath, SCDPkey)
+	sealedSFPkey := cid_fni + "sealedSFP"
+	sn.restoreSealedSectorFileFromLevelDB(sealedSectorFileName, sealedSFPkey)
 	winningPostProofType := abi.RegisteredPoStProof_StackedDrgWinning2KiBV1
 	privateInfo := ffi.NewSortedPrivateSectorInfo(ffi.PrivateSectorInfo{
 		SectorInfo: prooftypes.SectorInfo{
@@ -799,6 +1116,8 @@ func (sn *FilecoinSN) GetStorProofs(cid_fni string, si *SectorSealedInfor, rando
 	if err != nil {
 		fmt.Println("GenerateWinningPoSt", err.Error())
 	}
+	sn.storeCacheToLevelDB(sectorCacheDirPath, SCDPkey)
+	sn.storeSealedSectorFileToLevelDB(sealedSectorFileName, sealedSFPkey)
 	return proofs
 }
 
@@ -841,7 +1160,7 @@ func (sn *FilecoinSN) FilecoinGetSNStorageCost(ctx context.Context, req *pb.File
 	// 	}
 	// }
 	path := "/home/ubuntu/ECDS/data/DB/Filecoin/datashards-" + sn.SNId
-	// path := "/root/DSN/ECDS/data/DB/Filecoin/datashards-" + sn.SNId
+	// path := "/root/ECDS/data/DB/Filecoin/datashards-" + sn.SNId
 	totalSize, _ := util.GetDatabaseSize(path)
 	return &pb.FilecoinGSNSCResponse{ClientId: cid, SnId: sn.SNId, Storagecost: int32(totalSize)}, nil
 }

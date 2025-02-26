@@ -4,15 +4,16 @@ else
     round=$1
 fi
 
-CLIENT_IP="10.24.15.152"
+CLIENT_IP="10.24.15.143"
 
 snNum=31
 snmNum=4
 
-# dsnModes=(ec storj sia filecoin)
+# dsnModes=(ec storj sia)
 dsnModes=(filecoin)
 # clientnums=(50 150 250 350 450)
-clientnums=(10 20 30 40 50)
+# clientnums=(30 40 50 150 250 350 450)
+clientnums=(1 2 3 4 5)
 
 SCRIPT_NAME_AC=exp_ac.sh
 SCRIPT_NAME_Client=exp_client.sh
@@ -24,7 +25,8 @@ EndKeyword_SN=expsn
 
 datafiledirs=("/home/ubuntu/ECDS/data/NM/")
 # datafiledirs=("/root/DSN/ECDS/data/NM/")
-datafilenums=(6234)
+# datafilenums=(6234)
+datafilenums=(62)
 datasetNum=1
 
 # 遍历每个方法
