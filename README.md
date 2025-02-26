@@ -8,7 +8,10 @@ The installation and testing steps for ECDS are as follows.
 
 As an external reference package for ECDS, the correct operation of the program requires the downloaded filecoin-ffi.
 
-The download command is: `cd ~/ECDS/extern` then `git clone https://github.com/filecoin-project/filecoin-ffi.git`.
+Step 1. The download command is: `cd ~/ECDS/extern` then `git clone https://github.com/filecoin-project/filecoin-ffi.git`.
+
+Step 2. Install Cargo. (1) `curl --proto '=https' --tlsv1.2 -sSf https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init -o rustup-init`. (2) `chmod +x rustup-init`. (3) `./rustup-init -y`. (4) `source $HOME/.cargo/env`.
+
 
 ## 2 Install gRPC 
 

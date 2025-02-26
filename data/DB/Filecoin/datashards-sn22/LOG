@@ -1,0 +1,115 @@
+=============== Feb 25, 2025 (UTC) ===============
+11:52:59.188340 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+11:52:59.203992 db@open opening
+11:52:59.204264 version@stat F·[] S·0B[] Sc·[]
+11:52:59.209636 db@janitor F·2 G·0
+11:52:59.209659 db@open done T·5.631934ms
+=============== Feb 25, 2025 (UTC) ===============
+11:58:19.864147 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+11:58:19.864366 version@stat F·[] S·0B[] Sc·[]
+11:58:19.864381 db@open opening
+11:58:19.864452 journal@recovery F·1
+11:58:19.864567 journal@recovery recovering @1
+11:58:19.865782 version@stat F·[] S·0B[] Sc·[]
+11:58:19.900213 db@janitor F·2 G·0
+11:58:19.900250 db@open done T·35.854683ms
+=============== Feb 25, 2025 (UTC) ===============
+12:08:33.447246 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+12:08:33.450790 version@stat F·[] S·0B[] Sc·[]
+12:08:33.450815 db@open opening
+12:08:33.450907 journal@recovery F·1
+12:08:33.456002 journal@recovery recovering @2
+12:08:33.456312 version@stat F·[] S·0B[] Sc·[]
+12:08:33.502961 db@janitor F·2 G·0
+12:08:33.503008 db@open done T·52.161995ms
+=============== Feb 25, 2025 (UTC) ===============
+12:29:26.435735 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+12:29:26.435976 version@stat F·[] S·0B[] Sc·[]
+12:29:26.435994 db@open opening
+12:29:26.436074 journal@recovery F·1
+12:29:26.441344 journal@recovery recovering @4
+12:29:26.445742 version@stat F·[] S·0B[] Sc·[]
+12:29:26.472169 db@janitor F·2 G·0
+12:29:26.472194 db@open done T·36.189817ms
+=============== Feb 25, 2025 (UTC) ===============
+12:53:15.748262 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+12:53:15.748388 version@stat F·[] S·0B[] Sc·[]
+12:53:15.748397 db@open opening
+12:53:15.748447 journal@recovery F·1
+12:53:15.748547 journal@recovery recovering @6
+12:53:15.749422 version@stat F·[] S·0B[] Sc·[]
+12:53:15.784678 db@janitor F·2 G·0
+12:53:15.784711 db@open done T·36.304941ms
+=============== Feb 25, 2025 (UTC) ===============
+13:15:17.831842 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+13:15:17.832063 version@stat F·[] S·0B[] Sc·[]
+13:15:17.832079 db@open opening
+13:15:17.832153 journal@recovery F·1
+13:15:17.832575 journal@recovery recovering @8
+13:15:17.837486 version@stat F·[] S·0B[] Sc·[]
+13:15:17.862737 db@janitor F·2 G·0
+13:15:17.862765 db@open done T·30.676219ms
+=============== Feb 25, 2025 (UTC) ===============
+13:48:25.451962 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+13:48:25.452087 version@stat F·[] S·0B[] Sc·[]
+13:48:25.452096 db@open opening
+13:48:25.452141 journal@recovery F·1
+13:48:25.452211 journal@recovery recovering @10
+13:48:25.452446 version@stat F·[] S·0B[] Sc·[]
+13:48:25.487011 db@janitor F·2 G·0
+13:48:25.487035 db@open done T·34.931516ms
+=============== Feb 25, 2025 (UTC) ===============
+13:52:27.115603 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+13:52:27.115808 version@stat F·[] S·0B[] Sc·[]
+13:52:27.115826 db@open opening
+13:52:27.115930 journal@recovery F·1
+13:52:27.116516 journal@recovery recovering @12
+13:52:27.121961 version@stat F·[] S·0B[] Sc·[]
+13:52:27.155495 db@janitor F·2 G·0
+13:52:27.155529 db@open done T·39.691392ms
+17:43:02.282206 memdb@flush N·2543 S·3MiB
+17:43:02.341771 memdb@flush created L0@17 N·2543 S·2MiB "cli..CFR,v11":"cli..ile,v244"
+17:43:02.341831 version@stat F·[1] S·2MiB[2MiB] Sc·[0.25]
+17:43:02.346559 memdb@flush committed F·1 T·64.29503ms
+17:43:02.347732 journal@remove removed @14
+22:06:19.140991 memdb@flush N·2528 S·3MiB
+22:06:19.198373 memdb@flush created L0@19 N·2528 S·2MiB "cli..aux,v4941":"cli..ile,v2620"
+22:06:19.198432 version@stat F·[2] S·4MiB[4MiB] Sc·[0.50]
+22:06:19.213028 memdb@flush committed F·1 T·71.936787ms
+22:06:19.214229 journal@remove removed @16
+22:11:15.798345 table@compaction L0·2 -> L1·0 S·4MiB Q·5120
+22:11:15.831518 table@build created L1@20 N·552 S·468KiB "cli..CFR,v11":"cli..ile,v244"
+22:11:15.831563 version@stat F·[0 1] S·468KiB[0B 468KiB] Sc·[0.00 0.00]
+22:11:15.845272 table@compaction committed F-1 S-3MiB Ke·0 D·4519 T·46.838897ms
+22:11:15.845822 table@remove removed @19
+22:11:15.846268 table@remove removed @17
+=============== Feb 26, 2025 (UTC) ===============
+01:27:14.797049 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+01:27:14.797277 version@stat F·[0 1] S·468KiB[0B 468KiB] Sc·[0.00 0.00]
+01:27:14.797296 db@open opening
+01:27:14.797381 journal@recovery F·1
+01:27:14.798323 journal@recovery recovering @18
+01:27:14.845136 memdb@flush created L0@21 N·2373 S·2MiB "cli..aux,v6937":"cli..ile,v7288"
+01:27:14.845911 version@stat F·[1 1] S·2MiB[2MiB 468KiB] Sc·[0.25 0.00]
+01:27:14.879864 db@janitor F·4 G·0
+01:27:14.879909 db@open done T·82.600797ms
+=============== Feb 26, 2025 (UTC) ===============
+01:35:15.759498 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+01:35:15.759732 version@stat F·[1 1] S·2MiB[2MiB 468KiB] Sc·[0.25 0.00]
+01:35:15.759751 db@open opening
+01:35:15.759846 journal@recovery F·1
+01:35:15.760476 journal@recovery recovering @22
+01:35:15.779089 memdb@flush created L0@24 N·20 S·13KiB "cli..CFR,v7456":"cli..ile,v7453"
+01:35:15.783843 version@stat F·[2 1] S·2MiB[2MiB 468KiB] Sc·[0.50 0.00]
+01:35:15.815623 db@janitor F·5 G·0
+01:35:15.815675 db@open done T·55.911645ms
+=============== Feb 26, 2025 (UTC) ===============
+01:59:57.497000 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+01:59:57.497245 version@stat F·[2 1] S·2MiB[2MiB 468KiB] Sc·[0.50 0.00]
+01:59:57.497265 db@open opening
+01:59:57.497363 journal@recovery F·1
+01:59:57.497488 journal@recovery recovering @25
+01:59:57.515718 memdb@flush created L0@27 N·36 S·30KiB "cli..CFR,v7501":"cli..ile,v7474"
+01:59:57.515883 version@stat F·[3 1] S·2MiB[2MiB 468KiB] Sc·[0.75 0.00]
+01:59:57.576339 db@janitor F·6 G·0
+01:59:57.576411 db@open done T·79.133078ms

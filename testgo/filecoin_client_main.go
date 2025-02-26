@@ -11,9 +11,9 @@ import (
 func main() {
 	acAddr := "localhost:50051"
 	// acAddr := "10.0.4.29:50051"
-	snAddrFilepath := "/root/DSN/ECDS/data/snaddrs"
+	snAddrFilepath := "/root/ECDS/data/snaddr3"
 	clientNum := 1
-	fileNum := 1
+	fileNum := 100
 	// logoutpath := "data/outlog"
 	//读存储节点地址表
 	snaddrmap := util.ReadSNAddrFile(snAddrFilepath)
@@ -35,7 +35,7 @@ func main() {
 		go func(clientId string) {
 			//创建一个客户端
 			client1 := clientObject[clientId]
-			filepath := "data/testData2"
+			filepath := "/root/ECDS/data/testData2"
 			for j := 0; j < fileNum; j++ {
 				//客户端PutFile
 				filename := "testData" + strconv.Itoa(j)
@@ -49,11 +49,11 @@ func main() {
 	for i := 0; i < clientNum; i++ {
 		<-done
 	}
-	util.LogToFile("/root/DSN/ECDS/data/outlog", "putfile结束")
+	util.LogToFile("/root/ECDS/data/outlog", "putfile结束")
 	// log.Println("putfile结束")
 	duration := time.Since(start)
-	util.LogToFile("/root/DSN/ECDS/data/outlog", strconv.Itoa(int(duration.Milliseconds())))
-	util.LogToFile("/root/DSN/ECDS/data/outlog", "\n")
+	util.LogToFile("/root/ECDS/data/outlog", strconv.Itoa(int(duration.Milliseconds())))
+	util.LogToFile("/root/ECDS/data/outlog", "\n")
 	log.Println("putfile executed in:", duration.Milliseconds())
 
 	//GetFile
@@ -77,15 +77,15 @@ func main() {
 	for i := 0; i < clientNum; i++ {
 		<-done
 	}
-	util.LogToFile("/root/DSN/ECDS/data/outlog", "getfile结束")
+	util.LogToFile("/root/ECDS/data/outlog", "getfile结束")
 	// log.Println("putfile结束")
 	duration = time.Since(start)
-	util.LogToFile("/root/DSN/ECDS/data/outlog", strconv.Itoa(int(duration.Milliseconds())))
-	util.LogToFile("/root/DSN/ECDS/data/outlog", "\n")
+	util.LogToFile("/root/ECDS/data/outlog", strconv.Itoa(int(duration.Milliseconds())))
+	util.LogToFile("/root/ECDS/data/outlog", "\n")
 	log.Println("getfile executed in:", duration.Milliseconds())
 
 	// UpdateFile
-	newfilepath := "/root/DSN/ECDS/data/testData3"
+	newfilepath := "/root/ECDS/data/testData3"
 	start = time.Now()
 	done = make(chan struct{})
 	for i := 0; i < clientNum; i++ {
@@ -106,10 +106,10 @@ func main() {
 	for i := 0; i < clientNum; i++ {
 		<-done
 	}
-	util.LogToFile("/root/DSN/ECDS/data/outlog", "updatefile结束")
+	util.LogToFile("/root/ECDS/data/outlog", "updatefile结束")
 	// log.Println("putfile结束")
 	duration = time.Since(start)
-	util.LogToFile("/root/DSN/ECDS/data/outlog", strconv.Itoa(int(duration.Milliseconds())))
-	util.LogToFile("/root/DSN/ECDS/data/outlog", "\n")
+	util.LogToFile("/root/ECDS/data/outlog", strconv.Itoa(int(duration.Milliseconds())))
+	util.LogToFile("/root/ECDS/data/outlog", "\n")
 	log.Println("updatefile executed in:", duration.Milliseconds())
 }

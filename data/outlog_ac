@@ -1,24 +1,52 @@
-[putfile-w1-sia-clientNum10]
-[putfile-w1-sia-clientNum20]
-[putfile-w1-sia-clientNum10]
-[putfile-w1-sia-clientNum20]
-[putfile-w1-sia-clientNum30]
-[putfile-w1-sia-clientNum10]
-[putfile-w1-sia-clientNum10]
-[putfile-w1-sia-clientNum10]
-[putfile-w1-sia-clientNum10]
-[putfile-w1-sia-clientNum10]
-[putfile-w1-sia-clientNum20]
-[putfile-w1-sia-clientNum30]
-[putfile-w1-sia-clientNum40]
-[putfile-w1-sia-clientNum50]
-[putfile-w1-filecoin-clientNum10]
-[putfile-w1-filecoin-clientNum20]
-[putfile-w1-filecoin-clientNum10]
-[putfile-w1-filecoin-clientNum10]
-[putfile-w1-filecoin-clientNum20]
-[putfile-w1-filecoin-clientNum10]
-[putfile-w1-filecoin-clientNum10]
-[putfile-w1-filecoin-clientNum10]
-audit-1 latency=14263 ms, avgLatency=14263 ms, avgVOSize=395 KB, auditInforSize=2156 KB
-audit-2 latency=23484 ms, avgLatency=18873 ms, avgVOSize=607 KB, auditInforSize=4398 KB
+audit-1 latency=1790 ms, avgLatency=1790 ms, avgVOSize=0 KB, auditInforSize=6 KB
+audit-2 latency=24564 ms, avgLatency=13177 ms, avgVOSize=2 KB, auditInforSize=6 KB
+audit-3 latency=74535 ms, avgLatency=33629 ms, avgVOSize=2 KB, auditInforSize=6 KB
+audit-4 latency=83900 ms, avgLatency=46196 ms, avgVOSize=4 KB, auditInforSize=12 KB
+audit-5 latency=76363 ms, avgLatency=52229 ms, avgVOSize=4 KB, auditInforSize=12 KB
+audit-6 latency=151540 ms, avgLatency=68780 ms, avgVOSize=6 KB, auditInforSize=18 KB
+audit-7 latency=173873 ms, avgLatency=83793 ms, avgVOSize=7 KB, auditInforSize=24 KB
+audit-8 latency=190325 ms, avgLatency=97109 ms, avgVOSize=9 KB, auditInforSize=31 KB
+audit-9 latency=212997 ms, avgLatency=109985 ms, avgVOSize=10 KB, auditInforSize=37 KB
+audit-10 latency=234925 ms, avgLatency=122479 ms, avgVOSize=12 KB, auditInforSize=43 KB
+audit-11 latency=253145 ms, avgLatency=134357 ms, avgVOSize=14 KB, auditInforSize=49 KB
+audit-12 latency=277884 ms, avgLatency=146317 ms, avgVOSize=16 KB, auditInforSize=55 KB
+audit-13 latency=302636 ms, avgLatency=158341 ms, avgVOSize=17 KB, auditInforSize=62 KB
+audit-14 latency=322070 ms, avgLatency=170035 ms, avgVOSize=19 KB, auditInforSize=68 KB
+audit-15 latency=338882 ms, avgLatency=181291 ms, avgVOSize=21 KB, auditInforSize=74 KB
+audit-16 latency=360384 ms, avgLatency=192484 ms, avgVOSize=23 KB, auditInforSize=80 KB
+audit-17 latency=378407 ms, avgLatency=203420 ms, avgVOSize=25 KB, auditInforSize=86 KB
+audit-18 latency=408349 ms, avgLatency=214804 ms, avgVOSize=27 KB, auditInforSize=99 KB
+audit-19 latency=448848 ms, avgLatency=227122 ms, avgVOSize=29 KB, auditInforSize=105 KB
+audit-20 latency=515445 ms, avgLatency=241538 ms, avgVOSize=31 KB, auditInforSize=111 KB
+audit-21 latency=605465 ms, avgLatency=258867 ms, avgVOSize=33 KB, auditInforSize=124 KB
+audit-22 latency=647465 ms, avgLatency=276530 ms, avgVOSize=35 KB, auditInforSize=136 KB
+audit-23 latency=678464 ms, avgLatency=294005 ms, avgVOSize=38 KB, auditInforSize=149 KB
+audit-24 latency=725453 ms, avgLatency=311982 ms, avgVOSize=40 KB, auditInforSize=161 KB
+audit-25 latency=756725 ms, avgLatency=329771 ms, avgVOSize=43 KB, auditInforSize=174 KB
+audit-26 latency=805385 ms, avgLatency=348063 ms, avgVOSize=46 KB, auditInforSize=186 KB
+audit-27 latency=842368 ms, avgLatency=366370 ms, avgVOSize=49 KB, auditInforSize=205 KB
+audit-28 latency=952731 ms, avgLatency=387311 ms, avgVOSize=52 KB, auditInforSize=217 KB
+audit-29 latency=1340943 ms, avgLatency=420194 ms, avgVOSize=55 KB, auditInforSize=230 KB
+audit-30 latency=1480108 ms, avgLatency=455524 ms, avgVOSize=58 KB, auditInforSize=248 KB
+audit-31 latency=1543345 ms, avgLatency=490615 ms, avgVOSize=61 KB, auditInforSize=267 KB
+audit-32 latency=1627276 ms, avgLatency=526135 ms, avgVOSize=65 KB, auditInforSize=286 KB
+audit-33 latency=1695467 ms, avgLatency=561569 ms, avgVOSize=69 KB, auditInforSize=311 KB
+audit-34 latency=1840671 ms, avgLatency=599189 ms, avgVOSize=73 KB, auditInforSize=329 KB
+audit-35 latency=1919084 ms, avgLatency=636900 ms, avgVOSize=77 KB, auditInforSize=348 KB
+audit-36 latency=2121064 ms, avgLatency=678126 ms, avgVOSize=81 KB, auditInforSize=373 KB
+audit-37 latency=2212921 ms, avgLatency=719606 ms, avgVOSize=85 KB, auditInforSize=398 KB
+audit-38 latency=2364377 ms, avgLatency=762889 ms, avgVOSize=90 KB, auditInforSize=429 KB
+audit-39 latency=2542370 ms, avgLatency=808516 ms, avgVOSize=95 KB, auditInforSize=454 KB
+audit-40 latency=2173378 ms, avgLatency=842637 ms, avgVOSize=100 KB, auditInforSize=485 KB
+audit-41 latency=2159865 ms, avgLatency=874764 ms, avgVOSize=105 KB, auditInforSize=516 KB
+audit-42 latency=2315425 ms, avgLatency=909065 ms, avgVOSize=111 KB, auditInforSize=553 KB
+audit-1 latency=1628 ms, avgLatency=1628 ms, avgVOSize=0 KB, auditInforSize=6 KB
+audit-2 latency=27045 ms, avgLatency=14336 ms, avgVOSize=2 KB, auditInforSize=6 KB
+audit-3 latency=88089 ms, avgLatency=38920 ms, avgVOSize=2 KB, auditInforSize=6 KB
+audit-4 latency=82236 ms, avgLatency=49749 ms, avgVOSize=4 KB, auditInforSize=12 KB
+audit-1 latency=1181 ms, avgLatency=1181 ms, avgVOSize=0 KB, auditInforSize=3 KB
+audit-2 latency=11483 ms, avgLatency=6332 ms, avgVOSize=1 KB, auditInforSize=3 KB
+audit-3 latency=11421 ms, avgLatency=8028 ms, avgVOSize=1 KB, auditInforSize=3 KB
+audit-4 latency=11326 ms, avgLatency=8852 ms, avgVOSize=1 KB, auditInforSize=3 KB
+audit-5 latency=11379 ms, avgLatency=9357 ms, avgVOSize=1 KB, auditInforSize=3 KB
+audit-6 latency=11422 ms, avgLatency=9701 ms, avgVOSize=1 KB, auditInforSize=3 KB

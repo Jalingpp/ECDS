@@ -37,7 +37,7 @@ func main() {
 		go func(clientId string) {
 			//创建一个客户端
 			client1 := clientObject[clientId]
-			filepath := "/root/DSN/ECDS/data/testData2"
+			filepath := "/root/ECDS/data/testData2"
 			for j := 0; j < fileNum; j++ {
 				//客户端PutFile
 				filename := "testData" + strconv.Itoa(j)
