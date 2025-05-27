@@ -10,6 +10,8 @@ The golang-grpc package provides a library about gRPC.
 
 The installation command is: `go get -u google.golang.org/grpc`
 
+NOTICE: if faild with `server misbehaving`, execute `export GOPROXY=https://goproxy.cn,direct` and re-execute the installation command.
+
 ## 2 Install Protocol Buffers
 
 Protocol Buffers is a language-neutral, platform-neutral, extensible mechanism for serializing structured data and is used as a data exchange format. gRPC uses protoc as the protocol processing tool.
