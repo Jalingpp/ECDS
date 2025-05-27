@@ -10,7 +10,7 @@ The golang-grpc package provides a library about gRPC.
 
 The installation command is: `go get -u google.golang.org/grpc`
 
-NOTICE: if faild with `server misbehaving`, execute `export GOPROXY=https://goproxy.cn,direct` and re-execute the installation command.
+NOTICE: Before installing gRPC, you should already install go by commands `apt update`and `apt install golang-go`. If faild with `server misbehaving`, execute `export GOPROXY=https://goproxy.cn,direct` and re-execute the installation command.
 
 ## 2 Install Protocol Buffers
 
