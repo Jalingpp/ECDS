@@ -173,3 +173,5 @@ audit-1 latency=1276 ms, avgLatency=1276 ms, avgVOSize=0 KB, auditInforSize=0 KB
 [putfile-w1-filecoin-clientNum3]
 [putfile-w1-filecoin-clientNum4]
 [putfile-w1-filecoin-clientNum5]
+audit-1 latency=13191 ms, avgLatency=13191 ms, avgVOSize=282 KB, auditInforSize=1443 KB
+audit-2 latency=26537 ms, avgLatency=19864 ms, avgVOSize=441 KB, auditInforSize=3597 KB

@@ -432,7 +432,7 @@ func (sn *StorageNode) PutIncParityShards(ctx context.Context, req *pb.PutIPSReq
 		}
 		//1-更新校验块
 		//1.1-获取旧的校验块
-		var oldPS *util.DataShard
+		// var oldPS *util.DataShard
 		sn.FSMMMutex.RLock()
 		// if sn.FileShardsMap[cid_fn] == nil {
 		sn.CFMMutex.RLock()
@@ -453,7 +453,7 @@ func (sn *StorageNode) PutIncParityShards(ctx context.Context, req *pb.PutIPSReq
 		sn.FSMMMutex.RUnlock()
 		//1.2-更新校验块，指针就地更新
 		sn.FSMMMutex.Lock()
-		newps := encode.UpdateParityShard(oldPS, incPS, sn.Params)
+		newps := encode.UpdateParityShard(oldps, incPS, sn.Params)
 		sn.SaveDataShardToDB(dbkey, newps)
 		sn.FSMMMutex.Unlock()
 	}
