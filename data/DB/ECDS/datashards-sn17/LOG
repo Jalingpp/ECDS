@@ -1,0 +1,16 @@
+=============== May 27, 2025 (UTC) ===============
+09:01:20.787994 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+09:01:20.812896 db@open opening
+09:01:20.813016 version@stat F·[] S·0B[] Sc·[]
+09:01:20.825182 db@janitor F·2 G·0
+09:01:20.825226 db@open done T·12.320345ms
+=============== May 27, 2025 (UTC) ===============
+10:09:10.643035 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+10:09:10.643215 version@stat F·[] S·0B[] Sc·[]
+10:09:10.643228 db@open opening
+10:09:10.643284 journal@recovery F·1
+10:09:10.643968 journal@recovery recovering @1
+10:09:10.679089 memdb@flush created L0@2 N·5000 S·649KiB "cli..p-9,v3":"cli..p-9,v4915"
+10:09:10.679398 version@stat F·[1] S·649KiB[649KiB] Sc·[0.25]
+10:09:10.727019 db@janitor F·3 G·0
+10:09:10.727035 db@open done T·83.800668ms
