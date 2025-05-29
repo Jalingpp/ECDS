@@ -11,7 +11,7 @@ if [ ! -d "data" ]; then
 fi
 
 # 定义端口号
-port=50051
+port=50001
 
 # 将IP地址和端口号写入data目录下的snaddr文件中
 echo -e "$ip_address:$port" > data/acaddr
