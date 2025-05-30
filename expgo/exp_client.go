@@ -31,6 +31,7 @@ func main() {
 
 	//创建客户端并完成注册
 	ecco, filecoinco, storjco, siaco := CreateClient(dsnMode, clientNum, dn, pn, acAddr, *snaddrmap)
+	log.Println("所有客户端创建完成。")
 
 	//创建延迟统计通道
 	totalLatency := int64(0)
@@ -119,7 +120,7 @@ func CreateClient(dsnMode string, clientNum int, dn int, pn int, acAddr string, 
 			//客户端向存储系统注册
 			client1.Register()
 			clientObject[clientId] = client1
-			log.Println(clientId, "regist complete")
+			log.Println(clientId, "创建完成。")
 		}
 		return clientObject, nil, nil, nil
 	} else if dsnMode == "filecoin" {
@@ -182,6 +183,7 @@ func PutfileByMode(dsnMode string, clientId string, i int, avgFileNum int, filed
 				log.Println(count, clientId, "put", filename, "complete in", latency, " ms")
 			}
 		}
+
 		return totalLatency / int64(avgFileNum), totalFileSize
 	} else if dsnMode == "filecoin" {
 		client1 := filecoinco[clientId]

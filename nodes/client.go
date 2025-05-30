@@ -32,6 +32,7 @@ func NewClient(id string, dn int, pn int, ac_addr string, snaddrmap map[string]s
 	// 设置连接审计方服务器的地址
 	conn, err := grpc.Dial(ac_addr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	if err != nil {
+		log.Println("grpc.Dial err")
 		log.Fatalf("did not connect to auditor: %v", err)
 	}
 	// defer conn.Close()
