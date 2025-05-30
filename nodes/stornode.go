@@ -63,14 +63,17 @@ func NewStorageNode(snid string, snaddr string) *StorageNode {
 	sn := &StorageNode{snid, snaddr, "", nil, cpi, sync.RWMutex{}, clientFileMap, sync.RWMutex{}, cache, db, sync.RWMutex{}, pb.UnimplementedSNServiceServer{}, pb.UnimplementedSNACServiceServer{}, pacpdsn, sync.RWMutex{}, pacudsn, sync.RWMutex{}, adsq, sync.RWMutex{}}
 	// sn := &StorageNode{snid, snaddr, "", nil, cpi, sync.RWMutex{}, clientFileMap, sync.RWMutex{}, fileShardsMap, sync.RWMutex{}, pb.UnimplementedSNServiceServer{}, pb.UnimplementedSNACServiceServer{}, adsq, sync.RWMutex{}}
 	//设置监听地址
-	lis, err := net.Listen("tcp", snaddr)
+	//将监听地址设置为localhost:port
+	port := strings.Split(snaddr, ":")[1]
+	newsnaddr := "0.0.0.0:" + port
+	lis, err := net.Listen("tcp", newsnaddr)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	s := grpc.NewServer()
 	pb.RegisterSNServiceServer(s, sn)
 	pb.RegisterSNACServiceServer(s, sn)
-	log.Println("Server listening on " + snaddr)
+	log.Println("Server listening on " + newsnaddr)
 	go func() {
 		if err := s.Serve(lis); err != nil {
 			log.Fatalf("failed to serve: %v", err)

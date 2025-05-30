@@ -6,7 +6,7 @@ fi
 
 # 检查第二个参数是否为空
 if [ -z "$2" ]; then
-    snPort=50061
+    snPort=50000
 else
     snPort=$2
 fi
@@ -27,9 +27,10 @@ cd "$GOPath" || { echo "Failed to change directory to $GOPath"; exit 1; }
 export TMPDIR="$GOPath/temp"
 mkdir -p "$TMPDIR"
 
-if [ "$snPort" -eq 50061 ]; then
+if [ "$snPort" -eq 50000 ]; then
     rm -rf "$TMPDIR"/*
     rm -rf ~/.cache/go-build/*
+    rm -rf /root/ECDS/data/DB/*
     /usr/local/go/bin/go build -o expsn $GOFile
 fi
 
