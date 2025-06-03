@@ -74,7 +74,9 @@ func NewStorjAC(ipaddr string, snaddrfilename string, dn int, pn int, datadir st
 	}
 	auditor := &StorjAC{ipaddr, *snaddrmap, cfrmap, sync.RWMutex{}, fromap, framap, fvmap, sync.RWMutex{}, dn, pn, pb.UnimplementedStorjACServiceServer{}, snrpcs, sync.RWMutex{}, 1, sync.Mutex{}, pfrmap, pfsnmap, pfvmap, sync.RWMutex{}, pufmap, pufvmap, sync.RWMutex{}, false, sync.RWMutex{}, mvfrtmap, mvfrdmap, sync.RWMutex{}}
 	//设置监听地址
-	lis, err := net.Listen("tcp", ipaddr)
+	port := strings.Split(ipaddr, ":")[1]
+	newipaddr := "0.0.0.0:" + port
+	lis, err := net.Listen("tcp", newipaddr)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}

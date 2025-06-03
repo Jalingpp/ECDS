@@ -80,7 +80,9 @@ func NewFilecoinAC(ipaddr string, snaddrfilename string, f int, datadir string) 
 	mvfsimap := make(map[string]map[int]map[int]*SectorSealedInfor)
 	auditor := &FilecoinAC{ipaddr, *snaddrmap, f, cfrsnmap, cfvmap, cfrmidmap, cfrsimap, sync.RWMutex{}, pb.UnimplementedFilecoinACServiceServer{}, snrpcs, sync.RWMutex{}, 1, sync.RWMutex{}, pcfrsnmap, pcfrmidmap, pcfrsimap, sync.RWMutex{}, pucfrsimap, pucfvmap, sync.RWMutex{}, sealProofType, ticket, seed, false, sync.RWMutex{}, mvfsimap, sync.RWMutex{}}
 	//设置监听地址
-	lis, err := net.Listen("tcp", ipaddr)
+	port := strings.Split(ipaddr, ":")[1]
+	newipaddr := "0.0.0.0:" + port
+	lis, err := net.Listen("tcp", newipaddr)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}

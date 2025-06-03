@@ -12,6 +12,7 @@ import (
 	"log"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 
 	lru "github.com/hashicorp/golang-lru"
@@ -69,14 +70,16 @@ func NewStorjSN(snid string, snaddr string) *StorjSN {
 	afq := make(map[string]map[string]map[string][][]int32)
 	sn := &StorjSN{snid, snaddr, clientFileMap, sync.RWMutex{}, cache, db, sync.RWMutex{}, pb.UnimplementedStorjSNServiceServer{}, pb.UnimplementedStorjSNACServiceServer{}, pacpfn, pacpfv, sync.RWMutex{}, pacufn, pacufv, sync.RWMutex{}, afq, sync.RWMutex{}} //设置监听地址
 	// sn := &StorjSN{snid, snaddr, clientFileMap, sync.RWMutex{}, fileShardsMap, fileleavesMap, filerootMap, fileversionMap, sync.RWMutex{}, pb.UnimplementedStorjSNServiceServer{}, pb.UnimplementedStorjSNACServiceServer{}, pacpfn, pacpfv, sync.RWMutex{}, pacufn, pacufv, sync.RWMutex{}, afq, sync.RWMutex{}} //设置监听地址
-	lis, err := net.Listen("tcp", snaddr)
+	port := strings.Split(snaddr, ":")[1]
+	newsnaddr := "0.0.0.0:" + port
+	lis, err := net.Listen("tcp", newsnaddr)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	s := grpc.NewServer()
 	pb.RegisterStorjSNServiceServer(s, sn)
 	pb.RegisterStorjSNACServiceServer(s, sn)
-	log.Println("Server listening on " + snaddr)
+	log.Println("Server listening on " + newsnaddr)
 	go func() {
 		if err := s.Serve(lis); err != nil {
 			log.Fatalf("failed to serve: %v", err)
@@ -593,6 +596,7 @@ func (sn *StorjSN) StorjPreAuditSN(ctx context.Context, req *pb.StorjPASNRequest
 
 // 【供审计方使用的RPC】获取存储节点上所有存储文件副本的聚合存储证明
 func (sn *StorjSN) StorjGetPosSN(ctx context.Context, req *pb.StorjGAPSNRequest) (*pb.StorjGAPSNResponse, error) {
+	sn.FSLRMMMutex.Lock() //阻塞写操作
 	sn.AFQMutex.RLock()
 	fileshards := sn.AuditorFileQueue[req.Auditno][strconv.Itoa(int(req.Currpcno))]
 	sn.AFQMutex.RUnlock()
@@ -611,6 +615,7 @@ func (sn *StorjSN) StorjGetPosSN(ctx context.Context, req *pb.StorjGAPSNRequest)
 		delete(sn.AuditorFileQueue, req.Auditno)
 	}
 	sn.AFQMutex.Unlock()
+	sn.FSLRMMMutex.Unlock() //阻塞写操作
 	return &pb.StorjGAPSNResponse{Preleafs: preleaf, Totalrpcs: req.Totalrpcs, Currpcno: req.Currpcno}, nil
 }
 

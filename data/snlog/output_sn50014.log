@@ -1,3 +1,5 @@
 ReadSNAddr:sn15,172.23.166.110:50014
-2025/05/30 13:44:45 Server listening on 0.0.0.0:50014
-已创建 1 个ECSN
+2025/06/03 11:41:16 Server listening on 0.0.0.0:50014
+已创建 1 个FilecoinSN
+/root/ECDS/expgo//temp/sector-cache-dirclient0-1-14-1-3268590877
+2025/06/03 11:45:48 【PutFile】 client0-1-14 OK

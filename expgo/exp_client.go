@@ -35,7 +35,7 @@ func main() {
 
 	//创建延迟统计通道
 	totalLatency := int64(0)
-	totalOriginFileSize := 0
+	// totalOriginFileSize := 0
 	var tlMutex sync.RWMutex
 
 	//PutFile
@@ -45,10 +45,11 @@ func main() {
 	for i := 0; i < clientNum; i++ {
 		clientId := "client" + strconv.Itoa(i)
 		go func(clientId string, index int) {
-			latency, filesize := PutfileByMode(dsnMode, clientId, index, avgFileNum, filedir, ecco, filecoinco, storjco, siaco)
+			// latency, filesize := PutfileByMode(dsnMode, clientId, index, avgFileNum, filedir, ecco, filecoinco, storjco, siaco)
+			latency, _ := PutfileByMode(dsnMode, clientId, index, avgFileNum, filedir, ecco, filecoinco, storjco, siaco)
 			tlMutex.Lock()
 			totalLatency = totalLatency + latency
-			totalOriginFileSize = totalOriginFileSize + filesize
+			// totalOriginFileSize = totalOriginFileSize + filesize
 			tlMutex.Unlock()
 			done <- struct{}{}
 		}(clientId, i)
@@ -62,6 +63,7 @@ func main() {
 	avglatency := totalLatency / int64(clientNum)
 	// 获取文件在DSN中的存储空间代价
 	totalSize := GetSNStorageCost(dsnMode, ecco, filecoinco, storjco, siaco)
+	totalOriginFileSize, _ := util.GetDatabaseSize(filedir)
 	storagecostratio := float64(totalSize) / float64(totalOriginFileSize)
 	util.LogToFile(datadir+"outlog_client", "[putfile-w1-"+dsnMode+"-clientNum"+strconv.Itoa(clientNum)+"] throughput="+throughput+", avglatency="+strconv.Itoa(int(avglatency))+" ms, snstoragecost="+strconv.Itoa(totalSize/1024)+" KB, storageratio="+strconv.FormatFloat(storagecostratio, 'f', -1, 64)+"\n")
 	log.Println("[putfile-w1-" + dsnMode + "-clientNum" + strconv.Itoa(clientNum) + "] throughput=" + throughput + ", avglatency=" + strconv.Itoa(int(avglatency)) + " ms, snstoragecost=" + strconv.Itoa(totalSize/1024) + " KB, storageratio=" + strconv.FormatFloat(storagecostratio, 'f', -1, 64))
@@ -258,6 +260,9 @@ func GetSNStorageCost(dsnMode string, ecco map[string]*nodes.Client, filecoinco 
 		for _, co := range ecco {
 			size := co.GetSNsStorageCosts()
 			tsMutex.Lock()
+			if totalSize != 0 {
+				break
+			}
 			totalSize = totalSize + size
 			tsMutex.Unlock()
 		}
@@ -266,6 +271,9 @@ func GetSNStorageCost(dsnMode string, ecco map[string]*nodes.Client, filecoinco 
 		for _, co := range filecoinco {
 			size := co.FilecoinGetSNsStorageCosts()
 			tsMutex.Lock()
+			if totalSize != 0 {
+				break
+			}
 			totalSize = totalSize + size
 			tsMutex.Unlock()
 		}
@@ -274,6 +282,9 @@ func GetSNStorageCost(dsnMode string, ecco map[string]*nodes.Client, filecoinco 
 		for _, co := range storjco {
 			size := co.StorjGetSNsStorageCosts()
 			tsMutex.Lock()
+			if totalSize != 0 {
+				break
+			}
 			totalSize = totalSize + size
 			tsMutex.Unlock()
 		}
@@ -282,6 +293,9 @@ func GetSNStorageCost(dsnMode string, ecco map[string]*nodes.Client, filecoinco 
 		for _, co := range siaco {
 			size := co.SiaGetSNsStorageCosts()
 			tsMutex.Lock()
+			if totalSize != 0 {
+				break
+			}
 			totalSize = totalSize + size
 			tsMutex.Unlock()
 		}

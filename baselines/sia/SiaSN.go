@@ -77,14 +77,16 @@ func NewSiaSN(snid string, snaddr string) *SiaSN {
 	afq := make(map[string]map[string]*SiaAuditInfor)
 	sn := &SiaSN{snid, snaddr, cache, db, sync.RWMutex{}, pb.UnimplementedSiaSNServiceServer{}, pb.UnimplementedSiaSNACServiceServer{}, pacpfn, pacpp, pacpt, pacptr, sync.RWMutex{}, pacufn, pacupp, pacut, pacutr, sync.RWMutex{}, afq, sync.RWMutex{}} //设置监听地址
 	// sn := &SiaSN{snid, snaddr, clientdshMap, clientdshiMap, fileShardsMap, fileversionMap, clientmrMap, clientmrtMap, sync.RWMutex{}, pb.UnimplementedSiaSNServiceServer{}, pb.UnimplementedSiaSNACServiceServer{}, pacpfn, pacpp, pacpt, pacptr, sync.RWMutex{}, pacufn, pacupp, pacut, pacutr, sync.RWMutex{}, afq, sync.RWMutex{}} //设置监听地址
-	lis, err := net.Listen("tcp", snaddr)
+	port := strings.Split(snaddr, ":")[1]
+	newsnaddr := "0.0.0.0:" + port
+	lis, err := net.Listen("tcp", newsnaddr)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	s := grpc.NewServer()
 	pb.RegisterSiaSNServiceServer(s, sn)
 	pb.RegisterSiaSNACServiceServer(s, sn)
-	log.Println("Server listening on " + snaddr)
+	log.Println("Server listening on " + newsnaddr)
 	go func() {
 		if err := s.Serve(lis); err != nil {
 			log.Fatalf("failed to serve: %v", err)
@@ -772,6 +774,7 @@ func (sn *SiaSN) SiaGetDSSTNoLessV(cid string, fn string, dsno string, version i
 // 【供审计方使用的RPC】获取存储节点上所有存储分片的聚合存储证明
 func (sn *SiaSN) SiaGetPosSN(ctx context.Context, req *pb.SiaGAPSNRequest) (*pb.SiaGAPSNResponse, error) {
 	//获取dssmap map[string]map[string][]*util.DataShard
+	sn.CFMMutex.Lock() //阻塞写操作
 	sn.AFQMutex.RLock()
 	dssmap := sn.AuditorFileQueue[req.Auditno]
 	sn.AFQMutex.RUnlock()
@@ -784,6 +787,7 @@ func (sn *SiaSN) SiaGetPosSN(ctx context.Context, req *pb.SiaGAPSNRequest) (*pb.
 		e := errors.New("datashard audit infor not exist")
 		return nil, e
 	}
+	sn.CFMMutex.Unlock() //阻塞写操作
 	//返回验证信息
 	return &pb.SiaGAPSNResponse{Cidfni: dssmap[cid_fn_dsno].Key, Data: dssmap[cid_fn_dsno].Data, Version: dssmap[cid_fn_dsno].Version, Roothash: dssmap[cid_fn_dsno].RootHash, Roottimestamp: int32(dssmap[cid_fn_dsno].RootTimestamp), Path: dssmap[cid_fn_dsno].Path, Index: int32(dssmap[cid_fn_dsno].Index)}, nil
 }

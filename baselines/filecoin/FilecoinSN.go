@@ -17,14 +17,12 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	ffi "github.com/filecoin-project/filecoin-ffi"
 	"github.com/filecoin-project/go-state-types/abi"
 	prooftypes "github.com/filecoin-project/go-state-types/proof"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/ipfs/go-cid"
-	"github.com/shirou/gopsutil/mem"
 	"github.com/syndtr/goleveldb/leveldb"
 	"google.golang.org/grpc"
 )
@@ -105,14 +103,16 @@ func NewFilecoinSN(snid string, snaddr string) *FilecoinSN {
 	assfmap := make(map[string]map[string]map[string]string)
 	sn := &FilecoinSN{snid, snaddr, cache, db, sync.RWMutex{}, pb.UnimplementedFilecoinSNServiceServer{}, pb.UnimplementedFilecoinSNACServiceServer{}, pacpfn, sync.RWMutex{}, pacufn, pacufvmap, sync.RWMutex{}, abi.ActorID(snidint), sealProofType, CidFnRepsectorCacheDirPath, CidFnRepstagedSectorFile, CidFnRepsealedSectorFile, sync.RWMutex{}, ticket, seed, 0, sync.RWMutex{}, afq, ascdmap, assfmap, sync.RWMutex{}} //设置监听地址
 	// sn := &FilecoinSN{snid, snaddr, clientFileRepMap, clientFileRepVMap, clientFileRepSectorInforMap, sync.RWMutex{}, pb.UnimplementedFilecoinSNServiceServer{}, pb.UnimplementedFilecoinSNACServiceServer{}, pacpfn, sync.RWMutex{}, pacufn, pacufvmap, sync.RWMutex{}, abi.ActorID(snidint), sealProofType, CidFnRepsectorCacheDirPath, CidFnRepstagedSectorFile, CidFnRepsealedSectorFile, sync.RWMutex{}, ticket, seed, 0, sync.RWMutex{}, afq, ascdmap, assfmap, sync.RWMutex{}} //设置监听地址
-	lis, err := net.Listen("tcp", snaddr)
+	port := strings.Split(snaddr, ":")[1]
+	newsnaddr := "0.0.0.0:" + port
+	lis, err := net.Listen("tcp", newsnaddr)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	s := grpc.NewServer()
 	pb.RegisterFilecoinSNServiceServer(s, sn)
 	pb.RegisterFilecoinSNACServiceServer(s, sn)
-	log.Println("Server listening on " + snaddr)
+	log.Println("Server listening on " + newsnaddr)
 	go func() {
 		if err := s.Serve(lis); err != nil {
 			log.Fatalf("failed to serve: %v", err)
@@ -381,76 +381,76 @@ func (sn *FilecoinSN) FilecoinConstructSectors(cid_fn string, version int, filec
 	sn.CFRSCMutex.Unlock()
 	databyte, roudnum := PadTo1524Multiple([]byte(filecontent))
 	for i := 0; i < roudnum; i++ {
-		for {
-			//用于监测内存使用情况
-			v, err := mem.VirtualMemory()
-			if err != nil {
-				fmt.Println("Failed to get memory info:", err)
-			}
-			if v.Free >= v.Total/2 {
-				fmt.Println(cid_fn, roudnum, "Free Memory1:", v.Free/1024/1024)
-				break
-			} else {
-				time.Sleep(1 * time.Second)
-			}
-		}
+		// for {
+		// 	//用于监测内存使用情况
+		// 	v, err := mem.VirtualMemory()
+		// 	if err != nil {
+		// 		fmt.Println("Failed to get memory info:", err)
+		// 	}
+		// 	if v.Free >= v.Total/2 {
+		// 		fmt.Println(cid_fn, roudnum, "Free Memory1:", v.Free/1024/1024)
+		// 		break
+		// 	} else {
+		// 		time.Sleep(1 * time.Second)
+		// 	}
+		// }
 		sn.SNMutex.RLock()
 		sectorNum := abi.SectorNumber(sn.SectorNumber)
 		sn.SNMutex.RUnlock()
 		startnum := i * 1524
 		pieceFileA := requireTempFile(bytes.NewReader(databyte[startnum:startnum+508]), 508)
 		defer os.Remove(pieceFileA.Name()) // 确保在函数退出时删除临时文件
-		for {
-			//用于监测内存使用情况
-			v, err := mem.VirtualMemory()
-			if err != nil {
-				fmt.Println("Failed to get memory info:", err)
-			}
-			if v.Free >= v.Total/2 {
-				fmt.Println(cid_fn, roudnum, "Free Memory2:", v.Free/1024/1024)
-				break
-			} else {
-				time.Sleep(1 * time.Second)
-			}
+		// for {
+		// 	//用于监测内存使用情况
+		// 	v, err := mem.VirtualMemory()
+		// 	if err != nil {
+		// 		fmt.Println("Failed to get memory info:", err)
+		// 	}
+		// 	if v.Free >= v.Total/2 {
+		// 		fmt.Println(cid_fn, roudnum, "Free Memory2:", v.Free/1024/1024)
+		// 		break
+		// 	} else {
+		// 		time.Sleep(1 * time.Second)
+		// 	}
 
-		}
+		// }
 		pieceCIDA, err := ffi.GeneratePieceCIDFromFile(sn.SealProofType, pieceFileA, 508)
 		if err != nil {
 			os.Remove(pieceFileA.Name()) // 错误处理时清理
 			log.Fatalf("GeneratePieceCIDFromFile Error: %v", err)
 		}
 		pieceFileA.Seek(0, 0)
-		for {
-			//用于监测内存使用情况
-			v, err := mem.VirtualMemory()
-			if err != nil {
-				fmt.Println("Failed to get memory info:", err)
-			}
-			if v.Free >= v.Total/2 {
-				fmt.Println(cid_fn, roudnum, "Free Memory3:", v.Free/1024/1024)
-				break
-			} else {
-				time.Sleep(1 * time.Second)
-			}
-		}
+		// for {
+		// 	//用于监测内存使用情况
+		// 	v, err := mem.VirtualMemory()
+		// 	if err != nil {
+		// 		fmt.Println("Failed to get memory info:", err)
+		// 	}
+		// 	if v.Free >= v.Total/2 {
+		// 		fmt.Println(cid_fn, roudnum, "Free Memory3:", v.Free/1024/1024)
+		// 		break
+		// 	} else {
+		// 		time.Sleep(1 * time.Second)
+		// 	}
+		// }
 		_, _, err = ffi.WriteWithoutAlignment(sn.SealProofType, pieceFileA, 508, stagedSectorFile)
 		if err != nil {
 			os.Remove(pieceFileA.Name()) // 错误处理时清理
 			log.Fatalf("WriteWithoutAlignment Error: %v", err.Error())
 		}
-		for {
-			//用于监测内存使用情况
-			v, err := mem.VirtualMemory()
-			if err != nil {
-				fmt.Println("Failed to get memory info:", err)
-			}
-			if v.Free >= v.Total/2 {
-				fmt.Println(cid_fn, roudnum, "Free Memory4:", v.Free/1024/1024)
-				break
-			} else {
-				time.Sleep(1 * time.Second)
-			}
-		}
+		// for {
+		// 	//用于监测内存使用情况
+		// 	v, err := mem.VirtualMemory()
+		// 	if err != nil {
+		// 		fmt.Println("Failed to get memory info:", err)
+		// 	}
+		// 	if v.Free >= v.Total/2 {
+		// 		fmt.Println(cid_fn, roudnum, "Free Memory4:", v.Free/1024/1024)
+		// 		break
+		// 	} else {
+		// 		time.Sleep(1 * time.Second)
+		// 	}
+		// }
 		pieceFileB := requireTempFile(bytes.NewReader(databyte[startnum+508:startnum+1524]), 1016)
 		defer os.Remove(pieceFileB.Name()) // 确保在函数退出时删除临时文件
 		pieceCIDB, err := ffi.GeneratePieceCIDFromFile(sn.SealProofType, pieceFileB, 1016)
@@ -465,19 +465,19 @@ func (sn *FilecoinSN) FilecoinConstructSectors(cid_fn string, version int, filec
 			os.Remove(pieceFileB.Name()) // 清理当前临时文件
 			log.Fatalf("Seek Error: %v", err.Error())
 		}
-		for {
-			//用于监测内存使用情况
-			v, err := mem.VirtualMemory()
-			if err != nil {
-				fmt.Println("Failed to get memory info:", err)
-			}
-			if v.Free >= v.Total/2 {
-				fmt.Println(cid_fn, roudnum, "Free Memory5:", v.Free/1024/1024)
-				break
-			} else {
-				time.Sleep(1 * time.Second)
-			}
-		}
+		// for {
+		// 	//用于监测内存使用情况
+		// 	v, err := mem.VirtualMemory()
+		// 	if err != nil {
+		// 		fmt.Println("Failed to get memory info:", err)
+		// 	}
+		// 	if v.Free >= v.Total/2 {
+		// 		fmt.Println(cid_fn, roudnum, "Free Memory5:", v.Free/1024/1024)
+		// 		break
+		// 	} else {
+		// 		time.Sleep(1 * time.Second)
+		// 	}
+		// }
 		_, _, _, err = ffi.WriteWithAlignment(sn.SealProofType, pieceFileB, 1016, stagedSectorFile, []abi.UnpaddedPieceSize{508})
 		if err != nil {
 			os.Remove(pieceFileA.Name()) // 清理已创建的临时文件
@@ -492,19 +492,19 @@ func (sn *FilecoinSN) FilecoinConstructSectors(cid_fn string, version int, filec
 			Size:     abi.UnpaddedPieceSize(1016).Padded(),
 			PieceCID: pieceCIDB,
 		}}
-		for {
-			//用于监测内存使用情况
-			v, err := mem.VirtualMemory()
-			if err != nil {
-				fmt.Println("Failed to get memory info:", err)
-			}
-			if v.Free >= v.Total/2 {
-				fmt.Println(cid_fn, roudnum, "Free Memory6:", v.Free/1024/1024)
-				break
-			} else {
-				time.Sleep(1 * time.Second)
-			}
-		}
+		// for {
+		// 	//用于监测内存使用情况
+		// 	v, err := mem.VirtualMemory()
+		// 	if err != nil {
+		// 		fmt.Println("Failed to get memory info:", err)
+		// 	}
+		// 	if v.Free >= v.Total/2 {
+		// 		fmt.Println(cid_fn, roudnum, "Free Memory6:", v.Free/1024/1024)
+		// 		break
+		// 	} else {
+		// 		time.Sleep(1 * time.Second)
+		// 	}
+		// }
 		// 预提交封装
 		sealPreCommitPhase1Output, err := ffi.SealPreCommitPhase1(sn.SealProofType, sectorCacheDirPath, stagedSectorFile.Name(), sealedSectorFile.Name(), sectorNum, sn.MinerID, sn.Ticket, publicPieces)
 		if err != nil {
@@ -513,38 +513,38 @@ func (sn *FilecoinSN) FilecoinConstructSectors(cid_fn string, version int, filec
 			log.Fatalf("SealPreCommitPhase1 Error: %v", err.Error())
 		}
 		// log.Println("sealPreCommitPhase1Output:", sealPreCommitPhase1Output)
-		for {
-			//用于监测内存使用情况
-			v, err := mem.VirtualMemory()
-			if err != nil {
-				fmt.Println("Failed to get memory info:", err)
-			}
-			if v.Free >= v.Total/2 {
-				fmt.Println(cid_fn, roudnum, "Free Memory7:", v.Free/1024/1024)
-				break
-			} else {
-				time.Sleep(1 * time.Second)
-			}
-		}
+		// for {
+		// 	//用于监测内存使用情况
+		// 	v, err := mem.VirtualMemory()
+		// 	if err != nil {
+		// 		fmt.Println("Failed to get memory info:", err)
+		// 	}
+		// 	if v.Free >= v.Total/2 {
+		// 		fmt.Println(cid_fn, roudnum, "Free Memory7:", v.Free/1024/1024)
+		// 		break
+		// 	} else {
+		// 		time.Sleep(1 * time.Second)
+		// 	}
+		// }
 		sealedCID, unsealedCID, err := ffi.SealPreCommitPhase2(sealPreCommitPhase1Output, sectorCacheDirPath, sealedSectorFile.Name())
 		if err != nil {
 			os.Remove(pieceFileA.Name()) // 清理已创建的临时文件
 			os.Remove(pieceFileB.Name()) // 清理当前临时文件
 			log.Fatalf("SealPreCommitPhase2 Error: %v", err.Error())
 		}
-		for {
-			//用于监测内存使用情况
-			v, err := mem.VirtualMemory()
-			if err != nil {
-				fmt.Println("Failed to get memory info:", err)
-			}
-			if v.Free >= v.Total/2 {
-				fmt.Println(cid_fn, roudnum, "Free Memory8:", v.Free/1024/1024)
-				break
-			} else {
-				time.Sleep(1 * time.Second)
-			}
-		}
+		// for {
+		// 	//用于监测内存使用情况
+		// 	v, err := mem.VirtualMemory()
+		// 	if err != nil {
+		// 		fmt.Println("Failed to get memory info:", err)
+		// 	}
+		// 	if v.Free >= v.Total/2 {
+		// 		fmt.Println(cid_fn, roudnum, "Free Memory8:", v.Free/1024/1024)
+		// 		break
+		// 	} else {
+		// 		time.Sleep(1 * time.Second)
+		// 	}
+		// }
 		// 提交封装
 		sealCommitPhase1Output, err := ffi.SealCommitPhase1(sn.SealProofType, sealedCID, unsealedCID, sectorCacheDirPath, sealedSectorFile.Name(), sectorNum, sn.MinerID, sn.Ticket, sn.Seed, publicPieces)
 		if err != nil {
@@ -552,19 +552,19 @@ func (sn *FilecoinSN) FilecoinConstructSectors(cid_fn string, version int, filec
 			os.Remove(pieceFileB.Name()) // 清理当前临时文件
 			log.Fatalf("SealCommitPhase1 Error: %v", err.Error())
 		}
-		for {
-			//用于监测内存使用情况
-			v, err := mem.VirtualMemory()
-			if err != nil {
-				fmt.Println("Failed to get memory info:", err)
-			}
-			if v.Free >= v.Total/2 {
-				fmt.Println(cid_fn, roudnum, "Free Memory9:", v.Free/1024/1024)
-				break
-			} else {
-				time.Sleep(1 * time.Second)
-			}
-		}
+		// for {
+		// 	//用于监测内存使用情况
+		// 	v, err := mem.VirtualMemory()
+		// 	if err != nil {
+		// 		fmt.Println("Failed to get memory info:", err)
+		// 	}
+		// 	if v.Free >= v.Total/2 {
+		// 		fmt.Println(cid_fn, roudnum, "Free Memory9:", v.Free/1024/1024)
+		// 		break
+		// 	} else {
+		// 		time.Sleep(1 * time.Second)
+		// 	}
+		// }
 		proof, err := ffi.SealCommitPhase2(sealCommitPhase1Output, sectorNum, sn.MinerID)
 		if err != nil {
 			os.Remove(pieceFileA.Name()) // 清理已创建的临时文件
